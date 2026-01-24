@@ -185,6 +185,30 @@ export default function CustomersPage() {
                 </div>
               </div>
 
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 p-3 bg-muted/30 rounded-md border text-xs text-muted-foreground mb-4">
+                <span className="font-semibold text-foreground mr-1">Legenda:</span>
+
+                <div className="flex items-center gap-1.5">
+                  <Badge variant="default" className="h-5 px-1.5 bg-yellow-500 hover:bg-yellow-600 text-white border-0">VIP</Badge>
+                  <span>Mais de 10 pedidos ou R$ 500+</span>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <Badge variant="outline" className="h-5 px-1.5 text-blue-500 border-blue-500">Novo</Badge>
+                  <span>&lt; 30 dias de cadastro</span>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <Badge variant="secondary" className="h-5 px-1.5 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100 hover:bg-green-200">Recorrente</Badge>
+                  <span>Cliente fiel</span>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <Badge variant="secondary" className="h-5 px-1.5">Inativo</Badge>
+                  <span>Sem pedir há 60+ dias</span>
+                </div>
+              </div>
+
               <Card>
                 <CardContent className="p-0">
                   <div className="rounded-md border">
