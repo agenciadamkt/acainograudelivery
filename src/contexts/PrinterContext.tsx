@@ -6,7 +6,7 @@ interface PrinterContextType {
     isConnected: boolean;
     printers: string[];
     selectedPrinter: string | null;
-    connect: () => Promise<void>;
+    connect: (silent?: boolean) => Promise<void>;
     printRaw: (data: any[]) => Promise<void>;
     setSelectedPrinter: (printer: string) => void;
     isPrinting: boolean;
@@ -14,8 +14,16 @@ interface PrinterContextType {
 
 const PrinterContext = createContext<PrinterContextType | undefined>(undefined);
 
+import { setupQzSecurity } from '@/utils/printing/qz-security';
+
 export const PrinterProvider = ({ children }: { children: ReactNode }) => {
     const [isConnected, setIsConnected] = useState(false);
+
+    // Configure Security for "Remember" checkbox
+    useEffect(() => {
+        setupQzSecurity();
+    }, []);
+
     const [printers, setPrinters] = useState<string[]>([]);
     const [selectedPrinter, setSelectedPrinter] = useState<string | null>(
         localStorage.getItem('selected_printer')
@@ -23,12 +31,12 @@ export const PrinterProvider = ({ children }: { children: ReactNode }) => {
     const [isPrinting, setIsPrinting] = useState(false);
 
     // Initialize QZ Tray connection
-    const connect = async () => {
+    const connect = async (silent: boolean = false) => {
         try {
             if (!qz.websocket.isActive()) {
                 await qz.websocket.connect();
                 setIsConnected(true);
-                toast.success("Conectado ao serviço de impressão");
+                if (!silent) toast.success("Conectado ao serviço de impressão");
 
                 // Find printers
                 const foundPrinters = await qz.printers.find();
@@ -36,15 +44,14 @@ export const PrinterProvider = ({ children }: { children: ReactNode }) => {
             }
         } catch (err) {
             console.error(err);
-            toast.error("Erro ao conectar com QZ Tray. Verifique se o programa está aberto.");
+            if (!silent) {
+                toast.error("Erro ao conectar com QZ Tray. Verifique se o programa está aberto.");
+            }
             setIsConnected(false);
         }
     };
 
     useEffect(() => {
-        // Attempt auto-connect on mount
-        connect();
-
         return () => {
             if (qz.websocket.isActive()) {
                 qz.websocket.disconnect();

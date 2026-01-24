@@ -16,7 +16,8 @@ import {
   ChevronDown,
   Store,
   Megaphone,
-  BarChart3
+  BarChart3,
+  MessageSquare
 } from 'lucide-react';
 import {
   Sidebar,
@@ -59,6 +60,8 @@ const menuItems = [
   { title: 'Entregas', url: '/admin/delivery', icon: Truck },
   { title: 'Food Analytics', url: '/admin/analytics', icon: BarChart3, requireRole: 'manager' },
   { title: 'Marketing', url: '/admin/marketing', icon: Megaphone, requireRole: 'manager' },
+  { title: 'Promoções', url: '/admin/settings', icon: Settings }, // Example just to find context
+  { title: 'Avaliações NPS', url: '/admin/feedback', icon: MessageSquare, requireRole: 'manager' },
   { title: 'Configurações', url: '/admin/settings', icon: Settings },
 ];
 

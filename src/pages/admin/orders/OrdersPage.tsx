@@ -34,88 +34,11 @@ export default function OrdersPage() {
   const { currentStore } = useStore();
   const { printRaw, isConnected } = usePrinter();
 
-  // Automatic Printing Logic
+  // Automatic Printing Logic removed per user request (only print on accept)
+  // Realtime updates are handled by useOrders hook
   useEffect(() => {
-    if (!currentStore?.id) return;
-
-    const channel = supabase
-      .channel('auto-print-orders')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'orders',
-          filter: `store_id=eq.${currentStore.id}`,
-        },
-        async (payload) => {
-          console.log('🖨️ Novo pedido detectado:', payload);
-          toast.success("Novo pedido recebido!");
-
-          // We need to fetch the full order with items to print
-          const { data: fullOrder, error } = await supabase
-            .from('orders')
-            .select(`
-                *,
-                customer:customers(name, phone),
-                delivery_address:customer_addresses(street, number, complement, neighborhood, city, state, zipcode),
-                items:order_items(
-                  quantity, 
-                  subtotal, 
-                  notes,
-                  product:products(name),
-                  size:product_sizes(name),
-                  toppings:order_item_toppings(
-                    price:unit_price,
-                    topping:toppings(name)
-                  )
-                )
-            `)
-            .eq('id', payload.new.id)
-            .single();
-
-          if (error || !fullOrder) {
-            console.error('Erro ao buscar dados do pedido para impressão:', error);
-            return;
-          }
-
-          // Format for ESC/POS
-          // Map the Supabase structure to our simple EscPos structure
-          const escPosOrder: any = {
-            ...fullOrder,
-            items: fullOrder.items.map((i: any) => ({
-              quantity: i.quantity,
-              name: i.product?.name || 'Produto',
-              subtotal: i.subtotal,
-              size: i.size?.name,
-              notes: i.notes,
-              toppings: i.toppings.map((t: any) => ({
-                name: t.topping?.name,
-                price: t.price
-              }))
-            }))
-          };
-
-          if (isConnected) {
-            try {
-              const commands = generateEscPosCommand(escPosOrder, currentStore.name);
-              await printRaw(commands);
-              toast.success("Cupom enviado para impressora!");
-            } catch (err) {
-              console.error("Falha ao imprimir automaticamente", err);
-              toast.error("Falha na impressão automática");
-            }
-          } else {
-            toast.warning("Impressora desconectada. Abra o QZ Tray para imprimir.");
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [currentStore, isConnected]);
+    // Keep toast for feedback if desired, or relying on global handler
+  }, []);
 
   const selectedOrderData = orders.find((o) => o.id === selectedOrder);
 

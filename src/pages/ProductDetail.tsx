@@ -7,7 +7,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import BottomNavigation from "@/components/BottomNavigation";
-import { useProducts } from "@/hooks/useProducts";
+import { useProduct } from "@/hooks/useProducts";
 import { useProductSizes } from "@/hooks/useProductSizes";
 import { useToppingCategories } from "@/hooks/useToppingCategories";
 import { useToppings } from "@/hooks/useToppings";
@@ -20,8 +20,7 @@ const ProductDetail = () => {
   const { id } = useParams();
   const { addItem, getStoreAwareRoute } = useCart();
 
-  const { data: allProducts, isLoading: loadingProduct } = useProducts(undefined, true);
-  const product = allProducts?.find(p => p.id === id);
+  const { data: product, isLoading: loadingProduct } = useProduct(id!);
 
   const { data: sizes, isLoading: loadingSizes } = useProductSizes(id!);
   const { data: toppingCategories, isLoading: loadingCategories } = useToppingCategories();
@@ -141,13 +140,13 @@ const ProductDetail = () => {
     );
   }
 
-  if (!product || !product.active) {
+  if (!product) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-background">
         <Card className="p-8 text-center max-w-md">
-          <h2 className="text-xl font-bold mb-2">Produto não disponível</h2>
+          <h2 className="text-xl font-bold mb-2">Produto não encontrado</h2>
           <p className="text-muted-foreground mb-4">
-            Este produto não foi encontrado ou não está mais disponível.
+            Este produto não existe.
           </p>
           <Button onClick={() => navigate(getStoreAwareRoute())}>
             Voltar ao Menu
@@ -181,7 +180,7 @@ const ProductDetail = () => {
           <img
             src={product.base_image_url}
             alt={product.name}
-            className="w-full h-full object-cover transition-transform duration-700 hover:scale-110"
+            className={`w-full h-full object-cover transition-transform duration-700 hover:scale-110 ${!product.active ? 'grayscale opacity-70' : ''}`}
           />
         ) : (
           <div className="w-full h-full bg-primary/5 flex items-center justify-center">
@@ -189,8 +188,17 @@ const ProductDetail = () => {
           </div>
         )}
 
+        {/* Unavailable Overaly */}
+        {!product.active && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/40 z-10 backdrop-blur-[2px]">
+            <div className="bg-destructive text-destructive-foreground px-6 py-2 rounded-full font-bold shadow-lg transform -rotate-6 border-2 border-white/20">
+              INDISPONÍVEL
+            </div>
+          </div>
+        )}
+
         {/* Header Controls */}
-        <div className="absolute top-8 left-6 right-6 flex items-center justify-between z-10">
+        <div className="absolute top-8 left-6 right-6 flex items-center justify-between z-20">
           <Button
             variant="ghost"
             size="icon"
@@ -202,7 +210,7 @@ const ProductDetail = () => {
           <Button
             variant="ghost"
             size="icon"
-            className="rounded-full bg-white/40 backdrop-blur-xl border border-white/20 h-11 w-11 shadow-sm text-red-500 hover:bg-white/80"
+            className="rounded-full bg-white/40 backdrop-blur-xl border border-white/20 h-11 w-11 shadow-sm text-black hover:bg-white/80"
           >
             <Heart className="w-5 h-5" />
           </Button>
@@ -359,12 +367,22 @@ const ProductDetail = () => {
 
           <Button
             onClick={handleAddToCart}
-            className="rounded-[22px] px-8 h-14 bg-primary text-white font-extrabold text-sm gap-3 shadow-lg shadow-primary/30"
+            disabled={!product.active}
+            className={`rounded-[22px] px-8 h-14 font-extrabold text-sm gap-3 shadow-lg 
+              ${!product.active
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed shadow-none'
+                : 'bg-primary text-white shadow-primary/30'}`}
           >
-            <div className="bg-white/20 p-2 rounded-lg">
-              <Plus className="w-4 h-4" />
-            </div>
-            Adicionar
+            {!product.active ? (
+              <span>INDISPONÍVEL</span>
+            ) : (
+              <>
+                <div className="bg-white/20 p-2 rounded-lg">
+                  <Plus className="w-4 h-4" />
+                </div>
+                Adicionar
+              </>
+            )}
           </Button>
         </div>
       </div>

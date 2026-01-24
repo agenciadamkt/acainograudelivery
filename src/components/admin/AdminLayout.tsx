@@ -1,4 +1,4 @@
-import { ReactNode, useState, useRef } from 'react';
+import { ReactNode, useState, useRef, useEffect } from 'react';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AdminSidebar } from './AdminSidebar';
 import { StoreSelector } from './StoreSelector';
@@ -12,6 +12,9 @@ import { useStore } from '@/contexts/StoreContext';
 import { supabase } from '@/integrations/supabase/client';
 import { NewOrderDialog } from '@/components/admin/NewOrderDialog';
 import { PrintableOrder } from '@/components/admin/PrintableOrder';
+import { usePrinter } from '@/contexts/PrinterContext';
+import { generateEscPosCommand } from '@/utils/printing/escpos';
+import { toast } from 'sonner';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { FeedbackModal } from '@/components/common/FeedbackModal';
@@ -45,12 +48,53 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   };
 
   const { isPlayingSound, stopSound, newOrderForDialog, clearNewOrder } = useRealtimeOrders();
+  const { printRaw, isConnected, connect } = usePrinter();
 
-  const handlePrint = () => {
-    if (!printRef.current || !orderToPrint || !currentStore) {
+  // Try to connect to printer silently when entering Admin Panel
+  useEffect(() => {
+    connect(true);
+  }, []);
+
+  const handlePrint = async () => {
+    if (!orderToPrint || !currentStore) {
       console.error('❌ Dados para impressão não disponíveis');
       return;
     }
+
+    // Tentar impressão térmica via QZ Tray primeiro
+    if (isConnected) {
+      try {
+        // Mapear estrutura do pedido para o formato do gerador ESC/POS
+        const escPosOrder: any = {
+          ...orderToPrint,
+          items: orderToPrint.items.map((i: any) => ({
+            quantity: i.quantity,
+            name: i.product?.name || 'Produto',
+            subtotal: i.subtotal,
+            size: i.product_size?.name, // Adjusted from 'size' to 'product_size' based on the select query
+            notes: i.notes,
+            toppings: i.toppings?.map((t: any) => ({
+              name: t.topping?.name,
+              price: t.price || t.unit_price
+            })) || []
+          }))
+        };
+
+        const commands = generateEscPosCommand(escPosOrder, currentStore.name);
+        await printRaw(commands);
+        toast.success("Enviado para impressora térmica!");
+        setShowPrintDialog(false); // Fecha o modal após enviar
+        setOrderToPrint(null);
+        return;
+      } catch (error) {
+        console.error("Falha na impressão térmica:", error);
+        toast.error("Erro na impressão térmica. Tentando método padrão...");
+        // Fallback continues below
+      }
+    }
+
+    // Fallback: Janela de Impressão do Navegador (Código original)
+    if (!printRef.current) return;
 
     // Criar uma nova janela para impressão
     const printWindow = window.open('', '_blank', 'width=800,height=600');
@@ -251,19 +295,57 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
             if (fullOrder) {
               if (!fullOrder.items || fullOrder.items.length === 0) {
-                alert('Erro: Pedido sem itens. Não é possível imprimir.');
+                toast.error('Erro: Pedido sem itens. Não é possível imprimir.');
                 clearNewOrder();
                 return;
               }
 
               if (!currentStore) {
-                alert('Erro: Dados da loja não disponíveis. Não é possível imprimir.');
+                toast.error('Erro: Dados da loja não disponíveis.');
                 clearNewOrder();
                 return;
               }
 
-              setOrderToPrint(fullOrder);
-              setShowPrintDialog(true);
+              // IMPRESSÃO AUTOMÁTICA AO ACEITAR
+              if (isConnected) {
+                try {
+                  // Mapear estrutura
+                  const escPosOrder: any = {
+                    ...fullOrder,
+                    items: fullOrder.items.map((i: any) => ({
+                      quantity: i.quantity,
+                      name: i.product?.name || 'Produto',
+                      subtotal: i.subtotal,
+                      size: i.product_size?.name,
+                      notes: i.notes,
+                      toppings: i.toppings?.map((t: any) => ({
+                        name: t.topping?.name,
+                        price: t.price || t.unit_price
+                      })) || []
+                    }))
+                  };
+
+                  const commands = generateEscPosCommand(escPosOrder, currentStore.name);
+                  await printRaw(commands);
+                  toast.success("Pedido aceito e enviado para impressora! 🖨️");
+                } catch (err) {
+                  console.error("Erro ao imprimir automaticamente:", err);
+                  // Se falhar a térmica, avisa mas não bloqueia o fluxo
+                  toast.error("Pedido aceito, mas falha na impressão automática.");
+
+                  // Opcional: Mostrar diálogo de print manual como fallback?
+                  setOrderToPrint(fullOrder);
+                  setShowPrintDialog(true);
+                  clearNewOrder();
+                  return;
+                }
+              } else {
+                // Se não tiver impressora conectada, mostra diálogo manual
+                setOrderToPrint(fullOrder);
+                setShowPrintDialog(true);
+                clearNewOrder();
+                return;
+              }
             }
 
             clearNewOrder();
@@ -272,13 +354,13 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         onClose={clearNewOrder}
       />
 
-      {/* Global Print Dialog */}
+      {/* Global Print Dialog - Fallback Only */}
       <AlertDialog open={showPrintDialog} onOpenChange={setShowPrintDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-2xl">✅ Pedido Aceito com Sucesso!</AlertDialogTitle>
+            <AlertDialogTitle className="text-2xl">✅ Pedido Aceito!</AlertDialogTitle>
             <AlertDialogDescription className="text-base">
-              Pedido #{orderToPrint?.order_number} foi confirmado e está sendo preparado.
+              Impressora térmica não detectada. Deseja imprimir manualmente?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -52,6 +52,7 @@ import DeliveryPage from "./pages/admin/delivery/DeliveryPage";
 import SettingsPage from "./pages/admin/settings/SettingsPage";
 import MarketingPage from "./pages/admin/MarketingPage";
 import FoodAnalyticsPage from "./pages/admin/FoodAnalyticsPage";
+import FeedbackPage from "./pages/admin/feedback/FeedbackPage";
 
 import { ThemeProvider } from "next-themes";
 
@@ -207,6 +208,14 @@ const App = () => (
                         element={
                           <PrivateRoute requiredRole="manager">
                             <FoodAnalyticsPage />
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/feedback"
+                        element={
+                          <PrivateRoute requiredRole="manager">
+                            <FeedbackPage />
                           </PrivateRoute>
                         }
                       />
