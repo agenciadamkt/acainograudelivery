@@ -393,8 +393,6 @@ const ProductDetail = () => {
           </Button>
         </div>
       </FeedbackModal>
-
-      <BottomNavigation />
     </div>
   );
 };
