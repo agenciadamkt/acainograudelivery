@@ -3,23 +3,31 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Users, Tag, Ticket, TrendingUp, Plus, Search } from 'lucide-react';
+import { Users, Tag, Ticket, TrendingUp, Plus, Search, DollarSign, UserPlus, ShoppingBag } from 'lucide-react';
 import { useCustomerSegments } from '@/hooks/useCustomerSegments';
+import { useCustomers, Customer } from '@/hooks/useCustomers';
 import { useCoupons, useCreateCoupon, useUpdateCoupon } from '@/hooks/useCoupons';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { CouponForm } from '@/components/admin/crm/CouponForm';
-import { format, isPast, isFuture } from 'date-fns';
+import { CustomerDetailsDialog } from '@/components/admin/crm/CustomerDetailsDialog';
+import { format, isPast, isFuture, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
 
 export default function CustomersPage() {
   const [couponDialogOpen, setCouponDialogOpen] = useState(false);
   const [editingCoupon, setEditingCoupon] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
+  // State para detalhes do cliente
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+
   const { data: segments } = useCustomerSegments();
   const { data: coupons } = useCoupons();
+  const { data: customersList } = useCustomers();
   const createCoupon = useCreateCoupon();
   const updateCoupon = useUpdateCoupon();
 
@@ -37,6 +45,11 @@ export default function CustomersPage() {
     }
   };
 
+  const handlesCustomerClick = (customer: Customer) => {
+    setSelectedCustomer(customer);
+    setDetailsOpen(true);
+  };
+
   const getCouponStatus = (coupon: any) => {
     const now = new Date();
     const validFrom = new Date(coupon.valid_from);
@@ -52,6 +65,28 @@ export default function CustomersPage() {
     coupon.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
     coupon.description?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const filteredCustomers = customersList?.filter(c =>
+    c.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    c.phone?.includes(searchTerm)
+  );
+
+  // Analytics Calculations
+  const totalRevenue = customersList?.reduce((acc, c) => acc + c.total_spent, 0) || 0;
+  const totalOrders = customersList?.reduce((acc, c) => acc + c.orders_count, 0) || 0;
+  const averageTicket = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
+  const newCustomers30Days = customersList?.filter(c =>
+    new Date(c.created_at) > subDays(new Date(), 30)
+  ).length || 0;
+
+  const topCustomers = customersList
+    ?.sort((a, b) => b.total_spent - a.total_spent)
+    .slice(0, 5)
+    .map(c => ({
+      name: c.name?.split(' ')[0] || 'Cliente',
+      total: c.total_spent
+    }));
 
   return (
     <AdminLayout>
@@ -102,7 +137,7 @@ export default function CustomersPage() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0</div>
+            <div className="text-2xl font-bold">{customersList?.length || 0}</div>
             <p className="text-xs text-muted-foreground">Clientes cadastrados</p>
           </CardContent>
         </Card>
@@ -151,9 +186,13 @@ export default function CustomersPage() {
                       </div>
                     ) : (
                       filteredCustomers?.slice(0, 50).map((customer) => (
-                        <div key={customer.id} className="flex items-center border-t p-4 text-sm hover:bg-muted/50 transition-colors">
+                        <div
+                          key={customer.id}
+                          className="flex items-center border-t p-4 text-sm hover:bg-muted/50 transition-colors cursor-pointer"
+                          onClick={() => handlesCustomerClick(customer)}
+                        >
                           <div className="flex-1">
-                            <div className="font-medium">{customer.name}</div>
+                            <div className="font-medium text-primary hover:underline">{customer.name}</div>
                             <div className="text-xs text-muted-foreground">{customer.phone || 'Sem telefone'}</div>
                           </div>
                           <div className="w-[150px] text-center">
@@ -323,11 +362,79 @@ export default function CustomersPage() {
           )}
         </TabsContent>
 
-        <TabsContent value="analytics">
-          <Card>
-            <CardContent className="py-12 text-center">
-              <TrendingUp className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">Análises de clientes em desenvolvimento</p>
+        <TabsContent value="analytics" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Ticket Médio</CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(averageTicket)}</div>
+                <p className="text-xs text-muted-foreground">Média de gasto por pedido</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Novos (30 dias)</CardTitle>
+                <UserPlus className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">+{newCustomers30Days}</div>
+                <p className="text-xs text-muted-foreground">Clientes cadastrados recentemente</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">LTV Total</CardTitle>
+                <TrendingUp className="h-4 w-4 text-green-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">
+                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(totalRevenue)}
+                </div>
+                <p className="text-xs text-muted-foreground">Faturamento vindo de clientes</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card className="col-span-4">
+            <CardHeader>
+              <CardTitle>Top 5 Clientes Vip</CardTitle>
+            </CardHeader>
+            <CardContent className="pl-2">
+              <div className="h-[300px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={topCustomers}>
+                    <XAxis
+                      dataKey="name"
+                      stroke="#888888"
+                      fontSize={12}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis
+                      stroke="#888888"
+                      fontSize={12}
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(value) => `R$${value}`}
+                    />
+                    <Tooltip
+                      formatter={(value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)}
+                      cursor={{ fill: 'transparent' }}
+                    />
+                    <Bar
+                      dataKey="total"
+                      fill="#8b5cf6"
+                      radius={[4, 4, 0, 0]}
+                      barSize={40}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -350,6 +457,12 @@ export default function CustomersPage() {
           />
         </DialogContent>
       </Dialog>
-    </AdminLayout >
+
+      <CustomerDetailsDialog
+        customer={selectedCustomer}
+        open={detailsOpen}
+        onOpenChange={setDetailsOpen}
+      />
+    </AdminLayout>
   );
 }
