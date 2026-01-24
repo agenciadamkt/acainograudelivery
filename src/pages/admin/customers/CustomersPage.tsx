@@ -61,6 +61,20 @@ export default function CustomersPage() {
     return { text: 'Ativo', variant: 'default' as const };
   };
 
+  const getCustomerSegment = (customer: Customer) => {
+    const totalSpent = customer.total_spent || 0;
+    const ordersCount = customer.orders_count || 0;
+    const daysSinceLastOrder = customer.last_order_date
+      ? Math.floor((new Date().getTime() - new Date(customer.last_order_date).getTime()) / (1000 * 3600 * 24))
+      : 999;
+    const daysSinceCreation = Math.floor((new Date().getTime() - new Date(customer.created_at).getTime()) / (1000 * 3600 * 24));
+
+    if (daysSinceLastOrder > 60) return { label: 'Inativo', color: 'secondary' };
+    if (ordersCount > 10 || totalSpent > 500) return { label: 'VIP', color: 'default', className: 'bg-yellow-500 hover:bg-yellow-600' };
+    if (daysSinceCreation < 30 && ordersCount <= 1) return { label: 'Novo', color: 'outline', className: 'text-blue-500 border-blue-500' };
+    return { label: 'Recorrente', color: 'secondary', className: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100' };
+  };
+
   const filteredCoupons = coupons?.filter(coupon =>
     coupon.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
     coupon.description?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -176,7 +190,8 @@ export default function CustomersPage() {
                   <div className="rounded-md border">
                     <div className="flex bg-muted/50 p-4 text-sm font-medium text-muted-foreground">
                       <div className="flex-1">Cliente</div>
-                      <div className="w-[150px] text-center">Pedidos</div>
+                      <div className="w-[120px] text-center">Segmento</div>
+                      <div className="w-[100px] text-center">Pedidos</div>
                       <div className="w-[150px] text-right">Total Gasto</div>
                       <div className="w-[150px] text-right">Último Pedido</div>
                     </div>
@@ -185,29 +200,37 @@ export default function CustomersPage() {
                         Nenhum cliente encontrado.
                       </div>
                     ) : (
-                      filteredCustomers?.slice(0, 50).map((customer) => (
-                        <div
-                          key={customer.id}
-                          className="flex items-center border-t p-4 text-sm hover:bg-muted/50 transition-colors cursor-pointer"
-                          onClick={() => handlesCustomerClick(customer)}
-                        >
-                          <div className="flex-1">
-                            <div className="font-medium text-primary hover:underline">{customer.name}</div>
-                            <div className="text-xs text-muted-foreground">{customer.phone || 'Sem telefone'}</div>
+                      filteredCustomers?.slice(0, 50).map((customer) => {
+                        const segment = getCustomerSegment(customer);
+                        return (
+                          <div
+                            key={customer.id}
+                            className="flex items-center border-t p-4 text-sm hover:bg-muted/50 transition-colors cursor-pointer"
+                            onClick={() => handlesCustomerClick(customer)}
+                          >
+                            <div className="flex-1">
+                              <div className="font-medium text-primary hover:underline">{customer.name}</div>
+                              <div className="text-xs text-muted-foreground">{customer.phone || 'Sem telefone'}</div>
+                            </div>
+                            <div className="w-[120px] text-center">
+                              <Badge variant={segment.color as any} className={segment.className}>
+                                {segment.label}
+                              </Badge>
+                            </div>
+                            <div className="w-[100px] text-center">
+                              <Badge variant="secondary">{customer.orders_count}</Badge>
+                            </div>
+                            <div className="w-[150px] text-right font-medium text-green-600">
+                              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(customer.total_spent)}
+                            </div>
+                            <div className="w-[150px] text-right text-muted-foreground">
+                              {customer.last_order_date
+                                ? format(new Date(customer.last_order_date), 'dd/MM/yy', { locale: ptBR })
+                                : '-'}
+                            </div>
                           </div>
-                          <div className="w-[150px] text-center">
-                            <Badge variant="secondary">{customer.orders_count}</Badge>
-                          </div>
-                          <div className="w-[150px] text-right font-medium text-green-600">
-                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(customer.total_spent)}
-                          </div>
-                          <div className="w-[150px] text-right text-muted-foreground">
-                            {customer.last_order_date
-                              ? format(new Date(customer.last_order_date), 'dd/MM/yy', { locale: ptBR })
-                              : '-'}
-                          </div>
-                        </div>
-                      ))
+                        );
+                      })
                     )}
                   </div>
                 </CardContent>
