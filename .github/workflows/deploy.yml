@@ -3,7 +3,8 @@ name: Deploy to Hostinger
 on:
   push:
     branches:
-      - main  # Ou 'master', verifique qual é a sua branch principal
+      - main
+  workflow_dispatch:
 
 jobs:
   build-and-deploy:
