@@ -1,0 +1,133 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    --background: 0 0% 96%;
+    --foreground: 0 0% 20%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 20%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 20%;
+
+    --primary: 262 50% 47%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 88 50% 55%;
+    --secondary-foreground: 0 0% 20%;
+
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 45%;
+
+    --accent: 262 50% 47%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 90%;
+    --input: 0 0% 100%;
+    --ring: 262 50% 47%;
+
+    --radius: 0.75rem;
+
+    --success: 88 50% 55%;
+    --success-foreground: 0 0% 100%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(262, 50%, 47%) 0%, hsl(262, 45%, 55%) 100%);
+    --gradient-hero: linear-gradient(180deg, hsl(262, 50%, 52%) 0%, hsl(262, 45%, 45%) 100%);
+
+    --shadow-card: 0 2px 8px hsla(0, 0%, 0%, 0.08);
+    --shadow-elevated: 0 4px 16px hsla(0, 0%, 0%, 0.12);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Animações customizadas para pedidos */
+@keyframes pulse-custom {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.02);
+    opacity: 0.95;
+  }
+}
+
+@keyframes blink {
+  0%, 50%, 100% {
+    opacity: 1;
+  }
+  25%, 75% {
+    opacity: 0.3;
+  }
+}
+
+@layer utilities {
+  .animate-pulse-custom {
+    animation: pulse-custom 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  .animate-blink {
+    animation: blink 1.5s infinite;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .glass-card {
+    @apply bg-white/40 backdrop-blur-xl border border-white/20;
+  }
+}
+
+/* CSS para impressão de cupom 80mm */
+@media print {
+  @page {
+    size: 80mm auto;
+    margin: 0;
+  }
+
+  body {
+    width: 80mm;
+  }
+
+  .print-content {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 11px;
+    line-height: 1.3;
+    padding: 8px;
+    color: #000;
+  }
+
+  /* Ocultar tudo exceto o conteúdo de impressão */
+  body > *:not(.print-content) {
+    display: none !important;
+  }
+
+  /* Mostrar apenas o conteúdo printável */
+  .print-content {
+    display: block !important;
+  }
+}

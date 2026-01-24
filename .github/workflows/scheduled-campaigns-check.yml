@@ -1,0 +1,25 @@
+name: Scheduled Campaigns Check
+
+on:
+  schedule:
+    # Executa a cada 15 minutos
+    - cron: '*/15 * * * *'
+  # Permite execução manual para testes
+  workflow_dispatch:
+
+jobs:
+  check-scheduled-campaigns:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Execute Scheduled Campaigns Check
+        run: |
+          curl -X POST \
+            'https://sixzfcpdjtnftacuwvph.supabase.co/functions/v1/scheduled-campaigns-check' \
+            -H 'Content-Type: application/json' \
+            -H 'Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}' \
+            -d '{}'
+      
+      - name: Log Execution
+        run: |
+          echo "✅ Scheduled campaigns check executed at $(date)"

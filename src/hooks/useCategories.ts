@@ -1,0 +1,127 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
+import { useStore } from '@/contexts/StoreContext';
+
+export interface Category {
+  id: string;
+  name: string;
+  icon: string | null;
+  active: boolean;
+  display_order: number;
+  store_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export function useCategories(activeOnly = false, storeId?: string) {
+  const { currentStore } = useStore();
+  const effectiveStoreId = storeId || currentStore?.id;
+  
+  return useQuery({
+    queryKey: ['categories', effectiveStoreId, activeOnly],
+    queryFn: async () => {
+      let query = supabase
+        .from('categories')
+        .select('*')
+        .order('display_order', { ascending: true });
+      
+      if (effectiveStoreId) {
+        query = query.eq('store_id', effectiveStoreId);
+      }
+      
+      if (activeOnly) {
+        query = query.eq('active', true);
+      }
+      
+      const { data, error } = await query;
+      if (error) throw error;
+      return data as Category[];
+    },
+    // Remover enabled para permitir buscar todas as categorias quando não há loja específica
+  });
+}
+
+export function useCreateCategory() {
+  const queryClient = useQueryClient();
+  const { currentStore } = useStore();
+  
+  return useMutation({
+    mutationFn: async (category: Omit<Category, 'id' | 'created_at' | 'updated_at' | 'store_id'>) => {
+      const { data, error } = await supabase
+        .from('categories')
+        .insert({ ...category, store_id: currentStore?.id })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      toast({ title: 'Categoria criada com sucesso!' });
+    },
+    onError: (error: Error) => {
+      toast({ 
+        title: 'Erro ao criar categoria',
+        description: error.message,
+        variant: 'destructive'
+      });
+    },
+  });
+}
+
+export function useUpdateCategory() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: Partial<Category> & { id: string }) => {
+      const { data, error } = await supabase
+        .from('categories')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      toast({ title: 'Categoria atualizada com sucesso!' });
+    },
+    onError: (error: Error) => {
+      toast({ 
+        title: 'Erro ao atualizar categoria',
+        description: error.message,
+        variant: 'destructive'
+      });
+    },
+  });
+}
+
+export function useDeleteCategory() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('categories')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      toast({ title: 'Categoria excluída com sucesso!' });
+    },
+    onError: (error: Error) => {
+      toast({ 
+        title: 'Erro ao excluir categoria',
+        description: error.message,
+        variant: 'destructive'
+      });
+    },
+  });
+}
