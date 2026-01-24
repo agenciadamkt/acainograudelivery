@@ -124,8 +124,8 @@ const StoreMenu = () => {
         {/* Premium Store Header Section */}
         <div className="space-y-6 pt-2">
           {/* Top Info Row */}
-          <div className="flex items-start justify-between relative px-2">
-            <div className="space-y-1 pr-20">
+          <div className="flex items-center justify-between relative px-2">
+            <div className="space-y-1">
               <h1 className="text-2xl font-black text-[#2D2D2D] tracking-tight leading-none">{store.name}</h1>
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-medium text-muted-foreground">
                 <span className="flex items-center gap-1 bg-orange-50 px-1.5 py-0.5 rounded-md">
@@ -142,15 +142,15 @@ const StoreMenu = () => {
               </div>
             </div>
 
-            {/* Floating Logo - Top Right */}
-            <div className="absolute right-0 top-0">
+            {/* Logo - Right Aligned */}
+            <div>
               {store.logo_url ? (
-                <div className="w-24 h-24 shrink-0 flex items-center justify-center -mt-2 -mr-2">
+                <div className="w-11 h-11 shrink-0 flex items-center justify-center">
                   <img src={store.logo_url} alt={store.name} className="w-full h-full object-contain mix-blend-multiply" />
                 </div>
               ) : (
-                <div className="w-20 h-20 rounded-full bg-primary/5 border-4 border-white flex items-center justify-center shrink-0 shadow-lg">
-                  <span className="text-3xl">🍦</span>
+                <div className="w-11 h-11 rounded-full bg-primary/5 border-4 border-white flex items-center justify-center shrink-0 shadow-lg">
+                  <span className="text-xl">🍦</span>
                 </div>
               )}
             </div>
