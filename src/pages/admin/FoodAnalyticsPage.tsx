@@ -3,13 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
     BarChart3, Users, TrendingUp, AlertTriangle,
     Gift, Trophy, Loader2, Sparkles, DollarSign, ArrowRight, MessageCircle
 } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { useCustomers, Customer } from '@/hooks/useCustomers'; // USANDO O HOOK CORRETO AGORA
 import { toast } from '@/hooks/use-toast';
 import {
     Select,
@@ -27,47 +25,54 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { subDays, isBefore } from 'date-fns';
 
 export default function FoodAnalyticsPage() {
     const navigate = useNavigate();
     const [dateRange, setDateRange] = useState('30d');
     const [selectedMetric, setSelectedMetric] = useState<string | null>(null);
 
-    // Fetch Analytics Data (View criada no banco)
-    const { data: analytics, isLoading } = useQuery({
-        queryKey: ['food-analytics', dateRange],
-        queryFn: async () => {
-            const { data, error } = await supabase
-                .from('customer_analytics') // View que já existe
-                .select('*');
+    // Reuse the working hook from CustomersPage
+    const { data: customersList, isLoading } = useCustomers();
 
-            if (error) {
-                console.error('Error fetching analytics:', error);
-                return [];
-            }
-            return data;
-        },
-    });
+    // Helper Calculate Status
+    const getCustomerStatus = (lastOrderDate: string | null) => {
+        if (!lastOrderDate) return 'lead'; // Nunca pediu
+        const days = Math.floor((new Date().getTime() - new Date(lastOrderDate).getTime()) / (1000 * 3600 * 24));
 
-    // Calculate Aggregates
+        if (days <= 30) return 'active';
+        if (days > 30 && days <= 60) return 'risk';
+        return 'churn'; // +60 dias
+    };
+
+    // Calculate Stats on the fly
     const stats = {
         ltv: 0,
         active: 0,
         risk: 0,
         churn: 0,
         total_revenue: 0,
-        leads: 0 // Total orders = 0
+        leads: 0
     };
 
-    if (analytics) {
-        analytics.forEach(curr => {
-            stats.total_revenue += (curr.ltv || 0);
-            if (curr.status === 'active') stats.active++;
-            if (curr.status === 'risk') stats.risk++;
-            if (curr.status === 'churn') stats.churn++;
-            if (curr.status === 'lead') stats.leads++;
-        });
-    }
+    // Prepare data for the table
+    const processedData = customersList?.map(c => {
+        const status = getCustomerStatus(c.last_order_date);
+
+        // Accumulate Stats
+        stats.total_revenue += (c.total_spent || 0);
+        if (status === 'active') stats.active++;
+        if (status === 'risk') stats.risk++;
+        if (status === 'churn') stats.churn++;
+        if (status === 'lead') stats.leads++;
+
+        return {
+            ...c,
+            status, // 'active', 'risk', 'churn', 'lead'
+            ltv: c.total_spent,
+            total_orders: c.orders_count
+        };
+    }) || [];
 
     const handleQuickCampaign = (type: string) => {
         let template = {
@@ -81,7 +86,7 @@ export default function FoodAnalyticsPage() {
                 template = {
                     name: 'Campanha VIP - Campeões',
                     message: 'Olá {name}! 🏆 Você é um dos nossos melhores clientes e merece um mimo especial. Peça hoje e ganhe entrega grátis!',
-                    segment: 'vip' // AGORA USA O SEGMENTO VIP
+                    segment: 'vip'
                 };
                 break;
             case 'aniversario':
@@ -118,10 +123,10 @@ export default function FoodAnalyticsPage() {
     };
 
     // Filter customers for the table based on selected card/metric
-    const filteredCustomers = analytics?.filter(c => {
+    const filteredCustomers = processedData.filter(c => {
         if (!selectedMetric) return true;
         return c.status === selectedMetric;
-    }) || [];
+    });
 
     return (
         <AdminLayout>
@@ -136,8 +141,7 @@ export default function FoodAnalyticsPage() {
                             <SelectValue placeholder="Período" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="30d">Últimos 30 dias</SelectItem>
-                            <SelectItem value="90d">Últimos 3 meses</SelectItem>
+                            <SelectItem value="30d">Todo o Período</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
