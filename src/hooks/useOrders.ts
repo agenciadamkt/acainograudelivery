@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useStore } from '@/contexts/StoreContext';
@@ -43,6 +44,33 @@ interface OrderFilters {
 
 export function useOrders(filters?: OrderFilters) {
   const { currentStore } = useStore();
+  const queryClient = useQueryClient();
+
+  // Setup Realtime Subscription
+  useEffect(() => {
+    if (!currentStore?.id) return;
+
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'orders',
+          filter: `store_id=eq.${currentStore.id}`,
+        },
+        (payload) => {
+          // Invalidate cache to refresh list
+          queryClient.invalidateQueries({ queryKey: ['orders'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentStore?.id, queryClient]);
 
   return useQuery({
     queryKey: ['orders', currentStore?.id, filters],

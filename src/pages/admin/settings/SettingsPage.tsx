@@ -7,16 +7,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
-import { Settings, Store, CreditCard, Bell, Palette, Users, Plug, FileText } from 'lucide-react';
+import { Settings, Store, CreditCard, Bell, Palette, Users, Plug, FileText, Printer } from 'lucide-react';
 import { useSystemSettings, useUpdateSystemSetting } from '@/hooks/useSystemSettings';
 import { useIntegrations } from '@/hooks/useIntegrations';
 import { useActivityLogs } from '@/hooks/useActivityLogs';
 import { Badge } from '@/components/ui/badge';
+import { StoreSettingsTab } from "./StoreSettingsTab";
+import { PrinterSettingsTab } from "./PrinterSettingsTab";
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from '@/hooks/use-toast';
 
-import { StoreSettingsTab } from './StoreSettingsTab';
 
 export default function SettingsPage() {
   const { data: settings } = useSystemSettings();
@@ -76,6 +77,10 @@ export default function SettingsPage() {
             <CreditCard className="h-4 w-4 mr-2" />
             Pagamentos
           </TabsTrigger>
+          <TabsTrigger value="printer">
+            <Printer className="h-4 w-4 mr-2" />
+            Impressora
+          </TabsTrigger>
           <TabsTrigger value="notifications">
             <Bell className="h-4 w-4 mr-2" />
             Notificações
@@ -88,6 +93,10 @@ export default function SettingsPage() {
 
         <TabsContent value="store" className="space-y-4">
           <StoreSettingsTab />
+        </TabsContent>
+
+        <TabsContent value="printer" className="space-y-4">
+          <PrinterSettingsTab />
         </TabsContent>
 
         <TabsContent value="general" className="space-y-4">

@@ -34,6 +34,8 @@ export default function Checkout() {
   const [tableNumber, setTableNumber] = useState<string>('');
   const [successModal, setSuccessModal] = useState<{ open: boolean, orderNumber: string, orderId: string }>({ open: false, orderNumber: '', orderId: '' });
 
+  const [store, setStore] = useState<any>(null);
+
   useEffect(() => {
     if (user) {
       supabase
@@ -45,7 +47,22 @@ export default function Checkout() {
     }
   }, [user]);
 
-  const deliveryFee = orderType === 'delivery' ? 5 : 0;
+  useEffect(() => {
+    const fetchStore = async () => {
+      const storeSlug = localStorage.getItem('last-visited-store');
+      if (storeSlug) {
+        const { data } = await supabase
+          .from('stores')
+          .select('id, delivery_fee, slug')
+          .eq('slug', storeSlug)
+          .single();
+        if (data) setStore(data);
+      }
+    };
+    fetchStore();
+  }, []);
+
+  const deliveryFee = orderType === 'delivery' ? (store?.delivery_fee || 0) : 0;
   const total = subtotal + deliveryFee;
 
   const handleSubmit = async () => {
@@ -115,10 +132,10 @@ export default function Checkout() {
         });
       }
 
-      // Buscar loja pela slug armazenada no localStorage
+      // Buscar loja pela slug armazenada no localStorage (ou usar do state)
       const storeSlug = localStorage.getItem('last-visited-store');
 
-      if (!storeSlug) {
+      if (!storeSlug && !store) {
         toast({
           title: 'Erro',
           description: 'Loja não identificada. Por favor, acesse a loja novamente.',
@@ -128,14 +145,20 @@ export default function Checkout() {
         return;
       }
 
-      const { data: store } = await supabase
-        .from('stores')
-        .select('id')
-        .eq('slug', storeSlug)
-        .eq('active', true)
-        .maybeSingle();
+      // Se já temos a loja no state, usamos ela. Caso contrário (improvável), buscamos.
+      let currentStoreId = store?.id;
+      if (!currentStoreId && storeSlug) {
+        const { data: fetchedStore } = await supabase
+          .from('stores')
+          .select('id')
+          .eq('slug', storeSlug)
+          .eq('active', true)
+          .maybeSingle();
 
-      if (!store) {
+        if (fetchedStore) currentStoreId = fetchedStore.id;
+      }
+
+      if (!currentStoreId) {
         toast({
           title: 'Erro',
           description: 'Loja não encontrada ou inativa',
@@ -151,7 +174,7 @@ export default function Checkout() {
         .insert([{
           order_number: '', // Será gerado pelo trigger
           customer_id: customer.id,
-          store_id: store.id,
+          store_id: currentStoreId,
           order_type: orderType,
           payment_method: paymentMethod === 'infinitepay' ? 'credit_card' : paymentMethod,
           payment_status: 'pending',
