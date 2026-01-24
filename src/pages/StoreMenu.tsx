@@ -121,74 +121,85 @@ const StoreMenu = () => {
 
       <div className="px-6 space-y-8">
         {/* Premium Store Header Section */}
-        <div className="pt-2 space-y-5">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex-1 space-y-1">
-              <div className="flex items-center gap-2 mb-1">
-                <h1 className="text-2xl font-black text-[#2D2D2D] tracking-tight">{store.name}</h1>
-                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-              </div>
-              <div className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
-                <span className="flex items-center gap-1">
+        {/* Premium Store Header Section */}
+        <div className="space-y-6 pt-2">
+          {/* Top Info Row */}
+          <div className="flex items-start justify-between relative px-2">
+            <div className="space-y-1 pr-20">
+              <h1 className="text-2xl font-black text-[#2D2D2D] tracking-tight leading-none">{store.name}</h1>
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-medium text-muted-foreground">
+                <span className="flex items-center gap-1 bg-orange-50 px-1.5 py-0.5 rounded-md">
                   <Star className="w-3 h-3 text-orange-400 fill-orange-400" />
-                  <span className="text-[#2D2D2D]">4.9</span>
+                  <span className="text-[#2D2D2D] font-bold">4.9</span>
                 </span>
-                <span className="text-gray-300">•</span>
+                <span>•</span>
                 <span>Açaí & Gelados</span>
-                <span className="text-gray-300">•</span>
+                <span>•</span>
                 <span className="flex items-center gap-1">
-                  <MapPin className="w-2.5 h-2.5" />
+                  <MapPin className="w-3 h-3" />
                   {store.city}
                 </span>
               </div>
             </div>
-            {store.logo_url ? (
-              <div className="w-16 h-16 rounded-2xl overflow-hidden border border-gray-100 shadow-xl bg-white p-1 shrink-0">
-                <img src={store.logo_url} alt={store.name} className="w-full h-full object-contain" />
-              </div>
-            ) : (
-              <div className="w-16 h-16 rounded-2xl bg-primary/5 border border-primary/10 flex items-center justify-center shrink-0">
-                <span className="text-2xl">🍦</span>
-              </div>
-            )}
+
+            {/* Floating Logo - Top Right */}
+            <div className="absolute right-0 top-0">
+              {store.logo_url ? (
+                <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-white shadow-lg bg-white shrink-0">
+                  <img src={store.logo_url} alt={store.name} className="w-full h-full object-cover" />
+                </div>
+              ) : (
+                <div className="w-20 h-20 rounded-full bg-primary/5 border-4 border-white flex items-center justify-center shrink-0 shadow-lg">
+                  <span className="text-3xl">🍦</span>
+                </div>
+              )}
+            </div>
           </div>
 
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar -mx-6 px-6 pb-2 mb-4">
-            <div className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-gray-50 border border-gray-100/50 shrink-0">
-              <Clock className="w-3.5 h-3.5 text-primary" />
-              <span className="text-xs font-bold text-[#2D2D2D]">
-                {store.preparation_time && store.delivery_time
+          {/* Info Chips Row */}
+          <div className="flex items-center gap-3 overflow-x-auto no-scrollbar pb-1">
+            <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-2xl border border-gray-100 shrink-0">
+              <Clock className="w-4 h-4 text-primary" />
+              <span className="text-xs font-bold text-gray-700">
+                {store.preparation_time && store.delivery_time // Usando campos que talvez não existam, mas mantendo compatibilidade
                   ? `${store.preparation_time}-${store.delivery_time} min`
-                  : '40-60 min'}
+                  : '30-40 min'}
               </span>
             </div>
-            <div className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-gray-50 border border-gray-100/50 shrink-0">
-              <MapPin className="w-3.5 h-3.5 text-primary" />
-              <span className="text-xs font-bold text-[#2D2D2D]">
-                {store.delivery_fee && store.delivery_fee > 0 ? `R$ ${store.delivery_fee.toFixed(2)}` : 'Grátis'}
+            <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-2xl border border-gray-100 shrink-0">
+              <MapPin className="w-4 h-4 text-primary" />
+              <span className="text-xs font-bold text-gray-700">
+                {store.delivery_fee && store.delivery_fee > 0 ? `R$ ${store.delivery_fee.toFixed(2)}` : 'R$ 10.00'}
               </span>
             </div>
-            <div className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-gray-50 border border-gray-100/50 shrink-0">
-              <Info className="w-3.5 h-3.5 text-primary" />
-              <span className="text-xs font-bold text-muted-foreground whitespace-nowrap">
-                Mínimo <span className="text-black">R$ {store.min_order_value?.toFixed(2) || '15,00'}</span>
+            <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-2xl border border-gray-100 shrink-0">
+              <Info className="w-4 h-4 text-primary" />
+              <span className="text-xs font-bold text-gray-700">
+                Mínimo <span className="text-black">R$ {store.min_order_value?.toFixed(2) || '15.00'}</span>
               </span>
             </div>
           </div>
-        </div>
 
-        {/* Banner Section */}
-
-        {/* Banner Section */}
-        <div className="relative overflow-hidden rounded-[32px] bg-primary h-40 shadow-xl shadow-primary/20">
-          <div className="absolute inset-0 bg-gradient-to-r from-primary via-primary/80 to-transparent z-10 p-6 flex flex-col justify-center max-w-[60%]">
-            <Badge className="w-fit bg-red-500 text-white border-none mb-2 text-[10px] font-bold">25% DE DESCONTO</Badge>
-            <h3 className="text-white font-extrabold text-2xl leading-tight mb-1">Oferta Especial de Açaí Tradicional</h3>
-            <p className="text-white/80 text-[10px] font-light tracking-wide">Melhor combinação da semana!</p>
-          </div>
-          <div className="absolute right-[-10px] top-0 h-full w-[60%] z-0">
-            <div className="w-full h-full bg-[url('https://images.unsplash.com/photo-1594911772125-07cf7a2d8d9f?q=80&w=2670&auto=format&fit=crop')] bg-cover bg-center rounded-l-[40px]" />
-            <div className="absolute inset-y-0 left-0 w-12 bg-gradient-to-r from-primary to-transparent" />
+          {/* Big Banner Section */}
+          <div className="w-full aspect-[21/9] rounded-[24px] overflow-hidden shadow-lg relative bg-gray-100 mt-4">
+            {(store as any).banner_url ? (
+              <img
+                src={(store as any).banner_url}
+                alt="Store Banner"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              // Fallback Banner Default (Imagem 2 que o user mandou)
+              <img
+                src="/banner-loja-padrao.png"
+                alt="Store Banner Default"
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  // Fallback se a imagem não carregar
+                  e.currentTarget.src = "https://images.unsplash.com/photo-1594911772125-07cf7a2d8d9f?q=80&w=2670&auto=format&fit=crop";
+                }}
+              />
+            )}
           </div>
         </div>
 

@@ -16,6 +16,8 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from '@/hooks/use-toast';
 
+import { StoreSettingsTab } from './StoreSettingsTab';
+
 export default function SettingsPage() {
   const { data: settings } = useSystemSettings();
   const { data: integrations } = useIntegrations();
@@ -57,11 +59,15 @@ export default function SettingsPage() {
     <AdminLayout>
       <div className="mb-6">
         <h1 className="text-3xl font-bold">Configurações</h1>
-        <p className="text-muted-foreground">Configurações gerais do sistema</p>
+        <p className="text-muted-foreground">Configurações gerais e da loja</p>
       </div>
 
-      <Tabs defaultValue="general" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4 lg:w-auto">
+      <Tabs defaultValue="store" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-5 lg:w-auto">
+          <TabsTrigger value="store">
+            <Store className="h-4 w-4 mr-2" />
+            Loja
+          </TabsTrigger>
           <TabsTrigger value="general">
             <Settings className="h-4 w-4 mr-2" />
             Geral
@@ -79,6 +85,10 @@ export default function SettingsPage() {
             Logs
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="store" className="space-y-4">
+          <StoreSettingsTab />
+        </TabsContent>
 
         <TabsContent value="general" className="space-y-4">
           <Card>
