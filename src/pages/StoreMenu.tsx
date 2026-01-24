@@ -145,8 +145,8 @@ const StoreMenu = () => {
             {/* Floating Logo - Top Right */}
             <div className="absolute right-0 top-0">
               {store.logo_url ? (
-                <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-white shadow-lg bg-white shrink-0 flex items-center justify-center">
-                  <img src={store.logo_url} alt={store.name} className="w-[90%] h-[90%] object-contain mix-blend-multiply" />
+                <div className="w-24 h-24 shrink-0 flex items-center justify-center -mt-2 -mr-2">
+                  <img src={store.logo_url} alt={store.name} className="w-full h-full object-contain mix-blend-multiply" />
                 </div>
               ) : (
                 <div className="w-20 h-20 rounded-full bg-primary/5 border-4 border-white flex items-center justify-center shrink-0 shadow-lg">
