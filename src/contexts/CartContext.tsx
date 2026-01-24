@@ -59,10 +59,49 @@ export function CartProvider({ children }: { children: ReactNode }) {
   };
 
   const addItem = (item: Omit<CartItem, 'id' | 'subtotal'>) => {
-    const id = `${Date.now()}-${Math.random()}`;
-    const subtotal = getItemSubtotal(item);
-    const newItem: CartItem = { ...item, id, subtotal };
-    setItems((prev) => [...prev, newItem]);
+    setItems((prev) => {
+      // Check if identical item exists
+      const existingItemIndex = prev.findIndex((existing) => {
+        // Check product and size
+        if (existing.product_id !== item.product_id) return false;
+        if (existing.size_id !== item.size_id) return false;
+
+        // Check notes (normalize undefined to empty string)
+        const note1 = existing.notes?.trim() || '';
+        const note2 = item.notes?.trim() || '';
+        if (note1 !== note2) return false;
+
+        // Check toppings (deep comparison)
+        if (existing.toppings.length !== item.toppings.length) return false;
+
+        const existingToppingIds = existing.toppings.map(t => t.id).sort();
+        const newToppingIds = item.toppings.map(t => t.id).sort();
+
+        return existingToppingIds.every((id, index) => id === newToppingIds[index]);
+      });
+
+      // If exists, update quantity
+      if (existingItemIndex > -1) {
+        const newItems = [...prev];
+        const existingItem = newItems[existingItemIndex];
+
+        const newQuantity = existingItem.quantity + item.quantity;
+
+        newItems[existingItemIndex] = {
+          ...existingItem,
+          quantity: newQuantity,
+          subtotal: getItemSubtotal({ ...existingItem, quantity: newQuantity })
+        };
+
+        return newItems;
+      }
+
+      // If not exists, add new
+      const id = `${Date.now()}-${Math.random()}`;
+      const subtotal = getItemSubtotal(item);
+      const newItem: CartItem = { ...item, id, subtotal };
+      return [...prev, newItem];
+    });
   };
 
   const removeItem = (itemId: string) => {
@@ -90,7 +129,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const getStoreAwareRoute = () => {
     const currentPath = window.location.pathname;
-    
+
     // Se está em uma loja específica, salvar e retornar
     if (currentPath.startsWith('/delivery/')) {
       const storeSlug = currentPath.split('/')[2]; // Pega 'gurupi' de '/delivery/gurupi'
@@ -99,13 +138,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
       }
       return currentPath.split('/product/')[0].split('/cart')[0].split('/checkout')[0];
     }
-    
+
     // Se não está em /delivery/, tentar recuperar última loja visitada
     const lastStore = localStorage.getItem(LAST_STORE_KEY);
     if (lastStore) {
       return `/delivery/${lastStore}`;
     }
-    
+
     // Fallback para menu geral
     return '/menu';
   };

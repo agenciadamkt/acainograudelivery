@@ -15,6 +15,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { isStoreOpen } from "@/utils/businessHours";
 import acaiBanner from "@/assets/logo-acai.png"; // Fallback or use generated if available
 
 const StoreMenu = () => {
@@ -48,6 +49,11 @@ const StoreMenu = () => {
   );
 
   // Filter products by store
+  const storeIsOpen = useMemo(() => {
+    if (!store?.business_hours) return false;
+    return isStoreOpen(store.business_hours as any);
+  }, [store]);
+
   const storeProducts = useMemo(() => {
     if (!allProducts || !store || !categories) return [];
 
@@ -158,20 +164,34 @@ const StoreMenu = () => {
 
           {/* Info Chips Row */}
           <div className="flex items-center gap-3 overflow-x-auto no-scrollbar pb-1">
-            <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-2xl border border-gray-100 shrink-0">
+            <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${storeIsOpen
+              ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+              : "bg-red-100 text-red-800 border border-red-200"
+              }`}>
+              <Clock className="w-3.5 h-3.5" />
+              <span>{storeIsOpen ? "Aberto Agora" : "Fechado"}</span>
+            </div>
+
+            <div className="flex items-center gap-1.5 bg-gray-50 px-4 py-2 rounded-2xl text-xs font-bold text-gray-700 border border-gray-100 shrink-0">
               <Clock className="w-4 h-4 text-primary" />
-              <span className="text-xs font-bold text-gray-700">
-                {store.preparation_time && store.delivery_time // Usando campos que talvez não existam, mas mantendo compatibilidade
+              <span>
+                {store.preparation_time && store.delivery_time // Using existing fields for delivery time
                   ? `${store.preparation_time}-${store.delivery_time} min`
                   : '30-40 min'}
               </span>
             </div>
-            <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-2xl border border-gray-100 shrink-0">
-              <MapPin className="w-4 h-4 text-primary" />
-              <span className="text-xs font-bold text-gray-700">
-                {store.delivery_fee && store.delivery_fee > 0 ? `R$ ${store.delivery_fee.toFixed(2)}` : 'R$ 10.00'}
-              </span>
-            </div>
+
+            {store.delivery_fee === 0 ? (
+              <div className="flex items-center gap-1.5 bg-emerald-100 px-2.5 py-1 rounded-full text-xs font-bold text-emerald-700 border border-emerald-200">
+                <span>Entrega Grátis</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 bg-gray-50 px-4 py-2 rounded-2xl text-xs font-bold text-gray-700 border border-gray-100 shrink-0">
+                <MapPin className="w-4 h-4 text-primary" />
+                <span>R$ {store.delivery_fee?.toFixed(2) || '10.00'}</span>
+              </div>
+            )}
+
             <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-2xl border border-gray-100 shrink-0">
               <Info className="w-4 h-4 text-primary" />
               <span className="text-xs font-bold text-gray-700">
