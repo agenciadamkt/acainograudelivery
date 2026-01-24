@@ -20,7 +20,7 @@ jobs:
           node-version: 20
 
       - name: 📦 Instalar Dependências
-        run: npm ci
+        run: npm install
 
       - name: 🏗️ Criar Build de Produção
         run: npm run build
