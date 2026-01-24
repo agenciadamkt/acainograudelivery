@@ -58,7 +58,7 @@ const menuItems = [
   { title: 'Clientes (CRM)', url: '/admin/customers', icon: Users },
   { title: 'Entregas', url: '/admin/delivery', icon: Truck },
   { title: 'Food Analytics', url: '/admin/analytics', icon: BarChart3, requireRole: 'manager' },
-  { title: 'Marketing (Legado)', url: '/admin/marketing', icon: Megaphone, requireRole: 'manager' },
+  { title: 'Marketing', url: '/admin/marketing', icon: Megaphone, requireRole: 'manager' },
   { title: 'Configurações', url: '/admin/settings', icon: Settings },
 ];
 
