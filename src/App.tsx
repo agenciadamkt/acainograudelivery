@@ -52,176 +52,180 @@ import SettingsPage from "./pages/admin/settings/SettingsPage";
 import MarketingPage from "./pages/admin/MarketingPage";
 import FoodAnalyticsPage from "./pages/admin/FoodAnalyticsPage";
 
+import { ThemeProvider } from "next-themes";
+
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <ErrorBoundary>
-          <AuthProvider>
-            <StoreProvider>
-              <CartProvider>
-                <Routes>
-                  {/* Client routes */}
-                  <Route path="/" element={<LocationState />} />
-                  <Route path="/location-city" element={<LocationCity />} />
-                  <Route path="/searching" element={<Searching />} />
-                  <Route path="/store-result" element={<StoreResult />} />
-                  <Route path="/stores" element={<Stores />} />
-                  <Route path="/menu" element={<Menu />} />
-                  <Route path="/delivery/:slug" element={<StoreMenu />} />
-                  <Route path="/product/:id" element={<ProductDetail />} />
-                  <Route path="/cart" element={<Cart />} />
-                  <Route path="/install" element={<Install />} />
-                  <Route path="/auth" element={<Auth />} />
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <ErrorBoundary>
+            <AuthProvider>
+              <StoreProvider>
+                <CartProvider>
+                  <Routes>
+                    {/* Client routes */}
+                    <Route path="/" element={<LocationState />} />
+                    <Route path="/location-city" element={<LocationCity />} />
+                    <Route path="/searching" element={<Searching />} />
+                    <Route path="/store-result" element={<StoreResult />} />
+                    <Route path="/stores" element={<Stores />} />
+                    <Route path="/menu" element={<Menu />} />
+                    <Route path="/delivery/:slug" element={<StoreMenu />} />
+                    <Route path="/product/:id" element={<ProductDetail />} />
+                    <Route path="/cart" element={<Cart />} />
+                    <Route path="/install" element={<Install />} />
+                    <Route path="/auth" element={<Auth />} />
 
-                  {/* Protected client routes */}
-                  <Route path="/favorites" element={<ProtectedRoute><Favorites /></ProtectedRoute>} />
-                  <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-                  <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
-                  <Route path="/order-details/:orderId" element={<ProtectedRoute><OrderDetails /></ProtectedRoute>} />
-                  <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
-                  <Route path="/checkout/infinitepay/success" element={<ProtectedRoute><InfinitePaySuccess /></ProtectedRoute>} />
-                  <Route path="/order-confirmation/:orderId" element={<ProtectedRoute><OrderConfirmation /></ProtectedRoute>} />
+                    {/* Protected client routes */}
+                    <Route path="/favorites" element={<ProtectedRoute><Favorites /></ProtectedRoute>} />
+                    <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+                    <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
+                    <Route path="/order-details/:orderId" element={<ProtectedRoute><OrderDetails /></ProtectedRoute>} />
+                    <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
+                    <Route path="/checkout/infinitepay/success" element={<ProtectedRoute><InfinitePaySuccess /></ProtectedRoute>} />
+                    <Route path="/order-confirmation/:orderId" element={<ProtectedRoute><OrderConfirmation /></ProtectedRoute>} />
 
-                  {/* Admin auth routes */}
-                  <Route path="/admin" element={<Navigate to="/admin/login" replace />} />
-                  <Route path="/admin/login" element={<Login />} />
-                  <Route path="/admin/signup" element={<Signup />} />
-                  <Route path="/franchise-request" element={<FranchiseRequest />} />
+                    {/* Admin auth routes */}
+                    <Route path="/admin" element={<Navigate to="/admin/login" replace />} />
+                    <Route path="/admin/login" element={<Login />} />
+                    <Route path="/admin/signup" element={<Signup />} />
+                    <Route path="/franchise-request" element={<FranchiseRequest />} />
 
-                  {/* Franchise management */}
-                  <Route path="/admin/franchisees" element={
-                    <PrivateRoute requiredRole="franchisee_master">
-                      <FranchiseesPage />
-                    </PrivateRoute>
-                  } />
+                    {/* Franchise management */}
+                    <Route path="/admin/franchisees" element={
+                      <PrivateRoute requiredRole="franchisee_master">
+                        <FranchiseesPage />
+                      </PrivateRoute>
+                    } />
 
-                  {/* Admin protected routes */}
-                  <Route
-                    path="/admin/dashboard"
-                    element={
-                      <PrivateRoute requiredRole="staff">
-                        <AdminLayout>
-                          <Dashboard />
-                        </AdminLayout>
-                      </PrivateRoute>
-                    }
-                  />
-                  <Route
-                    path="/admin/orders"
-                    element={
-                      <PrivateRoute requiredRole="staff">
-                        <OrdersPage />
-                      </PrivateRoute>
-                    }
-                  />
-                  <Route
-                    path="/admin/kds"
-                    element={
-                      <PrivateRoute requiredRole="staff">
-                        <KDSPage />
-                      </PrivateRoute>
-                    }
-                  />
-                  <Route
-                    path="/admin/menu/categories"
-                    element={
-                      <PrivateRoute requiredRole="manager">
-                        <AdminLayout>
-                          <CategoriesPage />
-                        </AdminLayout>
-                      </PrivateRoute>
-                    }
-                  />
-                  <Route
-                    path="/admin/menu/products"
-                    element={
-                      <PrivateRoute requiredRole="manager">
-                        <AdminLayout>
-                          <ProductsPage />
-                        </AdminLayout>
-                      </PrivateRoute>
-                    }
-                  />
-                  <Route
-                    path="/admin/menu/toppings"
-                    element={
-                      <PrivateRoute requiredRole="manager">
-                        <AdminLayout>
-                          <ToppingsPage />
-                        </AdminLayout>
-                      </PrivateRoute>
-                    }
-                  />
-                  <Route
-                    path="/admin/inventory"
-                    element={
-                      <PrivateRoute requiredRole="manager">
-                        <InventoryPage />
-                      </PrivateRoute>
-                    }
-                  />
-                  <Route
-                    path="/admin/financial"
-                    element={
-                      <PrivateRoute requiredRole="manager">
-                        <FinancialPage />
-                      </PrivateRoute>
-                    }
-                  />
-                  <Route
-                    path="/admin/customers"
-                    element={
-                      <PrivateRoute requiredRole="staff">
-                        <CustomersPage />
-                      </PrivateRoute>
-                    }
-                  />
-                  <Route
-                    path="/admin/delivery"
-                    element={
-                      <PrivateRoute requiredRole="staff">
-                        <DeliveryPage />
-                      </PrivateRoute>
-                    }
-                  />
-                  <Route
-                    path="/admin/marketing"
-                    element={
-                      <PrivateRoute requiredRole="manager">
-                        <MarketingPage />
-                      </PrivateRoute>
-                    }
-                  />
-                  <Route
-                    path="/admin/analytics"
-                    element={
-                      <PrivateRoute requiredRole="manager">
-                        <FoodAnalyticsPage />
-                      </PrivateRoute>
-                    }
-                  />
-                  <Route
-                    path="/admin/settings"
-                    element={
-                      <PrivateRoute requiredRole="manager">
-                        <SettingsPage />
-                      </PrivateRoute>
-                    }
-                  />
+                    {/* Admin protected routes */}
+                    <Route
+                      path="/admin/dashboard"
+                      element={
+                        <PrivateRoute requiredRole="staff">
+                          <AdminLayout>
+                            <Dashboard />
+                          </AdminLayout>
+                        </PrivateRoute>
+                      }
+                    />
+                    <Route
+                      path="/admin/orders"
+                      element={
+                        <PrivateRoute requiredRole="staff">
+                          <OrdersPage />
+                        </PrivateRoute>
+                      }
+                    />
+                    <Route
+                      path="/admin/kds"
+                      element={
+                        <PrivateRoute requiredRole="staff">
+                          <KDSPage />
+                        </PrivateRoute>
+                      }
+                    />
+                    <Route
+                      path="/admin/menu/categories"
+                      element={
+                        <PrivateRoute requiredRole="manager">
+                          <AdminLayout>
+                            <CategoriesPage />
+                          </AdminLayout>
+                        </PrivateRoute>
+                      }
+                    />
+                    <Route
+                      path="/admin/menu/products"
+                      element={
+                        <PrivateRoute requiredRole="manager">
+                          <AdminLayout>
+                            <ProductsPage />
+                          </AdminLayout>
+                        </PrivateRoute>
+                      }
+                    />
+                    <Route
+                      path="/admin/menu/toppings"
+                      element={
+                        <PrivateRoute requiredRole="manager">
+                          <AdminLayout>
+                            <ToppingsPage />
+                          </AdminLayout>
+                        </PrivateRoute>
+                      }
+                    />
+                    <Route
+                      path="/admin/inventory"
+                      element={
+                        <PrivateRoute requiredRole="manager">
+                          <InventoryPage />
+                        </PrivateRoute>
+                      }
+                    />
+                    <Route
+                      path="/admin/financial"
+                      element={
+                        <PrivateRoute requiredRole="manager">
+                          <FinancialPage />
+                        </PrivateRoute>
+                      }
+                    />
+                    <Route
+                      path="/admin/customers"
+                      element={
+                        <PrivateRoute requiredRole="staff">
+                          <CustomersPage />
+                        </PrivateRoute>
+                      }
+                    />
+                    <Route
+                      path="/admin/delivery"
+                      element={
+                        <PrivateRoute requiredRole="staff">
+                          <DeliveryPage />
+                        </PrivateRoute>
+                      }
+                    />
+                    <Route
+                      path="/admin/marketing"
+                      element={
+                        <PrivateRoute requiredRole="manager">
+                          <MarketingPage />
+                        </PrivateRoute>
+                      }
+                    />
+                    <Route
+                      path="/admin/analytics"
+                      element={
+                        <PrivateRoute requiredRole="manager">
+                          <FoodAnalyticsPage />
+                        </PrivateRoute>
+                      }
+                    />
+                    <Route
+                      path="/admin/settings"
+                      element={
+                        <PrivateRoute requiredRole="manager">
+                          <SettingsPage />
+                        </PrivateRoute>
+                      }
+                    />
 
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </CartProvider>
-            </StoreProvider>
-          </AuthProvider>
-        </ErrorBoundary>
-      </BrowserRouter>
-    </TooltipProvider>
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </CartProvider>
+              </StoreProvider>
+            </AuthProvider>
+          </ErrorBoundary>
+        </BrowserRouter>
+      </TooltipProvider>
+    </ThemeProvider>
   </QueryClientProvider>
 );
 

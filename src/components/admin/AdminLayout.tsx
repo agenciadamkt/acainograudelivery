@@ -15,6 +15,7 @@ import { PrintableOrder } from '@/components/admin/PrintableOrder';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { FeedbackModal } from '@/components/common/FeedbackModal';
+import { Theme } from '@/components/ui/theme';
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -182,6 +183,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             </div>
 
             <div className="flex items-center gap-4">
+              <Theme variant="button" size="sm" />
               <StoreSelector />
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">{user?.email}</span>

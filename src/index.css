@@ -47,6 +47,36 @@ All colors MUST be HSL.
     --shadow-card: 0 2px 8px hsla(0, 0%, 0%, 0.08);
     --shadow-elevated: 0 4px 16px hsla(0, 0%, 0%, 0.12);
   }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 262 50% 47%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 262 50% 47%;
+  }
 }
 
 @layer base {
@@ -61,10 +91,13 @@ All colors MUST be HSL.
 
 /* Animações customizadas para pedidos */
 @keyframes pulse-custom {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: scale(1);
     opacity: 1;
   }
+
   50% {
     transform: scale(1.02);
     opacity: 0.95;
@@ -72,10 +105,15 @@ All colors MUST be HSL.
 }
 
 @keyframes blink {
-  0%, 50%, 100% {
+
+  0%,
+  50%,
+  100% {
     opacity: 1;
   }
-  25%, 75% {
+
+  25%,
+  75% {
     opacity: 0.3;
   }
 }
@@ -92,6 +130,7 @@ All colors MUST be HSL.
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
+
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -122,7 +161,7 @@ All colors MUST be HSL.
   }
 
   /* Ocultar tudo exceto o conteúdo de impressão */
-  body > *:not(.print-content) {
+  body>*:not(.print-content) {
     display: none !important;
   }
 
