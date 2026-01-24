@@ -144,13 +144,13 @@ export default function CustomersPage() {
       </div>
 
 
-      <Tabs defaultValue="list" className="space-y-4">
+      <Tabs defaultValue="analytics" className="space-y-4">
         <div className="flex items-center justify-between">
           <TabsList>
+            <TabsTrigger value="analytics">Análises</TabsTrigger>
             <TabsTrigger value="list">Lista de Clientes</TabsTrigger>
             <TabsTrigger value="segments">Segmentos</TabsTrigger>
             <TabsTrigger value="coupons">Cupons</TabsTrigger>
-            <TabsTrigger value="analytics">Análises</TabsTrigger>
           </TabsList>
         </div>
 
