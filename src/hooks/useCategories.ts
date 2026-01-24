@@ -7,6 +7,7 @@ export interface Category {
   id: string;
   name: string;
   icon: string | null;
+  image_url: string | null;
   active: boolean;
   display_order: number;
   store_id: string | null;
@@ -17,7 +18,7 @@ export interface Category {
 export function useCategories(activeOnly = false, storeId?: string) {
   const { currentStore } = useStore();
   const effectiveStoreId = storeId || currentStore?.id;
-  
+
   return useQuery({
     queryKey: ['categories', effectiveStoreId, activeOnly],
     queryFn: async () => {
@@ -25,15 +26,15 @@ export function useCategories(activeOnly = false, storeId?: string) {
         .from('categories')
         .select('*')
         .order('display_order', { ascending: true });
-      
+
       if (effectiveStoreId) {
         query = query.eq('store_id', effectiveStoreId);
       }
-      
+
       if (activeOnly) {
         query = query.eq('active', true);
       }
-      
+
       const { data, error } = await query;
       if (error) throw error;
       return data as Category[];
@@ -45,7 +46,7 @@ export function useCategories(activeOnly = false, storeId?: string) {
 export function useCreateCategory() {
   const queryClient = useQueryClient();
   const { currentStore } = useStore();
-  
+
   return useMutation({
     mutationFn: async (category: Omit<Category, 'id' | 'created_at' | 'updated_at' | 'store_id'>) => {
       const { data, error } = await supabase
@@ -53,7 +54,7 @@ export function useCreateCategory() {
         .insert({ ...category, store_id: currentStore?.id })
         .select()
         .single();
-      
+
       if (error) throw error;
       return data;
     },
@@ -62,7 +63,7 @@ export function useCreateCategory() {
       toast({ title: 'Categoria criada com sucesso!' });
     },
     onError: (error: Error) => {
-      toast({ 
+      toast({
         title: 'Erro ao criar categoria',
         description: error.message,
         variant: 'destructive'
@@ -73,7 +74,7 @@ export function useCreateCategory() {
 
 export function useUpdateCategory() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<Category> & { id: string }) => {
       const { data, error } = await supabase
@@ -82,7 +83,7 @@ export function useUpdateCategory() {
         .eq('id', id)
         .select()
         .single();
-      
+
       if (error) throw error;
       return data;
     },
@@ -91,7 +92,7 @@ export function useUpdateCategory() {
       toast({ title: 'Categoria atualizada com sucesso!' });
     },
     onError: (error: Error) => {
-      toast({ 
+      toast({
         title: 'Erro ao atualizar categoria',
         description: error.message,
         variant: 'destructive'
@@ -102,14 +103,14 @@ export function useUpdateCategory() {
 
 export function useDeleteCategory() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
         .from('categories')
         .delete()
         .eq('id', id);
-      
+
       if (error) throw error;
     },
     onSuccess: () => {
@@ -117,8 +118,37 @@ export function useDeleteCategory() {
       toast({ title: 'Categoria excluída com sucesso!' });
     },
     onError: (error: Error) => {
-      toast({ 
+      toast({
         title: 'Erro ao excluir categoria',
+        description: error.message,
+        variant: 'destructive'
+      });
+    },
+  });
+}
+
+export function useUploadCategoryImage() {
+  return useMutation({
+    mutationFn: async ({ file, categoryId }: { file: File; categoryId: string }) => {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `category-${categoryId}-${Date.now()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('products')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('products')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Erro ao fazer upload da imagem',
         description: error.message,
         variant: 'destructive'
       });

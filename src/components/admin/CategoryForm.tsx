@@ -12,11 +12,14 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { Category } from '@/hooks/useCategories';
+import { Category, useUploadCategoryImage } from '@/hooks/useCategories';
+import { ImageUpload } from './ImageUpload';
+import { useState } from 'react';
 
 const categorySchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
   icon: z.string().optional(),
+  image_url: z.string().optional().nullable(),
   active: z.boolean().default(true),
   display_order: z.number().default(0),
 });
@@ -36,19 +39,37 @@ export function CategoryForm({
   onCancel,
   isSubmitting = false,
 }: CategoryFormProps) {
+  const uploadImage = useUploadCategoryImage();
+  const [imageUrl, setImageUrl] = useState(category?.image_url || '');
+
   const form = useForm<CategoryFormData>({
     resolver: zodResolver(categorySchema),
     defaultValues: category || {
       name: '',
       icon: '',
+      image_url: '',
       active: true,
       display_order: 0,
     },
   });
 
+  const handleImageUpload = async (file: File) => {
+    const url = await uploadImage.mutateAsync({
+      file,
+      categoryId: category?.id || 'temp-' + Date.now()
+    });
+    setImageUrl(url);
+    form.setValue('image_url', url);
+    return url;
+  };
+
+  const handleSubmit = (data: CategoryFormData) => {
+    onSubmit({ ...data, image_url: imageUrl });
+  };
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
         <FormField
           control={form.control}
           name="name"
@@ -70,12 +91,25 @@ export function CategoryForm({
             <FormItem>
               <FormLabel>Ícone (Emoji)</FormLabel>
               <FormControl>
-                <Input placeholder="🍦" maxLength={2} {...field} />
+                <Input placeholder="🍦" maxLength={2} {...field} value={field.value || ''} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
+
+        <div>
+          <FormLabel>Imagem da Categoria</FormLabel>
+          <ImageUpload
+            currentImageUrl={imageUrl}
+            onUpload={handleImageUpload}
+            isUploading={uploadImage.isPending}
+            onRemove={() => {
+              setImageUrl('');
+              form.setValue('image_url', '');
+            }}
+          />
+        </div>
 
         <FormField
           control={form.control}
@@ -114,7 +148,7 @@ export function CategoryForm({
           <Button type="button" variant="outline" onClick={onCancel}>
             Cancelar
           </Button>
-          <Button type="submit" disabled={isSubmitting}>
+          <Button type="submit" disabled={isSubmitting || uploadImage.isPending}>
             {isSubmitting ? 'Salvando...' : 'Salvar'}
           </Button>
         </div>

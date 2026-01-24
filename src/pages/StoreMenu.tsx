@@ -223,33 +223,64 @@ const StoreMenu = () => {
           </div>
         </div>
 
-        {/* Categories Pills */}
-        <div className="relative">
-          <div className="flex items-center gap-3 overflow-x-auto pb-4 no-scrollbar -mx-6 px-6">
+        {/* Categories Section */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-4 overflow-x-auto pb-4 px-6 no-scrollbar -mx-6">
+            {/* 'Todos' Button */}
             <button
               onClick={() => setSelectedCategoryId(undefined)}
-              className={`px-6 py-2.5 rounded-full text-sm font-bold transition-all whitespace-nowrap shadow-sm border ${!selectedCategoryId
-                ? 'bg-primary text-white border-primary shadow-primary/20'
-                : 'bg-white text-muted-foreground border-gray-100'
+              className={`shrink-0 flex items-center justify-center w-24 h-12 rounded-full font-bold text-sm transition-all shadow-md ${!selectedCategoryId
+                ? 'bg-[#6E3696] text-white shadow-[#6E3696]/30 scale-105'
+                : 'bg-white text-[#6E3696] border border-[#6E3696]/20'
                 }`}
             >
               Todos
             </button>
+
+            {/* Categories List */}
             {categories
               ?.filter(cat => cat.store_id === store.id)
               .map((category) => (
                 <button
                   key={category.id}
                   onClick={() => setSelectedCategoryId(category.id)}
-                  className={`px-6 py-2.5 rounded-full text-sm font-bold transition-all whitespace-nowrap shadow-sm border flex items-center gap-2 ${selectedCategoryId === category.id
-                    ? 'bg-primary text-white border-primary shadow-primary/20 scale-105'
-                    : 'bg-white text-muted-foreground border-gray-100 opacity-80'
+                  className={`shrink-0 flex flex-col items-center gap-2 group transition-all ${selectedCategoryId === category.id ? 'scale-105' : 'opacity-70 hover:opacity-100'
                     }`}
                 >
-                  <span className="text-lg">{category.icon || '🍓'}</span>
-                  {category.name}
+                  <div className={`w-20 h-20 rounded-2xl flex items-center justify-center bg-white shadow-sm border border-gray-100 transition-all relative ${selectedCategoryId === category.id ? 'ring-2 ring-[#6E3696] ring-offset-2' : ''
+                    }`}>
+                    {category.image_url ? (
+                      <img
+                        src={category.image_url}
+                        alt={category.name}
+                        className="w-[120%] h-[120%] max-w-[120%] object-cover -mt-4 drop-shadow-xl"
+                        style={{ overflow: 'visible' }}
+                      />
+                    ) : (
+                      <span className="text-3xl">{category.icon || '🍨'}</span>
+                    )}
+                  </div>
+                  <span className={`text-[10px] font-bold text-center max-w-[80px] leading-tight ${selectedCategoryId === category.id ? 'text-[#6E3696]' : 'text-gray-500'
+                    }`}>
+                    {category.name}
+                  </span>
                 </button>
               ))}
+
+            {/* 'Ver Todas' Button - Visual only or action */}
+            <button
+              className="shrink-0 flex flex-col items-center gap-2 opacity-70 hover:opacity-100"
+              onClick={() => setSelectedCategoryId(undefined)}
+            >
+              <div className="w-20 h-20 rounded-full flex items-center justify-center bg-gray-50 border border-gray-100">
+                <div className="flex gap-1">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#6E3696]"></div>
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#6E3696]"></div>
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#6E3696]"></div>
+                </div>
+              </div>
+              <span className="text-[10px] font-bold text-[#6E3696]">Ver Todas</span>
+            </button>
           </div>
         </div>
 
