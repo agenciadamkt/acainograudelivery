@@ -124,7 +124,7 @@ const StoreMenu = () => {
         {/* Premium Store Header Section */}
         <div className="space-y-6 pt-2">
           {/* Top Info Row */}
-          <div className="flex items-center justify-between relative px-2">
+          <div className="flex items-start justify-between relative px-2">
             <div className="space-y-1">
               <h1 className="text-2xl font-black text-[#2D2D2D] tracking-tight leading-none">{store.name}</h1>
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-medium text-muted-foreground">
