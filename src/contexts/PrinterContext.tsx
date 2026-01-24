@@ -19,10 +19,12 @@ import { setupQzSecurity } from '@/utils/printing/qz-security';
 export const PrinterProvider = ({ children }: { children: ReactNode }) => {
     const [isConnected, setIsConnected] = useState(false);
 
-    // Configure Security for "Remember" checkbox
+    // Remove separate security setup effect - move to connect()
+    /* 
     useEffect(() => {
         setupQzSecurity();
-    }, []);
+    }, []); 
+    */
 
     const [printers, setPrinters] = useState<string[]>([]);
     const [selectedPrinter, setSelectedPrinter] = useState<string | null>(
@@ -33,6 +35,9 @@ export const PrinterProvider = ({ children }: { children: ReactNode }) => {
     // Initialize QZ Tray connection
     const connect = async (silent: boolean = false) => {
         try {
+            // Setup security before connecting
+            setupQzSecurity();
+
             if (!qz.websocket.isActive()) {
                 await qz.websocket.connect();
                 setIsConnected(true);
