@@ -21,6 +21,7 @@ import StoreResult from "./pages/StoreResult";
 import Stores from "./pages/Stores";
 import Menu from "./pages/Menu";
 import StoreMenu from "./pages/StoreMenu";
+import Categories from "./pages/Categories";
 import ProductDetail from "./pages/ProductDetail";
 import Favorites from "./pages/Favorites";
 import Profile from "./pages/Profile";
@@ -79,6 +80,7 @@ const App = () => (
                       <Route path="/stores" element={<Stores />} />
                       <Route path="/menu" element={<Menu />} />
                       <Route path="/delivery/:slug" element={<StoreMenu />} />
+                      <Route path="/delivery/:slug/categories" element={<Categories />} />
                       <Route path="/product/:id" element={<ProductDetail />} />
                       <Route path="/cart" element={<Cart />} />
                       <Route path="/install" element={<Install />} />
