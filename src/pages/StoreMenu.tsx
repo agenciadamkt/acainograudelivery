@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Search, Heart, Plus, ArrowLeft, MapPin, Bell, Star, Clock, Phone, ChevronRight, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,9 +21,12 @@ import acaiBanner from "@/assets/logo-acai.png"; // Fallback or use generated if
 const StoreMenu = () => {
   const navigate = useNavigate();
   const { slug } = useParams<{ slug: string }>();
+  const [searchParams] = useSearchParams();
+  const initialCategoryId = searchParams.get('category') || undefined;
+
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | undefined>();
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | undefined>(initialCategoryId);
   const [customerId, setCustomerId] = useState<string>();
 
   const { data: store, isLoading: loadingStore, error: storeError } = useStoreBySlug(slug);
