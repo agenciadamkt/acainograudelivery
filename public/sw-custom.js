@@ -1,4 +1,5 @@
 // Service Worker para notificações em background (Web Push API)
+// Updated: 2026-01-24T21:49:00Z
 
 const NOTIFICATION_CHANNEL = 'new-order-notifications';
 
@@ -8,12 +9,12 @@ console.log('[SW] 📡 BroadcastChannel inicializado:', NOTIFICATION_CHANNEL);
 
 broadcast.onmessage = (event) => {
   console.log('[SW] 📨 Mensagem recebida via broadcast:', event.data);
-  
+
   const { type, order } = event.data;
-  
+
   if (type === 'NEW_ORDER') {
     console.log('[SW] 🔔 Processando novo pedido:', order.order_number);
-    
+
     self.registration.showNotification('🔔 NOVO PEDIDO CHEGOU!', {
       body: `Pedido #${order.order_number}\nCliente: ${order.customer?.name || 'Cliente'}\nValor: R$ ${order.total_amount?.toFixed(2) || '0.00'}`,
       icon: '/logo-192x192.png',
@@ -43,16 +44,16 @@ broadcast.onerror = (error) => {
 // ✨ NOVO: Listener para Web Push API (funciona mesmo com app fechado)
 self.addEventListener('push', (event) => {
   console.log('[SW] 📨 Push notification recebida via Web Push API');
-  
+
   let data = {};
-  
+
   try {
     data = event.data ? event.data.json() : {};
     console.log('[SW] 📦 Dados do push:', data);
   } catch (error) {
     console.error('[SW] ❌ Erro ao parsear dados do push:', error);
   }
-  
+
   event.waitUntil(
     self.registration.showNotification(data.title || '🔔 Novo Pedido', {
       body: data.body || 'Você tem um novo pedido',
@@ -73,9 +74,9 @@ self.addEventListener('push', (event) => {
 // Listener de clique na notificação
 self.addEventListener('notificationclick', (event) => {
   console.log('[SW] 🔔 Notificação clicada');
-  
+
   event.notification.close();
-  
+
   // Abrir/focar na janela do admin
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
@@ -85,7 +86,7 @@ self.addEventListener('notificationclick', (event) => {
           return client.focus();
         }
       }
-      
+
       // Se não houver janela aberta, abrir nova
       if (clients.openWindow) {
         return clients.openWindow(event.notification.data.url);
