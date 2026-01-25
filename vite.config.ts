@@ -14,7 +14,8 @@ export default defineConfig(({ mode }) => ({
     react(),
     mode === "development" && componentTagger(),
     VitePWA({
-      injectRegister: false,
+      registerType: 'prompt', // Important for "Update available" flow
+      injectRegister: false, // We will register manually in App
       includeAssets: ["favicon.ico", "robots.txt", "logo-192x192.png", "logo-512x512.png"],
       manifest: {
         name: "PedeGrau - Delivery de Açaí no Grau",
@@ -42,7 +43,48 @@ export default defineConfig(({ mode }) => ({
         ]
       },
       workbox: {
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB
+        importScripts: ['/sw-custom.js'], // Import custom logic
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: false, // Wait for user user confirmation
+        navigateFallback: "index.html",
+        navigateFallbackDenylist: [/^\/admin/, /^\/api/], // Don't cache admin or api routes
+        runtimeCaching: [
+          // HTML / Navigation - NetworkFirst
+          {
+            urlPattern: ({ request }) => request.mode === 'navigate',
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'html-cache',
+              networkTimeoutSeconds: 3,
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60 * 24, // 1 day
+              },
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+            },
+          },
+          // Assets (JS, CSS, Images) - CacheFirst
+          {
+            urlPattern: /\.(?:js|css|png|jpg|jpeg|svg|gif|ico|woff2?|ttf)$/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'assets-cache',
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
+              },
+            },
+          },
+          // Version check - NetworkOnly
+          {
+            urlPattern: /\/version\.json$/,
+            handler: 'NetworkOnly',
+          },
+        ],
       }
     })
   ].filter(Boolean),
@@ -54,4 +96,8 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  define: {
+    '__APP_VERSION__': JSON.stringify(process.env.npm_package_version),
+    '__BUILD_DATE__': JSON.stringify(new Date().toISOString()),
+  }
 }));

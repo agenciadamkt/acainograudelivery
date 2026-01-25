@@ -230,6 +230,28 @@ const Profile = () => {
         </Tabs>
       </div>
       <BottomNavigation />
+
+      <div className="mt-8 mb-24 text-center">
+        <p className="text-xs text-muted-foreground">
+          Versão {__APP_VERSION__} ({new Date(__BUILD_DATE__).toLocaleDateString()})
+        </p>
+        <Button
+          variant="link"
+          size="sm"
+          className="text-xs text-muted-foreground h-auto p-0 mt-1"
+          onClick={async () => {
+            if ('serviceWorker' in navigator) {
+              const reg = await navigator.serviceWorker.ready;
+              await reg.update();
+              toast.info("Verificando atualizações...");
+            } else {
+              window.location.reload();
+            }
+          }}
+        >
+          Verificar Atualizações
+        </Button>
+      </div>
     </div>
   );
 };

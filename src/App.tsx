@@ -12,6 +12,7 @@ import { PrivateRoute } from "@/components/PrivateRoute";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 
 import { ProtectedRoute } from "@/components/customer/ProtectedRoute";
+import AppManager from "@/components/AppManager";
 
 // Client pages
 import LocationState from "./pages/LocationState";
@@ -63,6 +64,7 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <TooltipProvider>
+        <AppManager />
         <Toaster />
         <Sonner />
         <BrowserRouter>

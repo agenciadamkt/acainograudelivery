@@ -1,0 +1,86 @@
+import { useEffect, useState } from 'react';
+import { useRegisterSW } from 'virtual:pwa-register/react';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import InstallPWAModal from './InstallPWAModal';
+import { AlertTriangle, Download, RefreshCw } from 'lucide-react';
+
+const AppManager = () => {
+    const {
+        offlineReady: [offlineReady, setOfflineReady],
+        needRefresh: [needRefresh, setNeedRefresh],
+        updateServiceWorker,
+    } = useRegisterSW({
+        onRegistered(r) {
+            console.log('SW Registered:', r);
+        },
+        onRegisterError(error) {
+            console.log('SW registration error', error);
+        },
+    });
+
+    // Effect to show update toast
+    useEffect(() => {
+        if (needRefresh) {
+            toast("Nova versão disponível!", {
+                description: "Atualize para ter as últimas novidades.",
+                action: (
+                    <Button
+                        size="sm"
+                        onClick={() => updateServiceWorker(true)}
+                        className="bg-primary text-white"
+                    >
+                        Atualizar
+                    </Button>
+                ),
+                duration: Infinity, // Keep open until clicked
+                icon: <RefreshCw className="w-5 h-5 animate-spin" />,
+            });
+        }
+    }, [needRefresh, updateServiceWorker]);
+
+    // Effect for offline ready
+    useEffect(() => {
+        if (offlineReady) {
+            toast.success("App pronto para uso offline!");
+            setOfflineReady(false);
+        }
+    }, [offlineReady, setOfflineReady]);
+
+    // Periodic version check (optional, basic check)
+    useEffect(() => {
+        const checkVersion = async () => {
+            try {
+                const response = await fetch('/version.json', { cache: 'no-store' });
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Remote version:', data.version);
+                    // The actual update triggering is handled by SW lifecycle (updatefound).
+                    // We just ensure we ping the server so SW can see the new byte-identical content if any.
+                    if ('serviceWorker' in navigator && navigator.serviceWorker.ready) {
+                        const registration = await navigator.serviceWorker.ready;
+                        registration.update();
+                    }
+                }
+            } catch (e) {
+                console.error("Error checking version", e);
+            }
+        };
+
+        // Check version every hour
+        const interval = setInterval(checkVersion, 60 * 60 * 1000);
+        // Also check on mount
+        checkVersion();
+
+        return () => clearInterval(interval);
+    }, []);
+
+    return (
+        <>
+            <InstallPWAModal />
+            {/* iOS Instructions can be handled here or in InstallPWAModal */}
+        </>
+    );
+};
+
+export default AppManager;

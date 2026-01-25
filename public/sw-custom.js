@@ -98,7 +98,7 @@ self.addEventListener('notificationclick', (event) => {
 // Listener de instalação
 self.addEventListener('install', (event) => {
   console.log('[SW] ✅ Service Worker instalado');
-  self.skipWaiting();
+  // self.skipWaiting(); // Controlado pelo AppManager/User
 });
 
 // Listener de ativação
