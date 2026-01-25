@@ -293,7 +293,13 @@ const StoreMenu = () => {
             <h2 className="text-xl font-extrabold text-[#2D2D2D]">
               {selectedCategoryId ? 'Produtos' : 'Mais Pedidos'}
             </h2>
-            <Button variant="ghost" className="text-primary font-bold text-xs p-0 h-auto hover:bg-transparent hover:text-primary/80">Ver Todos</Button>
+            <Button
+              variant="ghost"
+              className="text-primary font-bold text-xs p-0 h-auto hover:bg-transparent hover:text-primary/80"
+              onClick={() => setSelectedCategoryId(undefined)}
+            >
+              Ver Todos
+            </Button>
           </div>
 
           {loadingProducts ? (
