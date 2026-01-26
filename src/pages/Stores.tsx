@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import BottomNavigation from "@/components/BottomNavigation";
 import logoAcai from "@/assets/logo-acai.png";
+import logoWhite from "@/assets/logo-white.png";
 import { useStoresByCity } from "@/hooks/useStoresByCity";
 import { formatDistance } from "@/utils/distance";
 import type { Coordinates } from "@/hooks/useGeolocation";
@@ -87,18 +88,18 @@ const Stores = () => {
                 className="bg-card rounded-2xl p-4 shadow-card cursor-pointer hover:shadow-elevated transition-shadow"
               >
                 <div className="flex gap-4">
-                  <div className="w-24 h-24 bg-primary rounded-xl flex items-center justify-center flex-shrink-0">
+                  <div className="w-24 h-24 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden" style={{ backgroundColor: '#6854AB' }}>
                     {store.logo_url ? (
-                      <img 
-                        src={store.logo_url} 
-                        alt={store.name} 
-                        className="w-20 h-20 object-contain" 
+                      <img
+                        src={store.logo_url}
+                        alt={store.name}
+                        className="w-20 h-20 object-contain"
                       />
                     ) : (
-                      <img 
-                        src={logoAcai} 
-                        alt="Açaí no Grau" 
-                        className="w-20 h-20 object-contain" 
+                      <img
+                        src={logoWhite}
+                        alt="Açaí no Grau"
+                        className="w-[85%] h-[85%] object-contain"
                       />
                     )}
                   </div>
