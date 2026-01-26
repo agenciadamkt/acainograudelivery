@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useAuth } from './AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface CartTopping {
   id: string;
@@ -21,6 +23,13 @@ export interface CartItem {
   subtotal: number;
 }
 
+export interface DeliveryInfo {
+  fee: number;
+  distance: number;
+  areaName?: string;
+  allowed: boolean;
+}
+
 interface CartContextType {
   items: CartItem[];
   itemCount: number;
@@ -31,6 +40,9 @@ interface CartContextType {
   clearCart: () => void;
   getItemSubtotal: (item: Omit<CartItem, 'id' | 'subtotal'>) => number;
   getStoreAwareRoute: () => string;
+  deliveryFee: number;
+  deliveryDistance: number;
+  calculateDelivery: (clientLat: number, clientLng: number, storeId: string) => Promise<DeliveryInfo>;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -47,6 +59,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
       return [];
     }
   });
+
+  const [deliveryFee, setDeliveryFee] = useState<number>(0);
+  const [deliveryDistance, setDeliveryDistance] = useState<number>(0);
+  const [deliveryAreaName, setDeliveryAreaName] = useState<string>('');
 
   // Salvar no localStorage sempre que o carrinho mudar
   useEffect(() => {
@@ -149,6 +165,62 @@ export function CartProvider({ children }: { children: ReactNode }) {
     return '/menu';
   };
 
+  const calculateDelivery = async (clientLat: number, clientLng: number, storeId: string): Promise<DeliveryInfo> => {
+    try {
+      const { data: areas, error } = await supabase
+        .from('delivery_areas' as any)
+        .select('*')
+        .eq('store_id', storeId)
+        .eq('active', true);
+
+      if (error) throw error;
+
+      let matchedArea: any = null;
+      let minRadius = Infinity;
+      let distanceToStore = 0;
+
+      const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+        const R = 6371e3; // metres
+        const φ1 = lat1 * Math.PI / 180;
+        const φ2 = lat2 * Math.PI / 180;
+        const Δφ = (lat2 - lat1) * Math.PI / 180;
+        const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+        const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+          Math.cos(φ1) * Math.cos(φ2) *
+          Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+      };
+
+      if (areas && areas.length > 0) {
+        for (const area of areas) {
+          const dist = getDistance(clientLat, clientLng, area.center_lat, area.center_lng);
+          if (dist <= area.radius_meters && area.radius_meters < minRadius) {
+            minRadius = area.radius_meters;
+            matchedArea = area;
+            distanceToStore = dist;
+          }
+        }
+      }
+
+      if (matchedArea) {
+        setDeliveryFee(matchedArea.fee);
+        setDeliveryDistance(distanceToStore);
+        setDeliveryAreaName(matchedArea.name);
+        return { fee: matchedArea.fee, distance: distanceToStore, areaName: matchedArea.name, allowed: true };
+      }
+
+      // Fallback to store default if needed, or deny
+      setDeliveryFee(0);
+      return { fee: 0, distance: 0, allowed: false };
+
+    } catch (e) {
+      console.error('Error calculating delivery:', e);
+      return { fee: 0, distance: 0, allowed: false };
+    }
+  };
+
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
   const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0);
 
@@ -164,6 +236,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
         clearCart,
         getItemSubtotal,
         getStoreAwareRoute,
+        deliveryFee,
+        deliveryDistance,
+        calculateDelivery,
       }}
     >
       {children}

@@ -52,6 +52,7 @@ import FinancialPage from "./pages/admin/financial/FinancialPage";
 import CustomersPage from "./pages/admin/customers/CustomersPage";
 import DeliveryPage from "./pages/admin/delivery/DeliveryPage";
 import SettingsPage from "./pages/admin/settings/SettingsPage";
+import DeliveryAreasPage from "./pages/admin/delivery/DeliveryAreasPage";
 import MarketingPage from "./pages/admin/MarketingPage";
 import FoodAnalyticsPage from "./pages/admin/FoodAnalyticsPage";
 import FeedbackPage from "./pages/admin/feedback/FeedbackPage";
@@ -196,6 +197,16 @@ const App = () => (
                         element={
                           <PrivateRoute requiredRole="staff">
                             <DeliveryPage />
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/delivery/areas"
+                        element={
+                          <PrivateRoute requiredRole="manager">
+                            <AdminLayout>
+                              <DeliveryAreasPage />
+                            </AdminLayout>
                           </PrivateRoute>
                         }
                       />

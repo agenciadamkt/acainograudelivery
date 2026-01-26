@@ -62,7 +62,14 @@ const menuItems = [
   { title: 'Marketing', url: '/admin/marketing', icon: Megaphone, requireRole: 'manager' },
   { title: 'Promoções', url: '/admin/settings', icon: Settings }, // Example just to find context
   { title: 'Avaliações NPS', url: '/admin/feedback', icon: MessageSquare, requireRole: 'manager' },
-  { title: 'Configurações', url: '/admin/settings', icon: Settings },
+  {
+    title: 'Configurações',
+    icon: Settings,
+    submenu: [
+      { title: 'Geral', url: '/admin/settings', icon: Settings },
+      { title: 'Áreas de Entrega', url: '/admin/delivery/areas', icon: Truck },
+    ]
+  },
 ];
 
 export function AdminSidebar() {
