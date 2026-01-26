@@ -33,6 +33,7 @@ const productSizeSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
   ml_size: z.number().nullable().optional(),
   price: z.number().min(0, 'Preço deve ser maior que 0'),
+  promotional_price: z.number().nullable().optional(),
   active: z.boolean().default(true),
   display_order: z.number().default(0),
 });
@@ -99,6 +100,7 @@ export function ProductForm({
           name: size.name,
           ml_size: size.ml_size,
           price: size.price,
+          promotional_price: size.promotional_price,
           active: size.active,
           display_order: size.display_order,
         })) || [{ name: 'Padrão', price: 0, active: true, display_order: 0 }],
@@ -232,12 +234,13 @@ export function ProductForm({
 
                   {fields.map((field, index) => (
                     <div key={field.id} className="flex gap-2 items-start p-4 border rounded-lg">
-                      <div className="flex-1 grid grid-cols-3 gap-2">
+                      <div className="flex-1 grid grid-cols-4 gap-2">
                         <FormField
                           control={form.control}
                           name={`sizes.${index}.name`}
                           render={({ field }) => (
                             <FormItem>
+                              <FormLabel className="text-xs text-muted-foreground">Nome</FormLabel>
                               <FormControl>
                                 <Input placeholder="Ex: 300ml" {...field} />
                               </FormControl>
@@ -251,10 +254,11 @@ export function ProductForm({
                           name={`sizes.${index}.ml_size`}
                           render={({ field }) => (
                             <FormItem>
+                              <FormLabel className="text-xs text-muted-foreground">ML</FormLabel>
                               <FormControl>
                                 <Input
                                   type="number"
-                                  placeholder="ML (opcional)"
+                                  placeholder="Opcional"
                                   {...field}
                                   value={field.value || ''}
                                   onChange={(e) =>
@@ -272,18 +276,55 @@ export function ProductForm({
                           name={`sizes.${index}.price`}
                           render={({ field }) => (
                             <FormItem>
+                              <FormLabel className="text-xs text-muted-foreground">Preço Original</FormLabel>
                               <FormControl>
                                 <Input
                                   type="number"
                                   step="0.01"
-                                  placeholder="Preço"
+                                  placeholder="R$ 0,00"
                                   {...field}
-                                  onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                                  onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                                 />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
                           )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name={`sizes.${index}.promotional_price`}
+                          render={({ field }) => {
+                            const originalPrice = form.watch(`sizes.${index}.price`);
+                            const promoPrice = field.value;
+                            const discount = originalPrice && promoPrice && promoPrice < originalPrice
+                              ? Math.round((1 - promoPrice / originalPrice) * 100)
+                              : null;
+
+                            return (
+                              <FormItem>
+                                <FormLabel className="text-xs text-muted-foreground flex items-center gap-1">
+                                  Preço Promo
+                                  {discount && (
+                                    <span className="text-xs font-bold text-green-600">-{discount}%</span>
+                                  )}
+                                </FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    placeholder="Deixe vazio se não há desconto"
+                                    {...field}
+                                    value={field.value ?? ''}
+                                    onChange={(e) =>
+                                      field.onChange(e.target.value ? parseFloat(e.target.value) : null)
+                                    }
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            );
+                          }}
                         />
                       </div>
 
@@ -293,6 +334,7 @@ export function ProductForm({
                         size="icon"
                         onClick={() => remove(index)}
                         disabled={fields.length === 1}
+                        className="mt-6"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

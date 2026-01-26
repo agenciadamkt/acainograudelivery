@@ -98,11 +98,35 @@ self.addEventListener('notificationclick', (event) => {
 // Listener de instalação
 self.addEventListener('install', (event) => {
   console.log('[SW] ✅ Service Worker instalado');
-  // self.skipWaiting(); // Controlado pelo AppManager/User
+  self.skipWaiting(); // Force immediate activation
 });
 
-// Listener de ativação
+// Lista de caches válidos (v3)
+const VALID_CACHES = [
+  'html-cache-v3',
+  'assets-cache-v3',
+  'workbox-precache-v2-'
+];
+
+// Listener de ativação - limpa caches antigos
 self.addEventListener('activate', (event) => {
-  console.log('[SW] ✅ Service Worker ativado');
-  event.waitUntil(clients.claim());
+  console.log('[SW] ✅ Service Worker ativado - limpando caches antigos...');
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          // Se não é um cache válido atual, deletar
+          const isValid = VALID_CACHES.some(valid => cacheName.includes(valid) || cacheName.startsWith(valid));
+          if (!isValid) {
+            console.log('[SW] 🗑️ Deletando cache antigo:', cacheName);
+            return caches.delete(cacheName);
+          }
+          return null;
+        })
+      );
+    }).then(() => {
+      console.log('[SW] ✅ Limpeza de caches concluída');
+      return clients.claim();
+    })
+  );
 });

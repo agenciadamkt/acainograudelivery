@@ -80,10 +80,34 @@ const StoreMenu = () => {
     });
   }, [storeProducts, searchQuery]);
 
+  const getPriceInfo = (product: any) => {
+    if (!product.sizes || product.sizes.length === 0) {
+      return { currentPrice: '0.00', originalPrice: null, discount: null };
+    }
+
+    // Encontrar o tamanho com menor preço (considerando preço promocional se existir)
+    const sizesWithPrices = product.sizes.map((s: any) => ({
+      current: s.promotional_price ?? s.price,
+      original: s.promotional_price ? s.price : null,
+    }));
+
+    const minPriceSize = sizesWithPrices.reduce((min: any, s: any) =>
+      s.current < min.current ? s : min
+      , sizesWithPrices[0]);
+
+    const discount = minPriceSize.original
+      ? Math.round((1 - minPriceSize.current / minPriceSize.original) * 100)
+      : null;
+
+    return {
+      currentPrice: minPriceSize.current.toFixed(2),
+      originalPrice: minPriceSize.original?.toFixed(2) || null,
+      discount,
+    };
+  };
+
   const getMinPrice = (product: any) => {
-    if (!product.sizes || product.sizes.length === 0) return '0.00';
-    const minPrice = Math.min(...product.sizes.map((s: any) => s.price));
-    return minPrice.toFixed(2);
+    return getPriceInfo(product).currentPrice;
   };
 
   if (loadingStore) {
@@ -365,10 +389,20 @@ const StoreMenu = () => {
                       {product.sizes && product.sizes.length > 0 && (
                         <p className="text-xs text-muted-foreground mt-0.5">{product.sizes[0].ml_size}ml</p>
                       )}
-                      <div className="flex items-center gap-2 mt-1.5">
-                        <span className="text-primary font-bold text-base">R$ {getMinPrice(product)}</span>
-                        {/* Opcional: preço antigo riscado quando houver promoção */}
-                      </div>
+                      {(() => {
+                        const priceInfo = getPriceInfo(product);
+                        return (
+                          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                            <span className="text-primary font-bold text-base">R$ {priceInfo.currentPrice}</span>
+                            {priceInfo.originalPrice && (
+                              <>
+                                <span className="text-muted-foreground text-xs line-through">R$ {priceInfo.originalPrice}</span>
+                                <span className="bg-green-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">-{priceInfo.discount}%</span>
+                              </>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 );
