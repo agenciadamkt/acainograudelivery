@@ -386,9 +386,6 @@ const StoreMenu = () => {
 
                     <div className="mt-3 px-1">
                       <h3 className="font-bold text-sm text-[#2D2D2D] line-clamp-2 group-hover:text-primary transition-colors leading-tight">{product.name}</h3>
-                      {product.sizes && product.sizes.length > 0 && (
-                        <p className="text-xs text-muted-foreground mt-0.5">{product.sizes[0].ml_size}ml</p>
-                      )}
                       {(() => {
                         const priceInfo = getPriceInfo(product);
                         return (
