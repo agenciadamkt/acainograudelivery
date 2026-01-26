@@ -48,13 +48,13 @@ const LocationCity = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const useLocation = searchParams.get("useLocation") === "true";
-  
+
   const [state, setState] = useState("");
   const [city, setCity] = useState("");
   const [cep, setCep] = useState("");
   const [number, setNumber] = useState("");
   const [isLoadingCEP, setIsLoadingCEP] = useState(false);
-  
+
   const { data: cities = [], isLoading, refetch } = useActiveCities(state);
   const { getCurrentLocation, isLoading: isLoadingGeo } = useGeolocation();
 
@@ -75,14 +75,14 @@ const LocationCity = () => {
     try {
       const coords = await getCurrentLocation();
       const address = await getAddressByCoordinates(coords.latitude, coords.longitude);
-      
+
       if (address) {
         setState(address.state);
         setCity(address.city);
         if (address.postcode) {
           setCep(address.postcode);
         }
-        
+
         localStorage.setItem("userCoordinates", JSON.stringify(coords));
         toast.success("Localização obtida com sucesso!");
       }
@@ -93,7 +93,7 @@ const LocationCity = () => {
 
   const handleCEPChange = async (value: string) => {
     const cleanCEP = value.replace(/\D/g, "");
-    
+
     // Formatar CEP
     let formatted = cleanCEP;
     if (cleanCEP.length > 5) {
@@ -110,12 +110,12 @@ const LocationCity = () => {
           console.log("[LocationCity] CEP encontrado:", address);
           setState(address.state);
           setCity(address.city);
-          
+
           // Forçar refetch após atualizar estado
           setTimeout(() => {
             refetch();
           }, 100);
-          
+
           toast.success(`Endereço: ${address.city} - ${address.state}`);
         } else {
           toast.error("CEP não encontrado");
@@ -138,13 +138,13 @@ const LocationCity = () => {
     localStorage.setItem("selectedState", state);
     localStorage.setItem("userCEP", cep);
     localStorage.setItem("userNumber", number);
-    
+
     navigate("/searching");
   };
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <div className="p-6">
+      <div className="p-6" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 24px)' }}>
         <div className="flex items-center justify-between mb-8">
           <Button
             variant="ghost"
@@ -169,7 +169,7 @@ const LocationCity = () => {
             </p>
             {state && (
               <p className="text-sm text-muted-foreground mt-2">
-                Estado: <span className="font-bold">{STATE_CODE_TO_NAME[state] || state}</span> • 
+                Estado: <span className="font-bold">{STATE_CODE_TO_NAME[state] || state}</span> •
                 {cities.length} {cities.length === 1 ? 'cidade' : 'cidades'} {cities.length === 1 ? 'encontrada' : 'encontradas'}
               </p>
             )}
