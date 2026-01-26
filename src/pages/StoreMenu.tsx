@@ -358,18 +358,16 @@ const StoreMenu = () => {
                           NOVO
                         </div>
                       )}
-
-                      <div className="absolute bottom-3 left-3 right-3 py-2 px-3 backdrop-blur-xl bg-white/20 border border-white/20 rounded-2xl flex items-center justify-between">
-                        <span className="text-white text-xs font-bold leading-none">R$ {getMinPrice(product)}</span>
-                        <Plus className="w-4 h-4 text-white" />
-                      </div>
                     </div>
 
                     <div className="mt-3 px-1">
-                      <h3 className="font-bold text-sm text-[#2D2D2D] line-clamp-1 group-hover:text-primary transition-colors">{product.name}</h3>
-                      <div className="flex items-center gap-1.5 mt-0.5 opacity-60">
-                        <Star className="w-3 h-3 fill-orange-400 text-orange-400" />
-                        <span className="text-[10px] font-light text-muted-foreground">4.8 (120+)</span>
+                      <h3 className="font-bold text-sm text-[#2D2D2D] line-clamp-2 group-hover:text-primary transition-colors leading-tight">{product.name}</h3>
+                      {product.sizes && product.sizes.length > 0 && (
+                        <p className="text-xs text-muted-foreground mt-0.5">{product.sizes[0].ml_size}ml</p>
+                      )}
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <span className="text-primary font-bold text-base">R$ {getMinPrice(product)}</span>
+                        {/* Opcional: preço antigo riscado quando houver promoção */}
                       </div>
                     </div>
                   </div>
