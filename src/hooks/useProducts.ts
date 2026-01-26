@@ -51,7 +51,7 @@ export function useProduct(id: string) {
           .from('products')
           .select(`
             *,
-            category:categories(id, name),
+            category:categories(id, name, store_id),
             sizes:product_sizes(*)
           `)
           .eq('id', id)

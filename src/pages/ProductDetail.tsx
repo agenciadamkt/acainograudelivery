@@ -22,7 +22,10 @@ const ProductDetail = () => {
   const { data: product, isLoading: loadingProduct } = useProduct(id!);
   const { data: sizes } = useProductSizes(id!);
   const { data: productToppingCategories } = useProductToppingCategories(id);
-  const { data: allToppings } = useToppings();
+
+  // Busca o store_id da categoria do produto para filtrar os toppings corretos
+  const productStoreId = (product?.category as any)?.store_id || null;
+  const { data: allToppings } = useToppings(undefined, false, productStoreId);
 
   const [selectedSizeId, setSelectedSizeId] = useState<string>('');
   const [quantity, setQuantity] = useState<number>(1);

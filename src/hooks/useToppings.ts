@@ -16,11 +16,22 @@ export interface Topping {
   updated_at: string;
 }
 
-export function useToppings(categoryId?: string, activeOnly = false) {
+/**
+ * Hook para buscar toppings.
+ * @param categoryId - Filtrar por categoria (opcional)
+ * @param activeOnly - Filtrar apenas ativos (padrão: false)
+ * @param storeId - ID da loja para buscar toppings. Se não fornecido, usa currentStore do contexto.
+ *                  Se passado como string vazia ou undefined, e não houver currentStore, 
+ *                  busca todos os toppings (para páginas de cliente sem contexto de admin).
+ */
+export function useToppings(categoryId?: string, activeOnly = false, storeId?: string | null) {
   const { currentStore } = useStore();
 
+  // Determina o storeId efetivo: prioriza o parâmetro, depois o contexto
+  const effectiveStoreId = storeId !== undefined ? storeId : currentStore?.id;
+
   return useQuery({
-    queryKey: ['toppings', currentStore?.id, categoryId, activeOnly],
+    queryKey: ['toppings', effectiveStoreId, categoryId, activeOnly],
     queryFn: async () => {
       try {
         let query = supabase
@@ -31,8 +42,9 @@ export function useToppings(categoryId?: string, activeOnly = false) {
           `)
           .order('display_order', { ascending: true });
 
-        if (currentStore?.id) {
-          query = query.eq('store_id', currentStore.id);
+        // Filtra por store_id se disponível
+        if (effectiveStoreId) {
+          query = query.eq('store_id', effectiveStoreId);
         }
 
         if (categoryId) {
@@ -54,9 +66,11 @@ export function useToppings(categoryId?: string, activeOnly = false) {
         return [];
       }
     },
-    enabled: !!currentStore?.id,
+    // Permite executar mesmo sem storeId (busca todos os toppings)
+    enabled: true,
   });
 }
+
 
 export function useCreateTopping() {
   const queryClient = useQueryClient();
