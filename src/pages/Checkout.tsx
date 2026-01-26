@@ -275,7 +275,7 @@ export default function Checkout() {
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      <div className="sticky top-0 z-10 bg-background border-b">
+      <div className="sticky top-0 z-10 bg-background border-b safe-area-top" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
         <div className="container max-w-2xl mx-auto px-4 py-4">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>

@@ -40,7 +40,7 @@ export default function Categories() {
     return (
         <div className="min-h-screen bg-background pb-8">
             {/* Header */}
-            <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-md px-6 pt-6 pb-2">
+            <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-md px-6 pb-2 safe-area-top" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 24px)' }}>
                 <div className="flex items-center justify-between mb-6">
                     <Button
                         variant="ghost"

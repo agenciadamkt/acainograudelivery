@@ -116,7 +116,7 @@ const StoreMenu = () => {
   return (
     <div className="min-h-screen bg-[#FDFDFD] pb-32">
       {/* Search and Cart Header */}
-      <div className="px-6 pt-8 pb-2 flex items-center justify-between sticky top-0 bg-[#FDFDFD]/80 backdrop-blur-md z-40">
+      <div className="px-6 pb-2 flex items-center justify-between sticky top-0 bg-[#FDFDFD]/80 backdrop-blur-md z-40 safe-area-top" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 32px)' }}>
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="rounded-full bg-white shadow-sm border border-gray-100 h-10 w-10">
           <ArrowLeft className="w-5 h-5 text-gray-500" />
         </Button>
