@@ -50,7 +50,7 @@ export default defineConfig(({ mode }) => ({
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         cleanupOutdatedCaches: true,
         clientsClaim: true,
-        skipWaiting: false, // Wait for user user confirmation
+        skipWaiting: true, // FORCE immediate activation - critical for updates
         navigateFallback: "index.html",
         navigateFallbackDenylist: [/^\/admin/, /^\/api/], // Don't cache admin or api routes
         runtimeCaching: [
@@ -59,7 +59,7 @@ export default defineConfig(({ mode }) => ({
             urlPattern: ({ request }) => request.mode === 'navigate',
             handler: 'NetworkFirst',
             options: {
-              cacheName: 'html-cache-v2',
+              cacheName: 'html-cache-v3', // v3 to force cache invalidation
               networkTimeoutSeconds: 3,
               expiration: {
                 maxEntries: 10,
@@ -75,7 +75,7 @@ export default defineConfig(({ mode }) => ({
             urlPattern: /\.(?:js|css|png|jpg|jpeg|svg|gif|ico|woff2?|ttf)$/i,
             handler: 'CacheFirst',
             options: {
-              cacheName: 'assets-cache-v2',
+              cacheName: 'assets-cache-v3', // v3 to force cache invalidation
               expiration: {
                 maxEntries: 100,
                 maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
