@@ -1,15 +1,13 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ChevronLeft, Plus, Minus, Trash2, Check, Loader2, Heart } from "lucide-react";
+import { ChevronLeft, Plus, Check, Loader2, Heart, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import BottomNavigation from "@/components/BottomNavigation";
 import { useProduct } from "@/hooks/useProducts";
 import { useProductSizes } from "@/hooks/useProductSizes";
-import { useToppingCategories } from "@/hooks/useToppingCategories";
+import { useProductToppingCategories } from "@/hooks/useProductToppingCategories";
 import { useToppings } from "@/hooks/useToppings";
 import { useCart } from "@/contexts/CartContext";
 import { toast } from "sonner";
@@ -20,65 +18,92 @@ const ProductDetail = () => {
   const { id } = useParams();
   const { addItem, getStoreAwareRoute } = useCart();
 
+  // Load data with safe hooks (hooks that don't crash on error)
   const { data: product, isLoading: loadingProduct } = useProduct(id!);
-
-  const { data: sizes, isLoading: loadingSizes } = useProductSizes(id!);
-  const { data: toppingCategories, isLoading: loadingCategories } = useToppingCategories();
+  const { data: sizes } = useProductSizes(id!);
+  const { data: productToppingCategories } = useProductToppingCategories(id);
   const { data: allToppings } = useToppings();
 
   const [selectedSizeId, setSelectedSizeId] = useState<string>('');
   const [quantity, setQuantity] = useState<number>(1);
-  const [selectedToppings, setSelectedToppings] = useState<string[]>([]);
+  const [selectedToppings, setSelectedToppings] = useState<Record<string, number>>({});
   const [notes, setNotes] = useState<string>('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [addModalTitle, setAddModalTitle] = useState<React.ReactNode>('');
 
-  const toppingsByCategory = useMemo(() => {
-    if (!toppingCategories || !allToppings) return [];
-
-    return toppingCategories.map(category => ({
-      ...category,
-      items: allToppings.filter(t => t.category_id === category.id)
-    }));
-  }, [toppingCategories, allToppings]);
-
+  // Auto-select first size
   useEffect(() => {
     if (sizes && sizes.length > 0 && !selectedSizeId) {
       setSelectedSizeId(sizes[0].id);
     }
   }, [sizes]);
 
-  const handleToggleTopping = (category: any, toppingId: string) => {
-    const isSelected = selectedToppings.includes(toppingId);
+  // Combine rules with items safely
+  const toppingsWithRules = useMemo(() => {
+    if (!productToppingCategories || !allToppings) return [];
 
-    if (isSelected) {
-      setSelectedToppings(prev => prev.filter(id => id !== toppingId));
-    } else {
-      const categoryToppings = selectedToppings.filter(id =>
-        category.items.some((t: any) => t.id === id)
-      );
-
-      if (category.max_selections && categoryToppings.length >= category.max_selections) {
-        toast.error(
-          `Você pode escolher apenas ${category.max_selections} ${category.name.toLowerCase()}`
-        );
-        return;
-      }
-
-      setSelectedToppings(prev => [...prev, toppingId]);
+    try {
+      return productToppingCategories
+        .filter(cat => cat.active && cat.topping_category)
+        .map(cat => ({
+          ...cat,
+          items: allToppings.filter(t => t.category_id === cat.topping_category_id && t.active)
+        }));
+    } catch (e) {
+      console.error("Error matching toppings:", e);
+      return [];
     }
+  }, [productToppingCategories, allToppings]);
+
+  const handleIncrementTopping = (category: any, toppingId: string) => {
+    const currentCategoryCount = category.items.reduce((acc: number, item: any) => acc + (selectedToppings[item.id] || 0), 0);
+
+    if (category.max_quantity > 0 && currentCategoryCount >= category.max_quantity) {
+      toast.error(`Limite de ${category.max_quantity} opções atingido neste grupo.`);
+      return;
+    }
+
+    setSelectedToppings(prev => ({
+      ...prev,
+      [toppingId]: (prev[toppingId] || 0) + 1
+    }));
+  };
+
+  const handleDecrementTopping = (toppingId: string) => {
+    setSelectedToppings(prev => {
+      const newCount = (prev[toppingId] || 0) - 1;
+      if (newCount <= 0) {
+        const { [toppingId]: _, ...rest } = prev;
+        return rest;
+      }
+      return { ...prev, [toppingId]: newCount };
+    });
   };
 
   const calculateTotalPrice = () => {
     const size = sizes?.find(s => s.id === selectedSizeId);
     if (!size) return 0;
 
-    const toppingsPrice = selectedToppings.reduce((sum, toppingId) => {
-      const topping = allToppings?.find(t => t.id === toppingId);
-      return sum + (topping?.price || 0);
+    const toppingsPrice = Object.entries(selectedToppings).reduce((sum, [id, qty]) => {
+      const topping = allToppings?.find(t => t.id === id);
+      return sum + ((topping?.price || 0) * qty);
     }, 0);
 
     return (size.price + toppingsPrice) * quantity;
+  };
+
+  const validateToppings = () => {
+    for (const cat of toppingsWithRules) {
+      if (cat.required) {
+        const currentCategoryCount = cat.items.reduce((acc: number, item: any) => acc + (selectedToppings[item.id] || 0), 0);
+
+        if (currentCategoryCount < cat.min_quantity) {
+          toast.error(`Selecione pelo menos ${cat.min_quantity} opções em ${cat.topping_category.name}`);
+          return false;
+        }
+      }
+    }
+    return true;
   };
 
   const handleAddToCart = () => {
@@ -86,6 +111,8 @@ const ProductDetail = () => {
       toast.error('Por favor, selecione um tamanho');
       return;
     }
+
+    if (!validateToppings()) return;
 
     const size = sizes?.find(s => s.id === selectedSizeId);
     if (!size) {
@@ -98,15 +125,20 @@ const ProductDetail = () => {
       return;
     }
 
-    if (quantity > 99) {
-      toast.error('Quantidade máxima é 99');
-      return;
-    }
-
-    const selectedToppingData = selectedToppings
-      .map(id => allToppings?.find(t => t.id === id))
-      .filter(Boolean)
-      .map(t => ({ id: t!.id, name: t!.name, price: t!.price || 0 }));
+    // Flatten toppings based on quantity (e.g., stored as array of objects in cart)
+    const selectedToppingList: any[] = [];
+    Object.entries(selectedToppings).forEach(([id, qty]) => {
+      const topping = allToppings?.find(t => t.id === id);
+      if (topping) {
+        for (let i = 0; i < qty; i++) {
+          selectedToppingList.push({
+            id: topping.id,
+            name: topping.name,
+            price: topping.price || 0
+          });
+        }
+      }
+    });
 
     addItem({
       product_id: product!.id,
@@ -117,7 +149,7 @@ const ProductDetail = () => {
       size_ml: size.ml_size,
       size_price: size.price,
       quantity,
-      toppings: selectedToppingData,
+      toppings: selectedToppingList,
       notes: notes || undefined,
     });
 
@@ -132,50 +164,28 @@ const ProductDetail = () => {
     setIsAddModalOpen(true);
   };
 
-  if (loadingProduct || loadingSizes || loadingCategories) {
+  if (loadingProduct) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-8 h-8 animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-[#FDFDFD]">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
 
   if (!product) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-background">
-        <Card className="p-8 text-center max-w-md">
-          <h2 className="text-xl font-bold mb-2">Produto não encontrado</h2>
-          <p className="text-muted-foreground mb-4">
-            Este produto não existe.
-          </p>
-          <Button onClick={() => navigate(getStoreAwareRoute())}>
-            Voltar ao Menu
-          </Button>
-        </Card>
-      </div>
-    );
-  }
-
-  if (!sizes || sizes.length === 0) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-background">
-        <Card className="p-8 text-center max-w-md">
-          <h2 className="text-xl font-bold mb-2">Tamanhos indisponíveis</h2>
-          <p className="text-muted-foreground mb-4">
-            Este produto não possui tamanhos cadastrados no momento.
-          </p>
-          <Button onClick={() => navigate(getStoreAwareRoute())}>
-            Voltar ao Menu
-          </Button>
-        </Card>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#FDFDFD] p-6 text-center">
+        <h2 className="text-xl font-bold text-gray-800 mb-2">Produto não encontrado</h2>
+        <p className="text-gray-500 mb-6">Não foi possível carregar as informações deste produto.</p>
+        <Button onClick={() => navigate(-1)} variant="outline">Voltar</Button>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#FDFDFD] pb-40">
+    <div className="min-h-screen bg-[#FDFDFD] pb-32">
       {/* Product Image Header */}
-      <div className="relative h-[45vh] w-full overflow-hidden rounded-b-[48px] shadow-lg">
+      <div className="relative h-[40vh] w-full overflow-hidden rounded-b-[40px] shadow-sm bg-gray-100">
         {product.base_image_url ? (
           <img
             src={product.base_image_url}
@@ -183,12 +193,9 @@ const ProductDetail = () => {
             className={`w-full h-full object-cover transition-transform duration-700 hover:scale-110 ${!product.active ? 'grayscale opacity-70' : ''}`}
           />
         ) : (
-          <div className="w-full h-full bg-primary/5 flex items-center justify-center">
-            <span className="text-9xl grayscale opacity-10">🍓</span>
-          </div>
+          <div className="w-full h-full flex items-center justify-center text-4xl">🍓</div>
         )}
 
-        {/* Unavailable Overaly */}
         {!product.active && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/40 z-10 backdrop-blur-[2px]">
             <div className="bg-destructive text-destructive-foreground px-6 py-2 rounded-full font-bold shadow-lg transform -rotate-6 border-2 border-white/20">
@@ -197,192 +204,204 @@ const ProductDetail = () => {
           </div>
         )}
 
-        {/* Header Controls */}
-        <div className="absolute top-8 left-6 right-6 flex items-center justify-between z-20">
+        <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-20">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => navigate(-1)}
-            className="rounded-full bg-white/40 backdrop-blur-xl border border-white/20 h-11 w-11 shadow-sm text-black hover:bg-white/80"
+            className="rounded-full bg-white/40 backdrop-blur-md hover:bg-white/60 text-black shadow-sm"
           >
             <ChevronLeft className="w-6 h-6" />
           </Button>
           <Button
             variant="ghost"
             size="icon"
-            className="rounded-full bg-white/40 backdrop-blur-xl border border-white/20 h-11 w-11 shadow-sm text-black hover:bg-white/80"
+            className="rounded-full bg-white/40 backdrop-blur-md hover:bg-white/60 text-black shadow-sm"
           >
             <Heart className="w-5 h-5" />
           </Button>
         </div>
       </div>
 
-      <div className="px-6 py-8 space-y-8">
+      <div className="px-5 py-6 space-y-8 animate-in slide-in-from-bottom-4 duration-500">
         {/* Product Info */}
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Copo de Açaí</span>
-            <div className="flex items-center bg-gray-100 rounded-full px-3 py-1.5 gap-3">
-              <button
-                onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                className="text-gray-400 hover:text-black transition-colors"
-              >
-                <Minus className="w-5 h-5" />
-              </button>
-              <span className="text-sm font-extrabold w-4 text-center">{quantity}</span>
-              <button
-                onClick={() => setQuantity(Math.min(99, quantity + 1))}
-                className="text-gray-900"
-              >
-                <Plus className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-          <h1 className="text-3xl font-extrabold text-[#2D2D2D] leading-tight pr-10">{product.name}</h1>
+        <div className="space-y-2">
+          {product.category && (
+            <span className="text-[10px] font-bold text-primary uppercase tracking-widest bg-primary/10 px-2 py-1 rounded-sm">
+              {product.category.name}
+            </span>
+          )}
+          <h1 className="text-2xl font-black text-gray-900 leading-tight">{product.name}</h1>
           {product.description && (
-            <p className="text-gray-400 text-sm leading-relaxed mt-2">{product.description}</p>
+            <p className="text-gray-500 text-sm leading-relaxed">{product.description}</p>
           )}
         </div>
 
-        <Card className="p-6 bg-card">
-          <h2 className="text-lg font-bold mb-2">Tamanho *</h2>
-          <p className="text-sm text-muted-foreground mb-4">Escolha o tamanho ideal para você</p>
-          <RadioGroup value={selectedSizeId} onValueChange={setSelectedSizeId}>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+        {/* Sizes */}
+        {sizes && sizes.length > 0 && (
+          <div className="space-y-3">
+            <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Escolha o tamanho</h2>
+            <RadioGroup value={selectedSizeId} onValueChange={setSelectedSizeId} className="space-y-3">
               {sizes.map((size) => (
-                <div key={size.id} className="relative">
-                  <RadioGroupItem
-                    value={size.id}
-                    id={size.id}
-                    className="peer sr-only"
-                  />
-                  <Label
-                    htmlFor={size.id}
-                    className="flex flex-col items-center justify-center rounded-2xl border-2 border-gray-100 bg-white p-4 h-full hover:border-primary/30 peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/[0.02] cursor-pointer transition-all duration-300 shadow-sm"
-                  >
-                    <div className="text-3xl mb-3 transform transition-transform peer-data-[state=checked]:scale-110">🥤</div>
-                    <div className="text-sm font-bold text-[#2D2D2D] mb-1">{size.name}</div>
-                    {size.ml_size && (
-                      <div className="text-[10px] text-muted-foreground font-medium mb-2">{size.ml_size}ml</div>
-                    )}
-                    <div className="text-primary font-black text-sm">
-                      R$ {size.price.toFixed(2)}
-                    </div>
-                  </Label>
+                <div
+                  key={size.id}
+                  className={`flex items-center justify-between p-4 rounded-xl border transition-all cursor-pointer ${selectedSizeId === size.id
+                    ? 'border-primary bg-primary/5 shadow-sm'
+                    : 'border-gray-100 bg-white hover:border-gray-200'
+                    }`}
+                  onClick={() => setSelectedSizeId(size.id)}
+                >
+                  <div className="flex items-center gap-3">
+                    <RadioGroupItem value={size.id} id={size.id} className="text-primary border-gray-300" />
+                    <Label htmlFor={size.id} className="cursor-pointer font-semibold text-gray-700">
+                      {size.name}
+                      {size.ml_size && <span className="text-gray-400 font-normal text-xs ml-1">({size.ml_size}ml)</span>}
+                    </Label>
+                  </div>
+                  <span className="font-bold text-gray-900">R$ {size.price.toFixed(2)}</span>
                 </div>
               ))}
-            </div>
-          </RadioGroup>
-        </Card>
+            </RadioGroup>
+          </div>
+        )}
 
-        {toppingsByCategory.map((category) => (
-          <Card key={category.id} className="p-6 bg-card">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-lg font-bold">{category.name}</h2>
-              {category.max_selections && (
-                <span className="text-xs text-muted-foreground">
-                  {selectedToppings.filter(id =>
-                    category.items.some(t => t.id === id)
-                  ).length} / {category.max_selections}
-                </span>
-              )}
-            </div>
-            <p className="text-sm text-muted-foreground mb-4">
-              {category.max_selections
-                ? `Escolha até ${category.max_selections} opções`
-                : 'Escolha quantas opções quiser'}
-            </p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              {category.items.map((topping) => {
-                const isSelected = selectedToppings.includes(topping.id);
-                const categorySelectedCount = selectedToppings.filter(id =>
-                  category.items.some(t => t.id === id)
-                ).length;
-                const isLimitReached = category.max_selections
-                  ? categorySelectedCount >= category.max_selections
-                  : false;
-                const isDisabled = !isSelected && isLimitReached;
+        {/* Dynamic Topping Groups */}
+        {toppingsWithRules.map((category) => {
+          // Calculate total selected in this category
+          const currentCategoryCount = category.items.reduce((acc: number, item: any) => {
+            return acc + (selectedToppings[item.id] || 0);
+          }, 0);
 
-                return (
-                  <div key={topping.id} className="relative">
-                    <button
-                      onClick={() => handleToggleTopping(category, topping.id)}
-                      disabled={isDisabled}
-                      className={`w-full flex flex-col items-center justify-center rounded-xl border-2 p-4 transition-all ${isSelected
-                        ? "border-primary bg-primary/5"
-                        : isDisabled
-                          ? "border-muted bg-muted/50 opacity-50 cursor-not-allowed"
-                          : "border-muted bg-background hover:bg-accent cursor-pointer"
-                        }`}
-                    >
-                      {topping.image_url ? (
-                        <img
-                          src={topping.image_url}
-                          alt={topping.name}
-                          className="w-12 h-12 object-cover rounded-full mb-2"
-                        />
-                      ) : (
-                        <div className="text-3xl mb-2">🍓</div>
-                      )}
-                      <div className="text-xs font-medium text-center">{topping.name}</div>
-                      {topping.price > 0 && (
-                        <div className="text-xs text-primary font-bold mt-1">
-                          +R$ {topping.price.toFixed(2)}
-                        </div>
-                      )}
-                      {isSelected && (
-                        <div className="absolute top-1 right-1 bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center">
-                          <Check className="w-3 h-3" />
-                        </div>
-                      )}
-                    </button>
+          const isCategoryFinished = category.max_quantity > 0 && currentCategoryCount >= category.max_quantity;
+          const isCategoryMinSatisfied = category.min_quantity > 0 && currentCategoryCount >= category.min_quantity;
+
+          return (
+            <div key={category.id} className="space-y-3">
+              <div className="flex items-center justify-between sticky top-0 bg-[#FDFDFD] py-2 z-10">
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">{category?.topping_category?.name}</h2>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs text-gray-500">
+                      {category.max_quantity > 0
+                        ? `Escolha até ${category.max_quantity} opções`
+                        : 'Sem limite'}
+                    </p>
+                    {isCategoryFinished && <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Concluído</span>}
                   </div>
-                );
-              })}
-            </div>
-          </Card>
-        ))}
+                </div>
 
-        <Card className="p-6 bg-card">
-          <h2 className="text-lg font-bold mb-2">Observações</h2>
-          <p className="text-sm text-muted-foreground mb-4">
-            Alguma observação especial? (opcional)
-          </p>
+                <div className="flex flex-col items-end">
+                  {category.required && !isCategoryMinSatisfied && (
+                    <span className="bg-amber-50 text-amber-600 border border-amber-100 text-[10px] font-bold px-2 py-1 rounded-full uppercase mb-1">
+                      Obrigatório
+                    </span>
+                  )}
+                  {currentCategoryCount > 0 && (
+                    <span className="text-xs font-medium text-gray-500">
+                      {currentCategoryCount} / {category.max_quantity > 0 ? category.max_quantity : '∞'}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="divide-y divide-gray-50 border border-gray-100 rounded-xl bg-white overflow-hidden shadow-sm">
+                {category.items.map((topping: any) => {
+                  const qty = selectedToppings[topping.id] || 0;
+                  // Disable adding more if bucket is full, unless we are adding to an existing item (if we allowed >1 per item, but here usually it is toggling unique items vs quantity, let's assume quantity per item allowed up to bucket limit)
+                  // Actually usually iFood style allows multiple of same item if not boolean. Let's assume quantity allowed.
+
+                  const canAdd = category.max_quantity === 0 || currentCategoryCount < category.max_quantity;
+
+                  return (
+                    <div
+                      key={topping.id}
+                      className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex flex-col flex-1" onClick={() => canAdd && handleIncrementTopping(category, topping.id)}>
+                        <span className="font-medium text-sm text-gray-800">{topping.name}</span>
+                        <span className="text-xs text-gray-500 mt-0.5">
+                          {topping.price > 0 ? `+ R$ ${topping.price.toFixed(2)}` : 'Grátis'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        {qty > 0 && (
+                          <>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleDecrementTopping(topping.id); }}
+                              className="w-7 h-7 flex items-center justify-center rounded-full border border-gray-200 text-gray-600 hover:bg-gray-100 transition-colors"
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <span className="text-sm font-bold w-4 text-center">{qty}</span>
+                          </>
+                        )}
+
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleIncrementTopping(category, topping.id); }}
+                          disabled={!canAdd && qty === 0} // Only disable if can't add AND quantity is 0 (can always decrement)
+                          className={`w-7 h-7 flex items-center justify-center rounded-full transition-all ${(!canAdd && qty === 0)
+                            ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
+                            : qty > 0
+                              ? 'bg-primary text-white shadow-sm'
+                              : 'border border-primary text-primary hover:bg-primary/5'
+                            }`}
+                        >
+                          <Plus className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )
+        })}
+
+        {/* Notes */}
+        <div className="space-y-3 pt-2">
+          <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Observações</h2>
           <Textarea
-            placeholder="Ex: Sem gelo, bem batido..."
+            placeholder="Ex: Sem cebola, capricha no molho..."
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            rows={3}
+            className="bg-white border-gray-200 resize-none h-24 rounded-xl focus:border-primary/50 focus:ring-primary/20 text-sm"
           />
-        </Card>
+        </div>
       </div>
 
-      {/* Floating Add to Cart Button */}
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-[500px] z-50">
-        <div className="bg-white/80 backdrop-blur-2xl border border-gray-100 p-4 px-6 rounded-[32px] shadow-2xl flex items-center justify-between">
-          <div className="flex flex-col">
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none mb-1">Preço Total</span>
-            <span className="text-2xl font-extrabold text-[#2D2D2D] leading-none">R$ {calculateTotalPrice().toFixed(2)}</span>
+      {/* Floating Action Bar */}
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-xl border-t border-gray-100 z-40 pb-8 safe-area-bottom">
+        <div className="max-w-md mx-auto flex items-center gap-4">
+          <div className="flex items-center justify-center bg-gray-100 rounded-full h-12 px-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setQuantity(Math.max(1, quantity - 1))}
+              className="h-10 w-10 full rounded-full hover:bg-white text-gray-600"
+              disabled={quantity <= 1}
+            >
+              <span className="text-xl font-bold">-</span>
+            </Button>
+            <span className="w-8 text-center font-bold text-gray-900">{quantity}</span>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setQuantity(quantity + 1)}
+              className="h-10 w-10 full rounded-full hover:bg-white text-gray-600"
+            >
+              <Plus className="w-4 h-4" />
+            </Button>
           </div>
 
           <Button
             onClick={handleAddToCart}
             disabled={!product.active}
-            className={`rounded-[22px] px-8 h-14 font-extrabold text-sm gap-3 shadow-lg 
-              ${!product.active
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed shadow-none'
-                : 'bg-primary text-white shadow-primary/30'}`}
+            className={`flex-1 rounded-full h-12 font-bold text-base shadow-lg shadow-primary/20 transition-all active:scale-95 ${!product.active ? 'bg-gray-400 cursor-not-allowed' : 'bg-primary hover:bg-primary/90'
+              }`}
           >
-            {!product.active ? (
-              <span>INDISPONÍVEL</span>
-            ) : (
-              <>
-                <div className="bg-white/20 p-2 rounded-lg">
-                  <Plus className="w-4 h-4" />
-                </div>
-                Adicionar
-              </>
-            )}
+            <span className="mr-auto">Adicionar</span>
+            <span>R$ {calculateTotalPrice().toFixed(2)}</span>
           </Button>
         </div>
       </div>

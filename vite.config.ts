@@ -16,6 +16,9 @@ export default defineConfig(({ mode }) => ({
     VitePWA({
       registerType: 'prompt', // Important for "Update available" flow
       injectRegister: false, // We will register manually in App
+      devOptions: {
+        enabled: true,
+      },
       includeAssets: ["favicon.ico", "robots.txt", "logo-192x192.png", "logo-512x512.png"],
       manifest: {
         name: "PedeGrau - Delivery de Açaí no Grau",

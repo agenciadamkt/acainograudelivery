@@ -100,9 +100,15 @@ export default function Cart() {
                     <div className="mb-2">
                       <p className="text-sm font-medium">Adicionais:</p>
                       <ul className="text-sm text-muted-foreground">
-                        {item.toppings.map((topping, idx) => (
+                        {Object.values(item.toppings.reduce((acc, topping) => {
+                          if (!acc[topping.id]) {
+                            acc[topping.id] = { ...topping, count: 0 };
+                          }
+                          acc[topping.id].count += 1;
+                          return acc;
+                        }, {} as Record<string, typeof item.toppings[0] & { count: number }>)).map((topping, idx) => (
                           <li key={idx}>
-                            + {topping.name}
+                            <span className="font-semibold text-gray-900">{topping.count}x</span> {topping.name}
                             {topping.price > 0 && ` (R$ ${topping.price.toFixed(2)})`}
                           </li>
                         ))}
