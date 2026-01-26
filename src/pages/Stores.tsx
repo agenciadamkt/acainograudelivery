@@ -89,19 +89,11 @@ const Stores = () => {
               >
                 <div className="flex gap-4">
                   <div className="w-24 h-24 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden" style={{ backgroundColor: '#6854AB' }}>
-                    {store.logo_url ? (
-                      <img
-                        src={store.logo_url}
-                        alt={store.name}
-                        className="w-20 h-20 object-contain"
-                      />
-                    ) : (
-                      <img
-                        src={logoWhite}
-                        alt="Açaí no Grau"
-                        className="w-[85%] h-[85%] object-contain"
-                      />
-                    )}
+                    <img
+                      src={logoWhite}
+                      alt="Açaí no Grau"
+                      className="w-[85%] h-[85%] object-contain"
+                    />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between mb-2">

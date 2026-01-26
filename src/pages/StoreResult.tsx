@@ -3,6 +3,7 @@ import { ArrowLeft, Menu, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import BottomNavigation from "@/components/BottomNavigation";
 import { formatDistance } from "@/utils/distance";
+import logoWhite from "@/assets/logo-white.png";
 
 const StoreResult = () => {
   const navigate = useNavigate();
@@ -10,7 +11,7 @@ const StoreResult = () => {
   const { store, distance, deliveryTime } = location.state || {};
 
   const formattedDistance = distance ? formatDistance(distance) : "a poucos quilômetros";
-  
+
   // Calcular tempo mínimo e máximo (±10% do tempo estimado)
   const minTime = deliveryTime ? Math.round(deliveryTime * 0.9) : 15;
   const maxTime = deliveryTime ? Math.round(deliveryTime * 1.1) : 20;
@@ -56,8 +57,8 @@ const StoreResult = () => {
             className="w-full bg-card hover:bg-card/80 text-foreground shadow-card rounded-2xl p-6 h-auto flex items-center gap-4 justify-between"
           >
             <div className="flex items-center gap-4">
-              <div className="w-16 h-16 bg-gradient-primary rounded-xl flex items-center justify-center flex-shrink-0">
-                <span className="text-white text-2xl">🍓</span>
+              <div className="w-16 h-16 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden" style={{ backgroundColor: '#6854AB' }}>
+                <img src={logoWhite} alt="Açaí no Grau" className="w-[85%] h-[85%] object-contain" />
               </div>
               <div className="text-left">
                 <h3 className="font-bold text-lg mb-1">Acesse o cardápio exclusivo!</h3>
