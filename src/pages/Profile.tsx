@@ -103,7 +103,7 @@ const Profile = () => {
         data: {
           name,
           phone,
-          birth_date: birthDate || undefined,
+          birth_date: birthDate || null,
         },
       });
       toast.success("Dados atualizados com sucesso!");

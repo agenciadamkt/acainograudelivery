@@ -10,6 +10,7 @@ export interface Store {
   city: string | null;
   state: string | null;
   address: string | null;
+  zipcode: string | null;
   phone: string | null;
   logo_url: string | null;
   delivery_fee: number | null;

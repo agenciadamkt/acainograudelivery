@@ -136,7 +136,7 @@ export function FranchiseeForm({ onSuccess, initialData }: FranchiseeFormProps) 
         street: street,
         addressNumber: number || 'S/N', // Preencher para evitar validação erro, user corrige
         neighborhood: neighborhood || 'Centro', // Preencher para evitar validação erro
-        zipcode: '00000-000', // Dummy, pois não temos salvo
+        zipcode: initialData.zipcode || '',
         city: initialData.city || '',
         state: initialData.state || '',
         storePhone: initialData.phone || '',
@@ -169,6 +169,7 @@ export function FranchiseeForm({ onSuccess, initialData }: FranchiseeFormProps) 
             slug: data.slug,
             phone: data.storePhone,
             address: fullAddress,
+            zipcode: data.zipcode,
             city: data.city,
             state: data.state,
             delivery_fee: data.deliveryFee,
