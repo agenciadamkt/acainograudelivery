@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import BottomNavigation from "@/components/BottomNavigation";
 import logoAcai from "@/assets/logo-acai.png";
 import logoWhite from "@/assets/logo-white.png";
+import logoOutline from "@/assets/logo-outline.png";
 import { useStoresByCity } from "@/hooks/useStoresByCity";
 import { formatDistance } from "@/utils/distance";
 import type { Coordinates } from "@/hooks/useGeolocation";
@@ -52,8 +53,8 @@ const Stores = () => {
 
         <Card className="bg-card rounded-3xl p-6 mb-8 shadow-card">
           <div className="flex items-center gap-4">
-            <div className="w-24 h-24 bg-gradient-primary rounded-2xl flex items-center justify-center flex-shrink-0">
-              <span className="text-white text-4xl">🛵</span>
+            <div className="w-24 h-24 bg-white rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sm">
+              <img src={logoOutline} alt="Açaí no Grau" className="w-20 h-20 object-contain" />
             </div>
             <div>
               <h3 className="text-xl font-bold mb-1">Lojas oficiais</h3>
