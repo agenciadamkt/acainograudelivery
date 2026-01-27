@@ -24,15 +24,12 @@ const AppManager = () => {
         if (needRefresh) {
             toast("Nova versão disponível!", {
                 description: "Atualize para ter as últimas novidades.",
-                action: (
-                    <Button
-                        size="sm"
-                        onClick={() => updateServiceWorker(true)}
-                        className="bg-primary text-white"
-                    >
-                        Atualizar
-                    </Button>
-                ),
+                action: {
+                    label: 'Atualizar',
+                    onClick: async () => {
+                        await updateServiceWorker(true);
+                    }
+                },
                 duration: Infinity, // Keep open until clicked
                 icon: <RefreshCw className="w-5 h-5 animate-spin" />,
             });

@@ -64,7 +64,7 @@ export default function SettingsPage() {
       </div>
 
       <Tabs defaultValue="store" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5 lg:w-auto">
+        <TabsList className="grid w-full h-auto grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
           <TabsTrigger value="store">
             <Store className="h-4 w-4 mr-2" />
             Loja
