@@ -19,22 +19,33 @@ const AppManager = () => {
         },
     });
 
+    const [updateToastId, setUpdateToastId] = useState<string | number | null>(null);
+
     // Effect to show update toast
     useEffect(() => {
-        if (needRefresh) {
-            toast("Nova versão disponível!", {
+        if (needRefresh && !updateToastId) {
+            const id = toast("Nova versão disponível!", {
                 description: "Atualize para ter as últimas novidades.",
                 action: {
                     label: 'Atualizar',
                     onClick: async () => {
-                        await updateServiceWorker(true);
+                        toast.dismiss(id);
+                        try {
+                            await updateServiceWorker(true);
+                        } catch (e) {
+                            console.error("Update error:", e);
+                        }
+                        // Force reload to ensure new SW takes over
+                        window.location.reload();
                     }
                 },
                 duration: Infinity, // Keep open until clicked
+                onDismiss: () => setUpdateToastId(null), // Allows finding it again if dismissed without updating
                 icon: <RefreshCw className="w-5 h-5 animate-spin" />,
             });
+            setUpdateToastId(id);
         }
-    }, [needRefresh, updateServiceWorker]);
+    }, [needRefresh, updateServiceWorker, updateToastId]);
 
     // Effect for offline ready
     useEffect(() => {

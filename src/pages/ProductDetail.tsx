@@ -207,7 +207,7 @@ const ProductDetail = () => {
           </div>
         )}
 
-        <div className="absolute left-4 right-4 flex items-center justify-between z-20 pt-safe" style={{ top: 'calc(env(safe-area-inset-top, 0px) + 16px)' }}>
+        <div className="absolute left-4 right-4 flex items-center justify-between z-20 pt-safe" style={{ top: 'calc(env(safe-area-inset-top, 0px) + 8px)' }}>
           <Button
             variant="ghost"
             size="icon"

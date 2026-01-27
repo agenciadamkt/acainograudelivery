@@ -17,14 +17,27 @@ export default function Cart() {
 
   if (items.length === 0) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-6">
-        <div className="text-center max-w-md">
+      <div className="min-h-screen bg-background pb-24">
+        {/* Header */}
+        <div className="sticky top-0 z-10 bg-background border-b safe-area-top" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+          <div className="container max-w-4xl mx-auto px-4 py-4">
+            <div className="flex items-center justify-between">
+              <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+              <h1 className="text-xl font-bold">Meu Carrinho</h1>
+              <div className="w-10" /> {/* Spacer for alignment */}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-col items-center justify-center p-6 min-h-[60vh]">
           <ShoppingCart className="w-24 h-24 mx-auto text-muted-foreground mb-6" />
           <h1 className="text-2xl font-bold mb-2">Seu carrinho está vazio</h1>
-          <p className="text-muted-foreground mb-6">
+          <p className="text-muted-foreground mb-6 text-center">
             Adicione produtos do cardápio para começar seu pedido
           </p>
-          <Button onClick={() => navigate(getStoreAwareRoute())} size="lg">
+          <Button onClick={() => navigate('/')} size="lg" className="bg-primary hover:bg-primary/90">
             Ver Cardápio
           </Button>
         </div>

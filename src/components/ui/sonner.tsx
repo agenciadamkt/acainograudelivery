@@ -21,7 +21,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
           // Estilo Padrão (Info/Default) - Branco/Zinc
           title: "font-semibold text-base",
           description: "text-sm opacity-90",
-          actionButton: "font-semibold rounded-lg px-3 py-2",
+          actionButton: "font-semibold rounded-lg px-3 py-2 bg-primary text-primary-foreground hover:bg-primary/90",
           cancelButton: "font-semibold rounded-lg px-3 py-2",
 
           // Sucesso - Verde Vibrante
