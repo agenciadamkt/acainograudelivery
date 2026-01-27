@@ -37,7 +37,7 @@ export default function Cart() {
           <p className="text-muted-foreground mb-6 text-center">
             Adicione produtos do cardápio para começar seu pedido
           </p>
-          <Button onClick={() => navigate('/')} size="lg" className="bg-primary hover:bg-primary/90">
+          <Button onClick={() => navigate(getStoreAwareRoute())} size="lg" className="bg-primary hover:bg-primary/90">
             Ver Cardápio
           </Button>
         </div>
