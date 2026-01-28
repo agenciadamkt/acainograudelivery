@@ -13,6 +13,28 @@ import { useCart } from "@/contexts/CartContext";
 import { toast } from "sonner";
 import { FeedbackModal } from '@/components/common/FeedbackModal';
 
+const FormattedText = ({ text }: { text: string }) => {
+  if (!text) return null;
+
+  // Split logic to handle **bold** and *italic*
+  // Regex captures: (**...**) OR (*...*)
+  const parts = text.split(/(\*\*.*?\*\*|\*.*?\*)/g);
+
+  return (
+    <span>
+      {parts.map((part, index) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+          return <strong key={index} className="font-bold text-gray-900">{part.slice(2, -2)}</strong>;
+        }
+        if (part.startsWith('*') && part.endsWith('*')) {
+          return <em key={index} className="italic text-gray-700">{part.slice(1, -1)}</em>;
+        }
+        return <span key={index}>{part}</span>;
+      })}
+    </span>
+  );
+};
+
 const ProductDetail = () => {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -236,7 +258,9 @@ const ProductDetail = () => {
           )}
           <h1 className="text-2xl font-black text-gray-900 leading-tight">{product.name}</h1>
           {product.description && (
-            <p className="text-gray-500 text-sm leading-relaxed">{product.description}</p>
+            <div className="text-gray-500 text-sm leading-relaxed">
+              <FormattedText text={product.description} />
+            </div>
           )}
         </div>
 
