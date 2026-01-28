@@ -17,6 +17,7 @@ import AddressSelector from '@/components/customer/AddressSelector';
 import { PaymentForm } from '@/components/customer/PaymentForm';
 import { toast } from '@/hooks/use-toast';
 import { FeedbackModal } from '@/components/common/FeedbackModal';
+import { isStoreOpen, getTodayHoursString } from '@/utils/businessHours';
 
 export default function Checkout() {
   const navigate = useNavigate();
@@ -53,7 +54,7 @@ export default function Checkout() {
       if (storeSlug) {
         const { data } = await supabase
           .from('stores')
-          .select('id, delivery_fee, slug')
+          .select('id, delivery_fee, slug, business_hours')
           .eq('slug', storeSlug)
           .single();
         if (data) setStore(data);
@@ -66,6 +67,20 @@ export default function Checkout() {
   const total = subtotal + deliveryFee;
 
   const handleSubmit = async () => {
+    // Validar horário de funcionamento
+    if (store?.business_hours) {
+      const isOpen = isStoreOpen(store.business_hours);
+      if (!isOpen) {
+        const todayHours = getTodayHoursString(store.business_hours);
+        toast({
+          title: 'Loja Fechada',
+          description: `Não é possível realizar pedidos no momento. Horário de hoje: ${todayHours || 'Fechado'}.`,
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
     if (!user) {
       toast({
         title: 'Faça login',

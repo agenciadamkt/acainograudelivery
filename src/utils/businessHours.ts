@@ -4,7 +4,7 @@ interface DayHours {
   closed: boolean;
 }
 
-interface BusinessHours {
+export interface BusinessHours {
   monday: DayHours;
   tuesday: DayHours;
   wednesday: DayHours;
@@ -31,6 +31,7 @@ export function isStoreOpen(businessHours: BusinessHours | null): boolean {
     'thursday',
     'friday',
     'saturday',
+    'sunday',
   ][now.getDay()] as keyof BusinessHours;
 
   const hours = businessHours[dayOfWeek];
@@ -39,4 +40,25 @@ export function isStoreOpen(businessHours: BusinessHours | null): boolean {
 
   const currentTime = now.toTimeString().slice(0, 5); // "HH:MM"
   return currentTime >= hours.open && currentTime <= hours.close;
+}
+
+export function getTodayHoursString(businessHours: BusinessHours | null): string | null {
+  if (!businessHours) return null;
+
+  const now = new Date();
+  const dayOfWeek = [
+    'sunday',
+    'monday',
+    'tuesday',
+    'wednesday',
+    'thursday',
+    'friday',
+    'saturday',
+  ][now.getDay()] as keyof BusinessHours;
+
+  const hours = businessHours[dayOfWeek];
+
+  if (!hours || hours.closed) return "Fechada";
+
+  return `${hours.open} às ${hours.close}`;
 }
