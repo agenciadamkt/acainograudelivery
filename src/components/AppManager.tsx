@@ -24,24 +24,49 @@ const AppManager = () => {
     // Effect to show update toast
     useEffect(() => {
         if (needRefresh && !updateToastId) {
-            const id = toast("Nova versão disponível!", {
-                description: "Atualize para ter as últimas novidades.",
-                action: {
-                    label: 'Atualizar',
-                    onClick: async () => {
-                        toast.dismiss(id);
-                        try {
-                            await updateServiceWorker(true);
-                        } catch (e) {
-                            console.error("Update error:", e);
-                        }
-                        // Force reload to ensure new SW takes over
-                        window.location.reload();
-                    }
-                },
-                duration: Infinity, // Keep open until clicked
-                onDismiss: () => setUpdateToastId(null), // Allows finding it again if dismissed without updating
-                icon: <RefreshCw className="w-5 h-5 animate-spin" />,
+            const id = toast.custom((t) => (
+                <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-lg p-4 w-full max-w-sm flex flex-col gap-3">
+                    <div className="flex items-start gap-3">
+                        <div className="p-2 bg-primary/10 rounded-full shrink-0">
+                            <RefreshCw className="w-5 h-5 text-primary animate-spin" />
+                        </div>
+                        <div className="flex-1">
+                            <h3 className="font-semibold text-sm text-gray-900 dark:text-gray-100">Nova versão disponível!</h3>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                Uma nova versão do app está pronta. Atualize para ver as novidades.
+                            </p>
+                        </div>
+                    </div>
+                    <Button
+                        size="sm"
+                        className="w-full bg-primary hover:bg-primary/90 text-white font-semibold shadow-sm"
+                        onClick={async () => {
+                            toast.dismiss(t);
+                            try {
+                                // 1. Tentar atualizar o SW
+                                await updateServiceWorker(true);
+
+                                // 2. Forçar limpeza de caches antigos para evitar loops
+                                if ('caches' in window) {
+                                    const keys = await caches.keys();
+                                    await Promise.all(keys.map(key => caches.delete(key)));
+                                }
+                            } catch (e) {
+                                console.error("Update error:", e);
+                            }
+
+                            // 3. Forçar reload agressivo
+                            window.location.reload();
+                        }}
+                    >
+                        Atualizar Agora
+                    </Button>
+                </div>
+            ), {
+                duration: Infinity,
+                position: 'top-center',
+                id: 'pwa-update-toast', // ID fixo para evitar duplicatas
+                onDismiss: () => setUpdateToastId(null),
             });
             setUpdateToastId(id);
         }
