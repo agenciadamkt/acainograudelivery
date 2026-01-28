@@ -24,10 +24,17 @@ const AppManager = () => {
     // Effect to show update toast
     useEffect(() => {
         // Prevent infinite loop: don't show toast if we just updated (< 10s ago)
-        const lastUpdate = localStorage.getItem('last_pwa_update');
-        if (lastUpdate && Date.now() - parseInt(lastUpdate) < 10000) {
-            return;
+        let recentlyUpdated = false;
+        try {
+            const lastUpdate = localStorage.getItem('last_pwa_update');
+            if (lastUpdate && Date.now() - parseInt(lastUpdate) < 10000) {
+                recentlyUpdated = true;
+            }
+        } catch (e) {
+            // Ignore storage errors
         }
+
+        if (recentlyUpdated) return;
 
         if (needRefresh && !updateToastId) {
             const id = toast.custom((t) => (
@@ -62,7 +69,11 @@ const AppManager = () => {
                             }
 
                             // 3. Mark update time to prevent loop
-                            localStorage.setItem('last_pwa_update', Date.now().toString());
+                            try {
+                                localStorage.setItem('last_pwa_update', Date.now().toString());
+                            } catch (e) {
+                                // Ignore storage errors
+                            }
 
                             // 4. Forçar reload agressivo
                             window.location.reload();
