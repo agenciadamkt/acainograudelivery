@@ -237,7 +237,7 @@ const LocationCity = () => {
 
                 <Button
                   variant="outline"
-                  onClick={() => navigate('/location-state')}
+                  onClick={() => navigate('/')}
                   className="w-full h-14 text-lg rounded-full"
                 >
                   Escolher outro estado
