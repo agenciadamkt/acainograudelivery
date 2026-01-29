@@ -37,7 +37,15 @@ export default function Cart() {
           <p className="text-muted-foreground mb-6 text-center">
             Adicione produtos do cardápio para começar seu pedido
           </p>
-          <Button onClick={() => navigate(getStoreAwareRoute())} size="lg" className="bg-primary hover:bg-primary/90">
+          <Button
+            onClick={() => {
+              const route = getStoreAwareRoute() || '/menu';
+              console.log("Navigating to:", route);
+              navigate(route);
+            }}
+            size="lg"
+            className="bg-primary hover:bg-primary/90 rounded-full h-12 px-8 font-semibold"
+          >
             Ver Cardápio
           </Button>
         </div>
@@ -92,8 +100,8 @@ export default function Cart() {
                 )}
                 <div className="flex-1">
                   <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <h3 className="font-bold">{item.product_name}</h3>
+                    <div className="flex-1 min-w-0 mr-2">
+                      <h3 className="font-bold leading-tight line-clamp-2">{item.product_name}</h3>
                       <p className="text-sm text-muted-foreground">
                         {item.size_name}
                         {item.size_ml && ` (${item.size_ml}ml)`}
@@ -102,10 +110,10 @@ export default function Cart() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8"
+                      className="h-10 w-10 shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                       onClick={() => removeItem(item.id)}
                     >
-                      <X className="w-4 h-4" />
+                      <X className="w-5 h-5" />
                     </Button>
                   </div>
 

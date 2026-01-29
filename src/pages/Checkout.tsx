@@ -12,10 +12,11 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, Loader2, Wallet } from 'lucide-react';
+import { ArrowLeft, Loader2, Wallet, Clock, X } from 'lucide-react';
 import AddressSelector from '@/components/customer/AddressSelector';
 import { PaymentForm } from '@/components/customer/PaymentForm';
 import { toast } from '@/hooks/use-toast';
+import { toast as sonnerToast } from 'sonner';
 import { FeedbackModal } from '@/components/common/FeedbackModal';
 import { isStoreOpen, getTodayHoursString } from '@/utils/businessHours';
 
@@ -72,11 +73,25 @@ export default function Checkout() {
       const isOpen = isStoreOpen(store.business_hours);
       if (!isOpen) {
         const todayHours = getTodayHoursString(store.business_hours);
-        toast({
-          title: 'Loja Fechada',
-          description: `Não é possível realizar pedidos no momento. Horário de hoje: ${todayHours || 'Fechado'}.`,
-          variant: 'destructive',
-        });
+        sonnerToast.custom((t) => (
+          <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-lg p-4 w-full max-w-sm flex items-start gap-4">
+            <div className="p-2 bg-primary/10 rounded-full shrink-0">
+              <Clock className="w-5 h-5 text-primary" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100">Loja Fechada</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                Não é possível realizar pedidos no momento.
+                <br />
+                Horário de hoje: <span className="font-medium text-gray-900 dark:text-gray-200">{todayHours || 'Fechado'}</span>.
+              </p>
+            </div>
+            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => sonnerToast.dismiss(t)}>
+              <span className="sr-only">Fechar</span>
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+        ), { duration: 5000 });
         return;
       }
     }

@@ -103,7 +103,7 @@ const Profile = () => {
         data: {
           name,
           phone,
-          birth_date: birthDate || null,
+          birth_date: birthDate ? birthDate : null, // Ensure proper null handling
         },
       });
       toast.success("Dados atualizados com sucesso!");
@@ -119,15 +119,20 @@ const Profile = () => {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <div className="p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">Meu Perfil</h1>
-          <Button variant="outline" size="sm" onClick={handleLogout}>
-            <LogOut className="w-4 h-4 mr-2" />
-            Sair
-          </Button>
+      {/* Header com safe-area para PWA */}
+      <div className="sticky top-0 z-10 bg-background" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+        <div className="p-6 pb-0">
+          <div className="flex justify-between items-center mb-6">
+            <h1 className="text-3xl font-bold">Meu Perfil</h1>
+            <Button variant="outline" size="sm" onClick={handleLogout}>
+              <LogOut className="w-4 h-4 mr-2" />
+              Sair
+            </Button>
+          </div>
         </div>
+      </div>
 
+      <div className="p-6 pt-0">
         <Tabs defaultValue="personal" className="space-y-6">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="personal">
