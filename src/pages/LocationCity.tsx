@@ -7,7 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import BottomNavigation from "@/components/BottomNavigation";
 import { useActiveCities } from "@/hooks/useActiveCities";
+import { useStoresByCity } from "@/hooks/useStoresByCity";
 import { useGeolocation } from "@/hooks/useGeolocation";
+import { Store } from "lucide-react";
 import { getAddressByCEP, getAddressByCoordinates } from "@/utils/geocoding";
 import { toast } from "sonner";
 
@@ -57,6 +59,9 @@ const LocationCity = () => {
 
   const { data: cities = [], isLoading, refetch } = useActiveCities(state);
   const { getCurrentLocation, isLoading: isLoadingGeo } = useGeolocation();
+
+  // Buscar lojas da cidade selecionada (independente de localização precisa)
+  const { data: storesByCity = [] } = useStoresByCity(city, null);
 
   useEffect(() => {
     const savedState = localStorage.getItem("selectedState");
@@ -232,8 +237,49 @@ const LocationCity = () => {
                   disabled={!cep || !number || !city}
                   className="w-full h-14 text-lg font-semibold rounded-full bg-primary hover:bg-primary/90 mt-8"
                 >
-                  Buscar Lojas
+                  Buscar Lojas com Entrega
                 </Button>
+
+                {/* Lista de Lojas Disponíveis na Cidade */}
+                {city && storesByCity.length > 0 && (
+                  <div className="mt-8 space-y-4 animate-fadeIn">
+                    <h3 className="text-lg font-semibold text-center text-gray-800 dark:text-gray-100">
+                      Lojas em {city}:
+                    </h3>
+                    <div className="grid gap-3">
+                      {storesByCity.map((store) => (
+                        <div
+                          key={store.id}
+                          className="bg-card border rounded-xl p-4 flex items-center justify-between shadow-sm cursor-pointer hover:border-primary/50 transition-colors"
+                          onClick={() => {
+                            // Salvar cidade e estado, mesmo sem CEP completo
+                            localStorage.setItem("selectedCity", city);
+                            localStorage.setItem("selectedState", state);
+                            navigate(`/delivery/${store.slug}`);
+                          }}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`p-2 rounded-full ${store.isOpen ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                              <Store className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <h4 className="font-bold text-gray-900 dark:text-gray-100">{store.name}</h4>
+                              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${store.isOpen
+                                  ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                  : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                }`}>
+                                {store.isOpen ? 'Aberta' : 'Fechada'}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="text-gray-400">
+                            <ArrowLeft className="w-5 h-5 rotate-180" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <Button
                   variant="outline"
