@@ -109,12 +109,15 @@ const ProductDetail = () => {
     const size = sizes?.find(s => s.id === selectedSizeId);
     if (!size) return 0;
 
+    // Usar preço promocional se disponível
+    const effectivePrice = size.promotional_price ?? size.price;
+
     const toppingsPrice = Object.entries(selectedToppings).reduce((sum, [id, qty]) => {
       const topping = allToppings?.find(t => t.id === id);
       return sum + ((topping?.price || 0) * qty);
     }, 0);
 
-    return (size.price + toppingsPrice) * quantity;
+    return (effectivePrice + toppingsPrice) * quantity;
   };
 
   const validateToppings = () => {
@@ -172,7 +175,7 @@ const ProductDetail = () => {
       size_id: size.id,
       size_name: size.name,
       size_ml: size.ml_size,
-      size_price: size.price,
+      size_price: size.promotional_price ?? size.price, // Usa preço promocional se disponível
       quantity,
       toppings: selectedToppingList,
       notes: notes || undefined,
@@ -285,7 +288,16 @@ const ProductDetail = () => {
                       {size.ml_size && <span className="text-gray-400 font-normal text-xs ml-1">({size.ml_size}ml)</span>}
                     </Label>
                   </div>
-                  <span className="font-bold text-gray-900">R$ {size.price.toFixed(2)}</span>
+                  <div className="flex items-center gap-2">
+                    {size.promotional_price && size.promotional_price < size.price ? (
+                      <>
+                        <span className="font-bold text-primary">R$ {size.promotional_price.toFixed(2)}</span>
+                        <span className="text-gray-400 text-sm line-through">R$ {size.price.toFixed(2)}</span>
+                      </>
+                    ) : (
+                      <span className="font-bold text-gray-900">R$ {size.price.toFixed(2)}</span>
+                    )}
+                  </div>
                 </div>
               ))}
             </RadioGroup>

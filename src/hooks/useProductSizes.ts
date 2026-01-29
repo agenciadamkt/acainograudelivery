@@ -8,6 +8,7 @@ export interface ProductSize {
   name: string;
   ml_size: number | null;
   price: number;
+  promotional_price: number | null;
   active: boolean;
   display_order: number;
   created_at: string;
