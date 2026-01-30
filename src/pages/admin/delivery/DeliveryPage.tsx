@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DriverForm } from '@/components/admin/delivery/DriverForm';
 import TrackingMap from '@/components/admin/delivery/TrackingMap';
+import RoutePlanner from '@/components/admin/delivery/RoutePlanner';
 import { useOrders } from '@/hooks/useOrders';
 import { useDeliveryAreas } from '@/hooks/useDeliveryAreas';
 
@@ -220,12 +221,7 @@ export default function DeliveryPage() {
         </TabsContent>
 
         <TabsContent value="routes">
-          <Card>
-            <CardContent className="py-12 text-center">
-              <Truck className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">Gestão de rotas em desenvolvimento</p>
-            </CardContent>
-          </Card>
+          <RoutePlanner />
         </TabsContent>
       </Tabs>
 
