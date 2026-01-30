@@ -41,9 +41,11 @@ export default function DriverLogin() {
             toast.success(`Bem-vindo, ${data.name}!`);
             navigate('/driver/dashboard');
 
-        } catch (error) {
+        } catch (error: any) {
             console.error('Login error:', error);
-            toast.error('Erro ao realizar login');
+            // Show detailed error for debugging
+            const errorMessage = error?.message || error?.error_description || JSON.stringify(error);
+            toast.error(`Erro: ${errorMessage}`);
         } finally {
             setIsLoading(false);
         }
