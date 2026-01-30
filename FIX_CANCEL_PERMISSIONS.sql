@@ -30,12 +30,13 @@ BEGIN
     ) INTO v_is_admin;
 
     -- 2. Verificar se é Dono/Franqueado/Criador da Loja
+    -- Convertendo tudo para text para evitar erros de tipo UUID vs String
     SELECT EXISTS(
         SELECT 1 FROM public.stores 
         WHERE id = v_order.store_id 
         AND (
-            franchisee_user_id = v_user_id
-            OR created_by = v_user_id::text
+            franchisee_user_id::text = v_user_id::text
+            OR created_by::text = v_user_id::text
         )
     ) INTO v_is_store_owner;
 
