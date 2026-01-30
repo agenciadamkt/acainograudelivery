@@ -34,6 +34,8 @@ export default function DriverDashboard() {
     const [isOnline, setIsOnline] = useState(false);
     const [orders, setOrders] = useState<Order[]>([]);
     const [locationError, setLocationError] = useState<string | null>(null);
+    const audioRef = useState(new Audio('https://github.com/rafaelreis-hotmart/audio-assets/raw/main/notification_simple_02.mp3'))[0];
+    const [previousOrderCount, setPreviousOrderCount] = useState(0);
 
     // Load Driver Info
     useEffect(() => {
@@ -120,7 +122,17 @@ export default function DriverDashboard() {
         if (error) {
             console.error('Error fetching orders:', error);
         } else {
-            setOrders(data as any || []);
+            const fetchedOrders = data as any || [];
+            if (fetchedOrders.length > previousOrderCount) {
+                const hasReadyOrders = fetchedOrders.some((o: Order) => o.status === 'ready');
+                if (hasReadyOrders) {
+                    audioRef.play().catch(e => console.log('Audio play failed (interaction required):', e));
+                    if ('vibrate' in navigator) navigator.vibrate([200, 100, 200]);
+                    toast.info('Nova entrega disponível!');
+                }
+            }
+            setOrders(fetchedOrders);
+            setPreviousOrderCount(fetchedOrders.length);
         }
     };
 
