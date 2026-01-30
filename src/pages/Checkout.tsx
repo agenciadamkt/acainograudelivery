@@ -392,10 +392,10 @@ export default function Checkout() {
           </RadioGroup>
         </Card>
 
-        {paymentMethod === 'credit_card' && user?.email && store?.id && (
+        {paymentMethod === 'credit_card' && store?.id && (
           <PaymentForm
             amount={total}
-            email={user.email}
+            email={user?.email || 'cliente@email.com'}
             storeId={store.id}
             publicKey={store.mercadopago_public_key}
             onSuccess={(paymentId, status, paymentType) => {

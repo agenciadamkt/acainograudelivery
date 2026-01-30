@@ -102,7 +102,7 @@ export function PaymentForm({ amount, email, storeId, publicKey, onSuccess, onEr
         onSubmit={onSubmit}
         customization={{
           paymentMethods: {
-            bankTransfer: "all",
+            bankTransfer: ['pix'],
             creditCard: "all",
             debitCard: "all",
             maxInstallments: 3,
