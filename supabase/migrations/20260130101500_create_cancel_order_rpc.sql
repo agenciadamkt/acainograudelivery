@@ -18,7 +18,7 @@ BEGIN
     END IF;
 
     -- Verificar se é dono da loja
-    SELECT EXISTS(SELECT 1 FROM public.stores WHERE id = v_order.store_id AND owner_id = v_user_id)
+    SELECT EXISTS(SELECT 1 FROM public.stores WHERE id = v_order.store_id AND franchisee_user_id = v_user_id)
     INTO v_is_store_owner;
 
     -- Permissão: Dono do Pedido OU Dono da Loja
