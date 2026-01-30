@@ -24,9 +24,11 @@ export default function DeliveryPage() {
   const updateDriver = useUpdateDeliveryDriver();
 
   // Filter active delivery orders (Ready or Delivered but recently?)
-  // For tracking, we care about 'ready' (assigned) + 'out_for_delivery' if we had it.
-  // We'll show 'ready' orders that are type='delivery'.
-  const activeOrders = orders.filter(o => o.status === 'ready' && o.order_type === 'delivery');
+  // For tracking, we care about 'ready' (assigned) + 'out_for_delivery'.
+  const activeOrders = orders.filter(o =>
+    (o.status === 'ready' || o.status === 'out_for_delivery') &&
+    o.order_type === 'delivery'
+  );
 
   const availableDrivers = drivers?.filter(d => d.status === 'disponivel' && d.active) || [];
   const activeDeliveries = drivers?.filter(d => d.status === 'em_entrega') || [];
