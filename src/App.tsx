@@ -39,6 +39,8 @@ import InfinitePaySuccess from "./pages/InfinitePaySuccess";
 // Admin pages
 import Login from "./pages/admin/Login";
 import Signup from "./pages/admin/Signup";
+import DriverLogin from "./pages/driver/DriverLogin";
+import DriverDashboard from "./pages/driver/DriverDashboard";
 import Dashboard from "./pages/admin/Dashboard";
 import FranchiseRequest from "./pages/FranchiseRequest";
 import FranchiseesPage from "./pages/admin/franchisees/FranchiseesPage";
@@ -103,6 +105,10 @@ const App = () => (
                       <Route path="/admin/login" element={<Login />} />
                       <Route path="/admin/signup" element={<Signup />} />
                       <Route path="/franchise-request" element={<FranchiseRequest />} />
+
+                      {/* Driver Module */}
+                      <Route path="/driver/login" element={<DriverLogin />} />
+                      <Route path="/driver/dashboard" element={<DriverDashboard />} />
 
                       {/* Franchise management */}
                       <Route path="/admin/franchisees" element={
