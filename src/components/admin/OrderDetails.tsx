@@ -48,7 +48,12 @@ export function OrderDetails({ order }: OrderDetailsProps) {
         return;
       }
 
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/infinitepay-payment-check`, {
+      // Escolher endpoint baseado no método
+      const endpoint = order.payment_method === 'pix' || order.payment_method === 'credit_card'
+        ? 'mercadopago-payment-check'
+        : 'infinitepay-payment-check';
+
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${endpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -61,9 +66,14 @@ export function OrderDetails({ order }: OrderDetailsProps) {
 
       if (data.paid) {
         toast.success('Pagamento confirmado!');
-        refetchCheckout();
+        if (order.payment_method === 'infinitepay') {
+          refetchCheckout();
+        } else {
+          // Forçar reload da página ou invalidar query de orders
+          window.location.reload();
+        }
       } else {
-        toast.info('Pagamento ainda não confirmado');
+        toast.info(`Status do pagamento: ${data.status || 'Não confirmado'}`);
       }
     } catch (error) {
       console.error('Error verifying payment:', error);
@@ -345,6 +355,26 @@ export function OrderDetails({ order }: OrderDetailsProps) {
           )}
         </div>
       </div>
+
+      {/* Botão de Verificação Manual para Pix e Cartão */}
+      {order.payment_status !== 'paid' && ['pix', 'credit_card'].includes(order.payment_method) && (
+        <div className="pl-6 pb-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleVerifyPayment}
+            disabled={isVerifying}
+            className="w-full sm:w-auto"
+          >
+            {isVerifying ? (
+              <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+            ) : (
+              <RefreshCw className="w-3 h-3 mr-1" />
+            )}
+            Verificar Status Pagamento
+          </Button>
+        </div>
+      )}
 
       {/* Customer Notes */}
       {order.customer_notes && (
