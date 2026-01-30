@@ -91,11 +91,23 @@ const TrackingMap = ({ orders, drivers, areas }: TrackingMapProps) => {
             const lng = (order as any).delivery_address?.longitude;
 
             if (lat && lng) {
+                const customerName = order.customer?.name?.split(' ')[0] || 'Cliente';
                 const orderIcon = L.divIcon({
-                    html: `<div style="background-color: #ef4444; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">${order.order_number.slice(-2)}</div>`,
+                    html: `
+                      <div style="display: flex; flex-direction: column; align-items: center; transform: translateY(-100%); width: 100px;">
+                        <span style="background: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; box-shadow: 0 1px 3px rgba(0,0,0,0.3); margin-bottom: 4px; white-space: nowrap; color: #111;">
+                          ${customerName}
+                        </span>
+                        <div style="background-color: #ef4444; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>
+                          </svg>
+                        </div>
+                      </div>
+                    `,
                     className: 'custom-order-icon',
-                    iconSize: [24, 24],
-                    iconAnchor: [12, 12]
+                    iconSize: [100, 60],
+                    iconAnchor: [50, 60]
                 });
 
                 const marker = L.marker([lat, lng], { icon: orderIcon })
@@ -122,15 +134,22 @@ const TrackingMap = ({ orders, drivers, areas }: TrackingMapProps) => {
         drivers.forEach(driver => {
             const loc = driver.current_location as any; // { lat, lng } or similar
             if (loc && loc.lat && loc.lng) {
+                const driverName = driver.name.split(' ')[0];
                 const driverIcon = L.divIcon({
-                    html: `<div style="background-color: white; border-radius: 50%; padding: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center; width: 40px; height: 40px;">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#8D42DD" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 24px; height: 24px;">
-                        <circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5V14l-3-3 4-3 2 3h2"/><path d="M5 17.5h14"/>
-                    </svg>
-                </div>`,
+                    html: `
+                      <div style="display: flex; flex-direction: column; align-items: center; transform: translateY(-100%); width: 100px;">
+                        <span style="background: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; box-shadow: 0 1px 3px rgba(0,0,0,0.3); margin-bottom: 4px; white-space: nowrap; color: #8D42DD; border: 1px solid #8D42DD;">
+                            ${driverName}
+                        </span>
+                        <div style="background-color: white; border-radius: 50%; padding: 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border: 2px solid #8D42DD;">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#8D42DD" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 26px; height: 26px;">
+                                <circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5V14l-3-3 4-3 2 3h2"/><path d="M5 17.5h14"/>
+                            </svg>
+                        </div>
+                      </div>`,
                     className: 'custom-driver-icon',
-                    iconSize: [40, 40],
-                    iconAnchor: [20, 20]
+                    iconSize: [100, 70],
+                    iconAnchor: [50, 70]
                 });
 
                 const marker = L.marker([loc.lat, loc.lng], { icon: driverIcon, zIndexOffset: 1000 })
