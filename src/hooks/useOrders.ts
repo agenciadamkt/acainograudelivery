@@ -235,11 +235,10 @@ export function useCancelOrder() {
           cancelled_at: new Date().toISOString(),
         })
         .eq('id', orderId)
-        .select()
-        .single();
+        .select();
 
       if (error) throw error;
-      return data;
+      return data?.[0];
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
