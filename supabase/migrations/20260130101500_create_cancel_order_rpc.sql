@@ -1,37 +1,36 @@
--- Função RPC para cancelar pedido com validações de segurança e regras de negócio
 CREATE OR REPLACE FUNCTION cancel_order(order_id_input UUID, reason_input TEXT)
 RETURNS JSONB
 LANGUAGE plpgsql
-SECURITY DEFINER -- Roda com permissões elevadas para garantir update
+SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
     v_order public.orders%ROWTYPE;
     v_user_id UUID;
+    v_is_store_owner BOOLEAN;
 BEGIN
-    -- Pegar usuário logado
     v_user_id := auth.uid();
 
-    -- Buscar pedido
     SELECT * INTO v_order FROM public.orders WHERE id = order_id_input;
 
     IF v_order IS NULL THEN
         RAISE EXCEPTION 'Pedido não encontrado.';
     END IF;
 
-    -- Verificar se o usuário é o dono do pedido
-    -- (Opcional: Adicionar lógica para permitir Admins cancelarem também se necessário, mas hoje o Admin faz update direto)
-    IF v_order.customer_id IS DISTINCT FROM v_user_id THEN
-         -- Se não for o dono, pode ser um erro ou tentativa de hack, mas vamos dar uma mensagem genérica
+    -- Verificar se é dono da loja
+    SELECT EXISTS(SELECT 1 FROM public.stores WHERE id = v_order.store_id AND owner_id = v_user_id)
+    INTO v_is_store_owner;
+
+    -- Permissão: Dono do Pedido OU Dono da Loja
+    IF v_order.customer_id IS DISTINCT FROM v_user_id AND NOT v_is_store_owner THEN
          RAISE EXCEPTION 'Você não tem permissão para cancelar este pedido.';
     END IF;
 
-    -- Validar Status (Regra: Não pode cancelar se já estiver preparando, pronto, entregue ou cancelado)
+    -- Regra de Status: Permitir se Pending ou Confirmed. Bloquear se preparando/pronto/entregue.
     IF v_order.status NOT IN ('pending', 'confirmed') THEN
-        RAISE EXCEPTION 'Este pedido já entrou em produção e não pode ser cancelado manualmente. Entre em contato com o estabelecimento.';
+        RAISE EXCEPTION 'Este pedido já entrou em produção e não pode ser cancelado manualmente.';
     END IF;
 
-    -- Executar Cancelamento
     UPDATE public.orders
     SET 
         status = 'cancelled',
