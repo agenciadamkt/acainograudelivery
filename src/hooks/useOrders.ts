@@ -227,27 +227,26 @@ export function useCancelOrder() {
 
   return useMutation({
     mutationFn: async ({ orderId, reason }: { orderId: string; reason: string }) => {
-      const { data, error } = await supabase
-        .from('orders')
-        .update({
-          status: 'cancelled',
-          cancellation_reason: reason,
-          cancelled_at: new Date().toISOString(),
-        })
-        .eq('id', orderId)
-        .select();
+      const { data, error } = await supabase.rpc('cancel_order', {
+        order_id_input: orderId,
+        reason_input: reason,
+      });
 
       if (error) throw error;
-      return data?.[0];
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
-      toast({ title: 'Pedido cancelado' });
+      toast({
+        title: 'Pedido cancelado',
+        description: 'Seu pedido foi cancelado com sucesso.'
+      });
     },
     onError: (error: Error) => {
+      console.error('Cancel Error:', error);
       toast({
-        title: 'Erro ao cancelar pedido',
-        description: error.message,
+        title: 'Não foi possível cancelar',
+        description: error.message || 'Ocorreu um erro ao processar o cancelamento.',
         variant: 'destructive',
       });
     },
