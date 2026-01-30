@@ -1,18 +1,34 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useOrderById } from '@/hooks/useOrders';
+import { useOrderById, useCancelOrder } from '@/hooks/useOrders';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import BottomNavigation from '@/components/BottomNavigation';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { toast } from '@/hooks/use-toast';
 
 export default function OrderDetails() {
   const { orderId } = useParams();
   const navigate = useNavigate();
   const { data: order, isLoading } = useOrderById(orderId!);
+  const { mutateAsync: cancelOrder, isPending: isCancelling } = useCancelOrder();
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+  const [cancellationReason, setCancellationReason] = useState("");
 
   const statusConfig = {
     pending: { label: 'Pendente', color: 'bg-yellow-500' },
@@ -21,6 +37,29 @@ export default function OrderDetails() {
     ready: { label: 'Pronto', color: 'bg-green-500' },
     delivered: { label: 'Entregue', color: 'bg-gray-500' },
     cancelled: { label: 'Cancelado', color: 'bg-red-500' },
+  };
+
+  const handleCancelOrder = async () => {
+    if (!cancellationReason.trim()) {
+      toast({
+        title: "Motivo obrigatório",
+        description: "Por favor, informe o motivo do cancelamento.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await cancelOrder({ orderId: orderId!, reason: cancellationReason });
+
+      setIsCancelDialogOpen(false);
+      // O hook já faz o invalidateQueries, então o status deve atualizar sozinho
+      // Mas se quisermos garantir ou dar feedback visual podemos manter o toast (que o hook já tem?)
+      // O hook já tem toast de sucesso.
+    } catch (error) {
+      // O hook já tem toast de erro.
+      console.error(error);
+    }
   };
 
   if (isLoading) {
@@ -52,6 +91,7 @@ export default function OrderDetails() {
   }
 
   const status = statusConfig[order.status as keyof typeof statusConfig];
+  const canCancel = ['pending', 'confirmed'].includes(order.status);
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -103,6 +143,12 @@ export default function OrderDetails() {
                 <span>Entregue em {format(new Date(order.delivered_at), "HH:mm", { locale: ptBR })}</span>
               </div>
             )}
+            {order.status === 'cancelled' && (
+              <div className="flex items-center gap-3 text-sm">
+                <div className="w-2 h-2 rounded-full bg-red-500" />
+                <span>Cancelado</span>
+              </div>
+            )}
           </div>
         </Card>
 
@@ -113,9 +159,9 @@ export default function OrderDetails() {
             <div className="flex justify-between">
               <span className="text-muted-foreground">Tipo:</span>
               <span className="capitalize">
-                {order.order_type === 'delivery' ? 'Delivery' : 
-                 order.order_type === 'pickup' ? 'Retirada' : 
-                 'No Local'}
+                {order.order_type === 'delivery' ? 'Delivery' :
+                  order.order_type === 'pickup' ? 'Retirada' :
+                    'No Local'}
               </span>
             </div>
             <div className="flex justify-between">
@@ -132,6 +178,12 @@ export default function OrderDetails() {
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Mesa:</span>
                 <span>{order.table_number}</span>
+              </div>
+            )}
+            {order.cancellation_reason && (
+              <div className="pt-2 border-t mt-2">
+                <span className="text-muted-foreground block mb-1">Motivo do Cancelamento:</span>
+                <span className="text-red-500 block">{order.cancellation_reason}</span>
               </div>
             )}
           </div>
@@ -159,7 +211,7 @@ export default function OrderDetails() {
                     <p className="text-xs text-muted-foreground mb-1">Complementos:</p>
                     {item.toppings.map((topping: any) => (
                       <p key={topping.id} className="text-sm">
-                        • {topping.topping.name} 
+                        • {topping.topping.name}
                         {topping.unit_price > 0 && ` (+R$ ${topping.unit_price.toFixed(2)})`}
                       </p>
                     ))}
@@ -200,6 +252,45 @@ export default function OrderDetails() {
             </div>
           </div>
         </Card>
+
+        {/* Cancel Button */}
+        {canCancel && (
+          <Dialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="destructive" className="w-full">
+                Cancelar Pedido
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Cancelar Pedido</DialogTitle>
+                <DialogDescription>
+                  Tem certeza que deseja cancelar seu pedido? Por favor, informe o motivo.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="reason">Motivo do cancelamento *</Label>
+                  <Textarea
+                    id="reason"
+                    placeholder="Digite o motivo..."
+                    value={cancellationReason}
+                    onChange={(e) => setCancellationReason(e.target.value)}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsCancelDialogOpen(false)} disabled={isCancelling}>
+                  Voltar
+                </Button>
+                <Button variant="destructive" onClick={handleCancelOrder} disabled={isCancelling}>
+                  {isCancelling && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Confirmar Cancelamento
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       <BottomNavigation />
