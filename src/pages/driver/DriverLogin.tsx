@@ -17,6 +17,14 @@ export default function DriverLogin() {
         setIsLoading(true);
 
         try {
+            // Debug Env Vars
+            const sbUrl = import.meta.env.VITE_SUPABASE_URL;
+            if (!sbUrl) {
+                toast.error("ERRO CRÍTICO: VITE_SUPABASE_URL não definida!");
+                setIsLoading(false);
+                return;
+            }
+
             // Find driver by phone (simple auth for now)
             const cleanPhone = phone.replace(/\D/g, '');
 
@@ -24,11 +32,23 @@ export default function DriverLogin() {
                 .from('delivery_drivers' as any)
                 .select('*')
                 .eq('phone', cleanPhone)
-                .eq('active', true)
-                .single();
+                .single(); // Removed .eq('active', true) temporarily to debug
 
-            if (error || !data) {
-                toast.error('Entregador não encontrado ou inativo.');
+            if (error) {
+                console.error("Supabase Query Error:", error);
+                toast.error(`Erro Query: ${error.message} (${error.code})`);
+                setIsLoading(false);
+                return;
+            }
+
+            if (!data) {
+                toast.error('Nenhum motorista encontrado com este número.');
+                setIsLoading(false);
+                return;
+            }
+
+            if (!data.active) {
+                toast.error('Motorista encontrado, mas está INATIVO.');
                 setIsLoading(false);
                 return;
             }
