@@ -10,7 +10,7 @@ export interface Order {
   customer_id: string;
   store_id: string;
   order_type: 'delivery' | 'pickup' | 'dine_in';
-  status: 'pending' | 'confirmed' | 'preparing' | 'ready' | 'delivered' | 'cancelled';
+  status: 'pending' | 'confirmed' | 'preparing' | 'ready' | 'out_for_delivery' | 'delivered' | 'cancelled';
   payment_method: string;
   payment_status: string;
   subtotal: number;

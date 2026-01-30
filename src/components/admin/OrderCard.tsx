@@ -32,6 +32,7 @@ const statusConfig = {
   confirmed: { label: 'Confirmado', color: 'bg-blue-500' },
   preparing: { label: 'Em Preparo', color: 'bg-orange-500' },
   ready: { label: 'Pronto', color: 'bg-green-500' },
+  out_for_delivery: { label: 'Em Rota', color: 'bg-purple-500' },
   delivered: { label: 'Entregue', color: 'bg-gray-500' },
   cancelled: { label: 'Cancelado', color: 'bg-red-500' },
 };

@@ -52,6 +52,7 @@ export default function OrdersPage() {
     confirmed: orders.filter((o) => o.status === 'confirmed'),
     preparing: orders.filter((o) => o.status === 'preparing'),
     ready: orders.filter((o) => o.status === 'ready'),
+    out_for_delivery: orders.filter((o) => o.status === 'out_for_delivery'),
     delivered: orders.filter((o) => o.status === 'delivered'),
     cancelled: orders.filter((o) => o.status === 'cancelled'),
   };
@@ -121,6 +122,12 @@ export default function OrdersPage() {
                 {ordersByStatus.ready.length}
               </Badge>
             </TabsTrigger>
+            <TabsTrigger value="out_for_delivery">
+              Em Rota
+              <Badge variant="secondary" className="ml-2 bg-purple-500">
+                {ordersByStatus.out_for_delivery.length}
+              </Badge>
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="all" className="space-y-4">
@@ -147,7 +154,7 @@ export default function OrdersPage() {
             )}
           </TabsContent>
 
-          {(['pending', 'confirmed', 'preparing', 'ready'] as const).map((status) => (
+          {(['pending', 'confirmed', 'preparing', 'ready', 'out_for_delivery'] as const).map((status) => (
             <TabsContent key={status} value={status} className="space-y-4">
               {ordersByStatus[status].length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
