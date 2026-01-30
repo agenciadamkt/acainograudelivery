@@ -105,6 +105,13 @@ export function OrderDetails({ order }: OrderDetailsProps) {
         </p>
       </div>
 
+      {order.status === 'cancelled' && order.cancellation_reason && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800">
+          <h3 className="font-semibold text-sm mb-1">Motivo do Cancelamento</h3>
+          <p className="text-sm">{order.cancellation_reason}</p>
+        </div>
+      )}
+
       <Separator />
 
       {/* Customer Info */}
