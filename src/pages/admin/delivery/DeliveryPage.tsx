@@ -8,14 +8,24 @@ import { useDeliveryDrivers, useCreateDeliveryDriver, useUpdateDeliveryDriver } 
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DriverForm } from '@/components/admin/delivery/DriverForm';
+import TrackingMap from '@/components/admin/delivery/TrackingMap';
+import { useOrders } from '@/hooks/useOrders';
+import { useDeliveryAreas } from '@/hooks/useDeliveryAreas';
 
 export default function DeliveryPage() {
   const [driverDialogOpen, setDriverDialogOpen] = useState(false);
   const [editingDriver, setEditingDriver] = useState<any>(null);
 
   const { data: drivers } = useDeliveryDrivers();
+  const { deliveryAreas: areas } = useDeliveryAreas();
+  const { data: orders = [] } = useOrders(); // Fetch all orders to filter locally
   const createDriver = useCreateDeliveryDriver();
   const updateDriver = useUpdateDeliveryDriver();
+
+  // Filter active delivery orders (Ready or Delivered but recently?)
+  // For tracking, we care about 'ready' (assigned) + 'out_for_delivery' if we had it.
+  // We'll show 'ready' orders that are type='delivery'.
+  const activeOrders = orders.filter(o => o.status === 'ready' && o.order_type === 'delivery');
 
   const availableDrivers = drivers?.filter(d => d.status === 'disponivel' && d.active) || [];
   const activeDeliveries = drivers?.filter(d => d.status === 'em_entrega') || [];
@@ -197,11 +207,14 @@ export default function DeliveryPage() {
           )}
         </TabsContent>
 
-        <TabsContent value="active">
-          <Card>
-            <CardContent className="py-12 text-center">
-              <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">Nenhuma entrega ativa no momento</p>
+        <TabsContent value="active" className="h-[600px]">
+          <Card className="h-full">
+            <CardContent className="p-0 h-full">
+              <TrackingMap
+                orders={activeOrders}
+                drivers={drivers || []}
+                areas={areas || []}
+              />
             </CardContent>
           </Card>
         </TabsContent>

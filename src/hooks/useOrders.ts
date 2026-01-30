@@ -186,8 +186,12 @@ export function useUpdateOrderStatus() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ orderId, status }: { orderId: string; status: string }) => {
+    mutationFn: async ({ orderId, status, driverId }: { orderId: string; status: string; driverId?: string }) => {
       const updates: any = { status };
+
+      if (driverId) {
+        updates.driver_id = driverId;
+      }
 
       // Atualizar timestamps baseado no status
       if (status === 'confirmed') updates.confirmed_at = new Date().toISOString();

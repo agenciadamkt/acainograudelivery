@@ -23,6 +23,7 @@ interface OrderCardProps {
   onViewDetails: () => void;
   onUpdateStatus?: (status: string) => void;
   onCancelOrder?: () => void;
+  onAssignDriver?: () => void;
   stopSound?: () => void;
 }
 
@@ -41,7 +42,7 @@ const orderTypeLabels = {
   dine_in: 'Mesa',
 };
 
-export function OrderCard({ order, onViewDetails, onUpdateStatus, onCancelOrder, stopSound }: OrderCardProps) {
+export function OrderCard({ order, onViewDetails, onUpdateStatus, onCancelOrder, onAssignDriver, stopSound }: OrderCardProps) {
   const status = statusConfig[order.status as keyof typeof statusConfig];
   const orderType = orderTypeLabels[order.order_type as keyof typeof orderTypeLabels];
   const timeAgo = formatDistanceToNow(new Date(order.created_at), { addSuffix: true, locale: ptBR });
@@ -165,7 +166,16 @@ export function OrderCard({ order, onViewDetails, onUpdateStatus, onCancelOrder,
                 Ver Detalhes
               </Button>
               {nextStatusLabel && onUpdateStatus && (
-                <Button onClick={() => onUpdateStatus(nextStatus!)} className="flex-1">
+                <Button
+                  onClick={() => {
+                    if (nextStatus === 'ready' && order.order_type === 'delivery' && onAssignDriver) {
+                      onAssignDriver();
+                    } else {
+                      onUpdateStatus(nextStatus!);
+                    }
+                  }}
+                  className="flex-1"
+                >
                   {nextStatusLabel}
                 </Button>
               )}

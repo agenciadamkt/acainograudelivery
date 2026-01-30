@@ -4,6 +4,7 @@ import { useOrders, useUpdateOrderStatus, useCancelOrder, useOrderStats } from '
 import { useStore } from '@/contexts/StoreContext';
 import { OrderCard } from '@/components/admin/OrderCard';
 import { OrderDetails } from '@/components/admin/OrderDetails';
+import { SelectDriverDialog } from '@/components/admin/delivery/SelectDriverDialog';
 import { OrderFilters } from '@/components/admin/OrderFilters';
 import { OrderStats } from '@/components/admin/OrderStats';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -22,6 +23,10 @@ export default function OrdersPage() {
   const [filters, setFilters] = useState({});
   const [selectedOrder, setSelectedOrder] = useState<string | null>(null);
   const [cancelDialog, setCancelDialog] = useState<{ open: boolean; orderId: string | null }>({
+    open: false,
+    orderId: null,
+  });
+  const [assignDialog, setAssignDialog] = useState<{ open: boolean; orderId: string | null }>({
     open: false,
     orderId: null,
   });
@@ -134,6 +139,7 @@ export default function OrdersPage() {
                     onViewDetails={() => setSelectedOrder(order.id)}
                     onUpdateStatus={(status) => handleUpdateStatus(order.id, status)}
                     onCancelOrder={() => setCancelDialog({ open: true, orderId: order.id })}
+                    onAssignDriver={() => setAssignDialog({ open: true, orderId: order.id })}
                     stopSound={() => { }}
                   />
                 ))}
@@ -226,6 +232,22 @@ export default function OrdersPage() {
           </AlertDialogContent>
         </AlertDialog>
       </div>
+
+      <SelectDriverDialog
+        open={assignDialog.open}
+        onOpenChange={(open) => setAssignDialog({ ...assignDialog, open })}
+        onSelectDriver={(driverId) => {
+          if (assignDialog.orderId) {
+            updateStatus.mutate({
+              orderId: assignDialog.orderId,
+              status: 'ready',
+              driverId
+            });
+            setAssignDialog({ open: false, orderId: null });
+          }
+        }}
+        isAssigning={updateStatus.isPending}
+      />
     </AdminLayout>
   );
 }
