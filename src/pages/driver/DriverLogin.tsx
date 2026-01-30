@@ -18,10 +18,12 @@ export default function DriverLogin() {
 
         try {
             // Find driver by phone (simple auth for now)
+            const cleanPhone = phone.replace(/\D/g, '');
+
             const { data, error } = await supabase
                 .from('delivery_drivers' as any)
                 .select('*')
-                .eq('phone', phone)
+                .eq('phone', cleanPhone)
                 .eq('active', true)
                 .single();
 
