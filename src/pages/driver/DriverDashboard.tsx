@@ -176,6 +176,14 @@ export default function DriverDashboard() {
 
             setIsOnline(newStatus);
             toast.success(newStatus ? 'Você está Online!' : 'Você está Offline');
+
+            // Unlock Audio Context on user interaction (tap)
+            if (newStatus) {
+                audioRef.play().then(() => {
+                    audioRef.pause();
+                    audioRef.currentTime = 0;
+                }).catch(e => console.log('Audio unlock failed:', e));
+            }
         } catch (err: any) {
             toast.error(`Erro inesperado: ${err.message}`);
         }
