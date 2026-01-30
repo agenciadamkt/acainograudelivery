@@ -207,7 +207,19 @@ export function OrderDetails({ order }: OrderDetailsProps) {
         <div className="pl-6 space-y-2 text-sm">
           <div className="flex justify-between">
             <span>Forma de pagamento:</span>
-            <span className="font-medium">{order.payment_method}</span>
+            <span className="font-medium">{order.payment_method === 'credit_card' ? 'Cartão de Crédito' : order.payment_method === 'pix' ? 'Pix' : order.payment_method}</span>
+          </div>
+          <div className="flex justify-between items-center mt-2">
+            <span>Status do pagamento:</span>
+            <Badge className={
+              order.payment_status === 'paid' ? 'bg-green-500 hover:bg-green-600' :
+                order.payment_status === 'pending' ? 'bg-yellow-500 hover:bg-yellow-600' :
+                  'bg-gray-500'
+            }>
+              {order.payment_status === 'paid' ? 'Pago' :
+                order.payment_status === 'pending' ? 'Pendente' :
+                  order.payment_status || 'Não informado'}
+            </Badge>
           </div>
           <Separator />
           <div className="flex justify-between">
