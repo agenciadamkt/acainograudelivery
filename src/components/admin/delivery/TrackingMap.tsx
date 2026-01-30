@@ -145,6 +145,22 @@ const TrackingMap = ({ orders, drivers, areas }: TrackingMapProps) => {
 
     }, [L, orders, drivers, areas]);
 
+    // Debug Effect
+    useEffect(() => {
+        console.log('TrackingMap Data Update:', {
+            ordersCount: orders.length,
+            driversCount: drivers.length,
+            ordersWithCoords: orders.filter(o => (o as any).delivery_address?.latitude).length
+        });
+
+        orders.forEach(o => {
+            const addr = (o as any).delivery_address;
+            if (!addr?.latitude || !addr?.longitude) {
+                console.warn(`Order #${o.order_number} missing coordinates:`, addr);
+            }
+        });
+    }, [orders, drivers]);
+
     if (!L) return <div className="h-full bg-muted animate-pulse rounded-lg flex items-center justify-center">Carregando mapa...</div>;
 
     return <div ref={mapRef} className="h-full w-full rounded-lg shadow-inner border" />;
