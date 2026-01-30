@@ -35,11 +35,27 @@ serve(async (req) => {
       const paymentId = body.data.id
 
       // 1. Encontrar o pedido pelo ID do pagamento
-      const { data: order, error: orderError } = await supabase
+      let { data: order, error: orderError } = await supabase
         .from('orders')
         .select('id, store_id, payment_status')
-        .or(`payment_id.eq.${paymentId},mercadopago_payment_id.eq.${paymentId}`) // Fallback para compatibilidade
+        .or(`payment_id.eq.${paymentId},mercadopago_payment_id.eq.${paymentId}`)
         .single();
+
+      // Fallback: Tentar encontrar via observações (se o link acima falhou)
+      if (!order) {
+        console.log('Order not found by ID columns, trying notes...');
+        const { data: noteOrder, error: noteError } = await supabase
+          .from('orders')
+          .select('id, store_id, payment_status')
+          .ilike('customer_notes', `%[Pagamento ID: ${paymentId}]%`)
+          .limit(1)
+          .maybeSingle(); // Usar maybeSingle para evitar erro se não encontrar
+
+        if (noteOrder) {
+          order = noteOrder;
+          orderError = null;
+        }
+      }
 
       if (orderError || !order) {
         console.error('Order not found for payment:', paymentId);

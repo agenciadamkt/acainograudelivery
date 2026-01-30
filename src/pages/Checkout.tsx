@@ -107,8 +107,8 @@ export default function Checkout() {
           order_type: orderType,
           payment_method: dbPaymentMethod,
           payment_status: status === 'approved' ? 'paid' : 'pending',
-
-
+          mercadopago_payment_id: paymentId, // Usando coluna legada que sabemos que existe
+          // payment_id: paymentId, // Futuro: usar coluna padronizada payment_id
           delivery_address_id: orderType === 'delivery' ? selectedAddressId : null,
           table_number: orderType === 'dine_in' ? tableNumber : null,
           subtotal,
