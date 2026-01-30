@@ -123,10 +123,14 @@ const TrackingMap = ({ orders, drivers, areas }: TrackingMapProps) => {
             const loc = driver.current_location as any; // { lat, lng } or similar
             if (loc && loc.lat && loc.lng) {
                 const driverIcon = L.divIcon({
-                    html: '🚚',
-                    className: 'text-2xl',
-                    iconSize: [30, 30],
-                    iconAnchor: [15, 15]
+                    html: `<div style="background-color: white; border-radius: 50%; padding: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center; width: 40px; height: 40px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#8D42DD" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 24px; height: 24px;">
+                        <circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5V14l-3-3 4-3 2 3h2"/><path d="M5 17.5h14"/>
+                    </svg>
+                </div>`,
+                    className: 'custom-driver-icon',
+                    iconSize: [40, 40],
+                    iconAnchor: [20, 20]
                 });
 
                 const marker = L.marker([loc.lat, loc.lng], { icon: driverIcon, zIndexOffset: 1000 })

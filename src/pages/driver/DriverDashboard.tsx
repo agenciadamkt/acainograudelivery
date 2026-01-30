@@ -176,8 +176,33 @@ export default function DriverDashboard() {
     };
 
     const openMap = (address: any) => {
-        const query = `${address.street}, ${address.number} - ${address.neighborhood}, ${address.city}`;
-        window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`, '_blank');
+        if (!address) return;
+
+        let query = '';
+        if (address.latitude && address.longitude) {
+            query = `${address.latitude},${address.longitude}`;
+        } else {
+            const parts = [
+                address.street,
+                address.number,
+                address.neighborhood,
+                address.city,
+                address.state
+            ].filter(Boolean);
+
+            if (parts.length > 0) {
+                query = parts.join(', ');
+            } else if (address.address) {
+                // Fallback if there is a single address string field
+                query = address.address;
+            }
+        }
+
+        if (query) {
+            window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`, '_blank');
+        } else {
+            toast.error('Endereço inválido para abrir o mapa');
+        }
     };
 
     return (
@@ -241,8 +266,23 @@ export default function DriverDashboard() {
                                         <MapPin className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                                         <div className="text-sm">
                                             <p className="font-semibold">{order.customer?.name}</p>
-                                            <p>{order.delivery_address?.street}, {order.delivery_address?.number}</p>
-                                            <p className="text-gray-500">{order.delivery_address?.neighborhood}</p>
+                                            {order.delivery_address ? (
+                                                <>
+                                                    <p>
+                                                        {order.delivery_address.street ? (
+                                                            `${order.delivery_address.street}, ${order.delivery_address.number || 'S/N'}`
+                                                        ) : (
+                                                            <span className="italic text-gray-400">Rua não informada</span>
+                                                        )}
+                                                    </p>
+                                                    <p className="text-gray-500">
+                                                        {order.delivery_address.neighborhood || ''}
+                                                        {order.delivery_address.city ? ` - ${order.delivery_address.city}` : ''}
+                                                    </p>
+                                                </>
+                                            ) : (
+                                                <p className="text-red-500">Endereço de entrega não encontrado</p>
+                                            )}
                                         </div>
                                     </div>
 
