@@ -193,6 +193,9 @@ export default function DriverDashboard() {
         let query = '';
         if (address.latitude && address.longitude) {
             query = `${address.latitude},${address.longitude}`;
+            // Waze Deep Link
+            window.open(`https://waze.com/ul?ll=${address.latitude},${address.longitude}&navigate=yes`, '_blank');
+            return;
         } else {
             const parts = [
                 address.street,
@@ -205,13 +208,14 @@ export default function DriverDashboard() {
             if (parts.length > 0) {
                 query = parts.join(', ');
             } else if (address.address) {
-                // Fallback if there is a single address string field
                 query = address.address;
             }
         }
 
         if (query) {
-            window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`, '_blank');
+            // Se tiver coords, já abriu Waze. Se não, tenta Waze por busca ou fallback Google Maps
+            // Waze search: https://waze.com/ul?q=Address
+            window.open(`https://waze.com/ul?q=${encodeURIComponent(query)}&navigate=yes`, '_blank');
         } else {
             toast.error('Endereço inválido para abrir o mapa');
         }
