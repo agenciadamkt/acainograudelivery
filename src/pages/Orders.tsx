@@ -41,8 +41,8 @@ const Orders = () => {
     }
   }, [user]);
 
-  const { data: orders, isLoading } = useOrders({ 
-    customer_id: customerId 
+  const { data: orders, isLoading } = useOrders({
+    customer_id: customerId
   });
 
   useEffect(() => {
@@ -53,7 +53,7 @@ const Orders = () => {
 
   const filteredOrders = orders?.filter(order => {
     if (activeTab === 'active') {
-      return ['pending', 'confirmed', 'preparing', 'ready'].includes(order.status);
+      return ['pending', 'confirmed', 'preparing', 'ready', 'out_for_delivery'].includes(order.status);
     }
     if (activeTab === 'completed') {
       return order.status === 'delivered';
@@ -66,6 +66,7 @@ const Orders = () => {
     confirmed: { label: 'Confirmado', color: 'bg-blue-500' },
     preparing: { label: 'Em Preparo', color: 'bg-orange-500' },
     ready: { label: 'Pronto', color: 'bg-green-500' },
+    out_for_delivery: { label: 'Em Rota', color: 'bg-purple-500' },
     delivered: { label: 'Entregue', color: 'bg-gray-500' },
     cancelled: { label: 'Cancelado', color: 'bg-red-500' },
   };
@@ -74,7 +75,7 @@ const Orders = () => {
     const status = statusConfig[order.status as keyof typeof statusConfig];
 
     return (
-      <Card 
+      <Card
         className="p-4 cursor-pointer hover:shadow-lg transition-shadow"
         onClick={() => navigate(`/order-details/${order.id}`)}
       >
@@ -95,9 +96,9 @@ const Orders = () => {
             <span className="font-medium">{order.items?.length || 0}</span> items
           </p>
           <p className="text-sm text-muted-foreground capitalize">
-            {order.order_type === 'delivery' ? '🛵 Delivery' : 
-             order.order_type === 'pickup' ? '🏃 Retirada' : 
-             '🍽️ No Local'}
+            {order.order_type === 'delivery' ? '🛵 Delivery' :
+              order.order_type === 'pickup' ? '🏃 Retirada' :
+                '🍽️ No Local'}
           </p>
           {order.payment_status === 'paid' && (
             <p className="text-sm text-success font-medium">✓ Pago Online</p>

@@ -12,9 +12,10 @@ export const WHATSAPP_MESSAGES = {
         `Notícia deliciosa! 🍦 Seu pedido #${order.order_number} já está sendo *PREPARADO* com todo o capricho. Quase lá!`,
 
     ready: (order: any) =>
-        order.order_type === 'delivery'
-            ? `Seu pedido #${order.order_number} está *PRONTO* e já saiu com o motoboy para entrega! 🛵💨`
-            : `Seu pedido #${order.order_number} está *PRONTO* e te aguardando para retirada! Pode vir buscar. 🛍️`,
+        `Seu pedido #${order.order_number} está *PRONTO*! Estamos aguardando o entregador para despachá-lo. 🛍️`,
+
+    out_for_delivery: (order: any) =>
+        `Seu pedido #${order.order_number} saiu para *ENTREGA*! 🛵💨 O motoboy está a caminho.`,
 
     delivered: (order: any) =>
         `Pedido #${order.order_number} entregue! ✅ Esperamos que aproveite seu açaí. Se puder, nos avalie no app! Bom apetite! 💜`,
