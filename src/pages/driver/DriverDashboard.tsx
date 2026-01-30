@@ -154,19 +154,30 @@ export default function DriverDashboard() {
 
     // Actions
     const toggleStatus = async () => {
-        if (!driverId) return;
+        if (!driverId) {
+            toast.error("Erro: Driver ID não encontrado. Faça login novamente.");
+            return;
+        }
 
         const newStatus = !isOnline;
         const statusText = newStatus ? 'disponivel' : 'offline';
 
-        const { error } = await supabase
-            .from('delivery_drivers' as any)
-            .update({ status: statusText })
-            .eq('id', driverId);
+        try {
+            const { error } = await supabase
+                .from('delivery_drivers' as any)
+                .update({ status: statusText })
+                .eq('id', driverId);
 
-        if (!error) {
+            if (error) {
+                console.error("Erro ao atualizar status:", error);
+                toast.error(`Erro ao atualizar: ${error.message}`);
+                return;
+            }
+
             setIsOnline(newStatus);
             toast.success(newStatus ? 'Você está Online!' : 'Você está Offline');
+        } catch (err: any) {
+            toast.error(`Erro inesperado: ${err.message}`);
         }
     };
 
@@ -335,6 +346,9 @@ export default function DriverDashboard() {
                         </Card>
                     ))
                 )}
+            </div>
+            <div className="fixed bottom-0 w-full text-center text-xs text-gray-400 p-1 pointer-events-none">
+                v1.1 - Check Update
             </div>
         </div>
     );
