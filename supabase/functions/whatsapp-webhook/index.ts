@@ -55,6 +55,22 @@ serve(async (req) => {
             }
         }
 
+        // 5. Mensagem de Texto (Fallback se o usuário digitar ou o botão enviar como texto)
+        if (message && !buttonId) {
+            const text = message.conversation || message.extendedTextMessage?.text || '';
+
+            if (text) {
+                const cleanText = text.toLowerCase().trim();
+                if (cleanText.includes('amei') || cleanText.includes('gostei') || cleanText.includes('ótimo') || cleanText.includes('otimo')) {
+                    buttonId = 'feedback_positive';
+                } else if (cleanText.includes('pode melhorar') || cleanText.includes('neutro')) {
+                    buttonId = 'feedback_neutral';
+                } else if (cleanText.includes('tive um problema') || cleanText.includes('ruim') || cleanText.includes('péssimo')) {
+                    buttonId = 'feedback_negative';
+                }
+            }
+        }
+
         // Fallbacks para outras APIs (Evolution, etc)
         if (!buttonId) {
             if (payload?.responseType === 'button') buttonId = payload.responseId;
