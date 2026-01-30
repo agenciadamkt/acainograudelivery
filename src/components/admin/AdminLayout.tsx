@@ -19,6 +19,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from '@/components/ui/badge';
 import { FeedbackModal } from '@/components/common/FeedbackModal';
 import { Theme } from '@/components/ui/theme';
+import { useUpdateStore } from '@/hooks/useStores';
+import { Switch } from '@/components/ui/switch';
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -26,18 +28,56 @@ interface AdminLayoutProps {
 
 export function AdminLayout({ children }: AdminLayoutProps) {
   const { signOut, user } = useAuth();
-  const { currentStore } = useStore();
+  const { currentStore, refreshStores } = useStore();
+  const updateStore = useUpdateStore();
 
   // Ativar Web Push Notifications globalmente
   usePushNotifications(currentStore?.id);
 
   const updateStatus = useUpdateOrderStatus();
 
-  // Estados para impressão e novo pedido (movido de OrdersPage)
+  // Estados para impressão e novo pedido
   const [showPrintDialog, setShowPrintDialog] = useState(false);
   const [orderToPrint, setOrderToPrint] = useState<any>(null);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
+
+  // Optimistic UI for store status
+  const [localStatus, setLocalStatus] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (currentStore) {
+      setLocalStatus(currentStore.status === 'active');
+    }
+  }, [currentStore]);
+
+  const handleStatusToggle = (checked: boolean) => {
+    if (!currentStore) return;
+
+    // Immediate visual update (Optimistic)
+    setLocalStatus(checked);
+
+    updateStore.mutate(
+      {
+        id: currentStore.id,
+        updates: {
+          active: true, // Always keep it visible/active in the system
+          status: checked ? 'active' : 'inactive' // Only toggle status
+        }
+      },
+      {
+        onSuccess: async () => {
+          // Refresh global context to ensure data consistency
+          await refreshStores();
+        },
+        onError: () => {
+          // Revert on error
+          setLocalStatus(!checked);
+          toast.error("Não foi possível atualizar o status da loja.");
+        }
+      }
+    );
+  };
 
   const handleLogout = async () => {
     setShowLogoutModal(true);
@@ -215,22 +255,38 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
         <div className="flex-1 flex flex-col">
           <header className="h-14 border-b flex items-center justify-between px-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-            <SidebarTrigger />
+            <div className="flex items-center gap-4">
+              <SidebarTrigger />
 
-            <div className="flex items-center justify-center flex-1">
-              {/* Indicador de som tocando (movido para o header global) */}
-              {isPlayingSound && (
-                <Badge className="animate-pulse-border bg-primary text-primary-foreground px-4 py-1 cursor-pointer" onClick={stopSound}>
-                  🔊 NOVO PEDIDO - Clique para parar som
-                </Badge>
+              {/* Status da Loja (Aligned Left) */}
+              {currentStore && localStatus !== null && (
+                <div className="flex items-center gap-3 bg-muted/40 hover:bg-muted/60 transition-colors px-3 py-1.5 rounded-full border border-border/40">
+                  <Switch
+                    checked={localStatus}
+                    onCheckedChange={handleStatusToggle}
+                    className="data-[state=checked]:bg-green-600"
+                  />
+                  <div className="flex flex-col items-start select-none cursor-pointer" onClick={() => handleStatusToggle(!localStatus)}>
+                    <span className={`text-sm font-semibold leading-none ${localStatus ? 'text-green-600' : 'text-muted-foreground'}`}>
+                      {localStatus ? 'Loja Aberta' : 'Loja Fechada'}
+                    </span>
+                  </div>
+                </div>
               )}
             </div>
 
             <div className="flex items-center gap-4">
+              {/* Indicador de som tocando */}
+              {isPlayingSound && (
+                <Badge className="animate-pulse-border bg-red-500 hover:bg-red-600 text-white px-3 py-1 cursor-pointer mr-2" onClick={stopSound}>
+                  🔊 Parar Som
+                </Badge>
+              )}
+
               <Theme variant="button" size="sm" />
               <StoreSelector />
               <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">{user?.email}</span>
+                <span className="hidden md:inline-block text-sm text-muted-foreground">{user?.email}</span>
                 <Button
                   variant="ghost"
                   size="sm"

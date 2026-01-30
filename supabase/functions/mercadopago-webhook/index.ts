@@ -15,7 +15,7 @@ serve(async (req) => {
     // Verify Mercado Pago webhook signature
     const xSignature = req.headers.get('x-signature')
     const xRequestId = req.headers.get('x-request-id')
-    
+
     if (!xSignature || !xRequestId) {
       return new Response(
         JSON.stringify({ error: 'Invalid webhook source' }),
@@ -34,8 +34,33 @@ serve(async (req) => {
     if (body.type === 'payment') {
       const paymentId = body.data.id
 
-      // Buscar detalhes do pagamento
-      const accessToken = Deno.env.get('MERCADOPAGO_ACCESS_TOKEN')
+      // 1. Encontrar o pedido pelo ID do pagamento
+      const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .select('id, store_id, payment_status')
+        .or(`payment_id.eq.${paymentId},mercadopago_payment_id.eq.${paymentId}`) // Fallback para compatibilidade
+        .single();
+
+      if (orderError || !order) {
+        console.error('Order not found for payment:', paymentId);
+        // Não lançar erro para não retentar infinitamente se não achou o pedido
+        return new Response(JSON.stringify({ message: 'Order not found' }), { status: 200, headers: corsHeaders });
+      }
+
+      // 2. Buscar o token da loja
+      const { data: store, error: storeError } = await supabase
+        .from('stores')
+        .select('mercadopago_access_token')
+        .eq('id', order.store_id)
+        .single();
+
+      if (storeError || !store || !store.mercadopago_access_token) {
+        console.error('Store/Token not found for order:', order.id);
+        return new Response(JSON.stringify({ message: 'Store configuration error' }), { status: 200, headers: corsHeaders });
+      }
+
+      // 3. Consultar status no Mercado Pago
+      const accessToken = store.mercadopago_access_token;
       const paymentResponse = await fetch(
         `https://api.mercadopago.com/v1/payments/${paymentId}`,
         {
@@ -45,19 +70,28 @@ serve(async (req) => {
         }
       )
 
+      if (!paymentResponse.ok) {
+        console.error('Error fetching payment from MP');
+        return new Response(JSON.stringify({ message: 'MP API Error' }), { status: 200, headers: corsHeaders });
+      }
+
       const paymentData = await paymentResponse.json()
+      const newStatus = paymentData.status === 'approved' ? 'paid' : paymentData.status === 'pending' ? 'pending' : 'failed';
 
-      // Atualizar status do pedido no banco
-      const { error } = await supabase
-        .from('orders')
-        .update({
-          mercadopago_status: paymentData.status,
-          payment_status: paymentData.status === 'approved' ? 'paid' : 'pending',
-        })
-        .eq('mercadopago_payment_id', paymentId)
+      // 4. Atualizar pedido se o status mudou
+      if (order.payment_status !== 'paid' && newStatus === 'paid') {
+        const { error: updateError } = await supabase
+          .from('orders')
+          .update({
+            payment_status: 'paid',
+            // Se quiser salvar o JSON completo: mercadopago_data: paymentData 
+          })
+          .eq('id', order.id);
 
-      if (error) {
-        throw error
+        if (updateError) {
+          console.error('Error updating order:', updateError);
+          throw updateError;
+        }
       }
     }
 

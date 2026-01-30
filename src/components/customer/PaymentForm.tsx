@@ -1,155 +1,121 @@
-import { useState } from 'react';
-import { CardNumber, SecurityCode, ExpirationDate, initMercadoPago } from '@mercadopago/sdk-react';
-import { Button } from '@/components/ui/button';
+import { useEffect } from 'react';
+import { initMercadoPago, Payment } from '@mercadopago/sdk-react';
 import { Card } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, CreditCard } from 'lucide-react';
 import { toast } from 'sonner';
-
-const PUBLIC_KEY = import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY;
-
-if (PUBLIC_KEY) {
-  initMercadoPago(PUBLIC_KEY, { locale: 'pt-BR' });
-}
 
 interface PaymentFormProps {
   amount: number;
   email: string;
-  onSuccess: (paymentId: string, status: string) => void;
+  storeId: string;
+  publicKey: string;
+  onSuccess: (paymentId: string, status: string, paymentType: string) => void;
   onError: (error: string) => void;
 }
 
-export function PaymentForm({ amount, email, onSuccess, onError }: PaymentFormProps) {
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [cardholderName, setCardholderName] = useState('');
-  const [installments, setInstallments] = useState('1');
+export function PaymentForm({ amount, email, storeId, publicKey, onSuccess, onError }: PaymentFormProps) {
 
-  if (!PUBLIC_KEY) {
+  useEffect(() => {
+    if (publicKey) {
+      initMercadoPago(publicKey, { locale: 'pt-BR' });
+    }
+  }, [publicKey]);
+
+  if (!publicKey) {
     return (
       <Card className="p-6 border-destructive">
         <p className="text-destructive text-sm">
-          Chave pública do Mercado Pago não configurada. Entre em contato com o suporte.
+          Esta loja não possui pagamento online configurado (Public Key ausente).
         </p>
       </Card>
     );
   }
 
-  const handlePayment = async () => {
-    if (!cardholderName) {
-      toast.error('Por favor, preencha o nome do titular do cartão');
-      return;
-    }
+  const onSubmit = async ({ formData, selectedPaymentMethod }: any) => {
+    return new Promise<void>((resolve, reject) => {
+      // Map payment method ID to simple types for our backend/frontend logic
+      const paymentTypeId = selectedPaymentMethod === 'bank_transfer' ? 'pix' : 'credit_card';
 
-    setIsProcessing(true);
-
-    try {
-      // @ts-ignore - SDK types
-      const cardToken = await window.MP.createCardToken({
-        cardholderName,
-      });
-
-      if (cardToken.error) {
-        throw new Error(cardToken.error.message || 'Erro ao processar cartão');
-      }
-
-      // Chamar edge function para processar pagamento
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-payment`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          },
-          body: JSON.stringify({
-            token: cardToken.id,
-            amount,
+      fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-payment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({
+          // Common fields
+          token: formData.token,
+          paymentMethodId: formData.payment_method_id, // Payment Brick uses snake_case here usually
+          issuerId: formData.issuer_id,
+          amount,
+          email,
+          storeId,
+          installments: formData.installments,
+          transactionAmount: amount,
+          description: `Pedido ${email}`,
+          payer: {
             email,
-            installments: parseInt(installments),
-          }),
-        }
-      );
+            identification: formData.payer?.identification,
+            first_name: formData.payer?.first_name,
+            last_name: formData.payer?.last_name,
+            entity_type: formData.payer?.entity_type,
+            type: formData.payer?.type,
+          },
+        }),
+      })
+        .then((response) => response.json())
+        .then((result) => {
+          if (result.error) {
+            throw new Error(result.error);
+          }
 
-      const result = await response.json();
+          if (result.status === 'approved' || result.status === 'pending') {
+            if (result.status === 'approved') toast.success('Pagamento aprovado!');
+            if (result.status === 'pending') toast.success('Pagamento gerado com sucesso!');
 
-      if (!response.ok || result.error) {
-        throw new Error(result.error || 'Erro ao processar pagamento');
-      }
-
-      if (result.status === 'approved') {
-        toast.success('Pagamento aprovado!');
-        onSuccess(result.payment_id, result.status);
-      } else if (result.status === 'pending') {
-        toast.warning('Pagamento pendente de aprovação');
-        onSuccess(result.payment_id, result.status);
-      } else {
-        throw new Error(result.status_detail || 'Pagamento rejeitado');
-      }
-    } catch (error: any) {
-      const errorMsg = error.message || 'Erro ao processar pagamento';
-      toast.error(errorMsg);
-      onError(errorMsg);
-    } finally {
-      setIsProcessing(false);
-    }
+            // Pass payment info back
+            onSuccess(result.payment_id || result.id, result.status, result.payment_type_id || paymentTypeId);
+            resolve();
+          } else {
+            toast.error(result.status_detail || 'Pagamento rejeitado');
+            reject();
+          }
+        })
+        .catch((error) => {
+          const errorMsg = error.message || 'Erro ao processar pagamento';
+          toast.error(errorMsg);
+          onError(errorMsg);
+          reject();
+        });
+    });
   };
 
   return (
-    <Card className="p-6 space-y-4">
-      <div className="flex items-center gap-2 mb-4">
-        <CreditCard className="w-5 h-5 text-primary" />
-        <h3 className="font-semibold">Dados do Cartão</h3>
-      </div>
-
-      <div>
-        <Label>Número do Cartão</Label>
-        <CardNumber placeholder="0000 0000 0000 0000" />
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Validade</Label>
-          <ExpirationDate placeholder="MM/AA" />
-        </div>
-        <div>
-          <Label>CVV</Label>
-          <SecurityCode placeholder="123" />
-        </div>
-      </div>
-
-      <div>
-        <Label>Nome do Titular</Label>
-        <Input
-          placeholder="Nome como no cartão"
-          value={cardholderName}
-          onChange={(e) => setCardholderName(e.target.value)}
-        />
-      </div>
-
-      <div>
-        <Label>Parcelas</Label>
-        <Select value={installments} onValueChange={setInstallments}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="1">1x de R$ {amount.toFixed(2)}</SelectItem>
-            <SelectItem value="2">2x de R$ {(amount / 2).toFixed(2)}</SelectItem>
-            <SelectItem value="3">3x de R$ {(amount / 3).toFixed(2)}</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      <Button
-        onClick={handlePayment}
-        disabled={isProcessing}
-        className="w-full"
-      >
-        {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-        Pagar R$ {amount.toFixed(2)}
-      </Button>
+    <Card className="p-4 bg-white">
+      <Payment
+        key={amount} // Force remount if amount changes to prevent duplication bugs
+        initialization={{
+          amount,
+          payer: {
+            email,
+          }
+        }}
+        onSubmit={onSubmit}
+        customization={{
+          paymentMethods: {
+            bankTransfer: "all",
+            creditCard: "all",
+            debitCard: "all",
+            maxInstallments: 3,
+          },
+          visual: {
+            style: {
+              theme: 'default',
+            },
+            hidePaymentButton: false,
+          },
+        }}
+        locale="pt-BR"
+      />
     </Card>
   );
 }

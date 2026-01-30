@@ -6,7 +6,7 @@ import type { Coordinates } from './useGeolocation';
 
 export interface StoreWithDistance extends Store {
   distance?: number;
-  deliveryTime?: number;
+  deliveryTime?: string;
 }
 
 interface UseNearbyStoresParams {
@@ -32,7 +32,7 @@ export function useNearbyStores({ city, state, coordinates }: UseNearbyStoresPar
 
       if (error) throw error;
 
-      let stores: StoreWithDistance[] = data as StoreWithDistance[];
+      let stores: StoreWithDistance[] = data as unknown as StoreWithDistance[];
 
       // Se tiver coordenadas do usuário, calcular distância
       if (coordinates) {
@@ -53,8 +53,14 @@ export function useNearbyStores({ city, state, coordinates }: UseNearbyStoresPar
             storeCoords.longitude
           );
 
-          // Estimar tempo de entrega: preparation_time + delivery_time (em minutos)
-          const deliveryTime = (store.preparation_time || 30) + (store.delivery_time || 40);
+          // Estimar tempo de entrega: usar campo delivery_time ou calcular
+          let deliveryTime: string;
+          if (store.delivery_time) {
+            deliveryTime = store.delivery_time;
+          } else {
+            const prepTime = store.preparation_time || 30;
+            deliveryTime = `${prepTime + 20}-${prepTime + 40} min`;
+          }
 
           return {
             ...store,

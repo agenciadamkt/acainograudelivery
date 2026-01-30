@@ -14,6 +14,7 @@ import { useActivityLogs } from '@/hooks/useActivityLogs';
 import { Badge } from '@/components/ui/badge';
 import { StoreSettingsTab } from "./StoreSettingsTab";
 import { PrinterSettingsTab } from "./PrinterSettingsTab";
+import { PaymentSettingsTab } from "./PaymentSettingsTab";
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from '@/hooks/use-toast';
@@ -182,46 +183,7 @@ export default function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="payments" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Métodos de Pagamento</CardTitle>
-              <CardDescription>Configure os métodos de pagamento aceitos</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="space-y-0.5">
-                  <Label className="text-base">PIX</Label>
-                  <p className="text-sm text-muted-foreground">Aceitar pagamentos via PIX</p>
-                </div>
-                <Switch
-                  checked={getSetting('enable_pix') === true}
-                  onCheckedChange={(checked) => handleUpdateSetting('enable_pix', checked)}
-                />
-              </div>
-
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="space-y-0.5">
-                  <Label className="text-base">Cartão de Crédito</Label>
-                  <p className="text-sm text-muted-foreground">Aceitar cartão de crédito</p>
-                </div>
-                <Switch
-                  checked={getSetting('enable_credit_card') === true}
-                  onCheckedChange={(checked) => handleUpdateSetting('enable_credit_card', checked)}
-                />
-              </div>
-
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="space-y-0.5">
-                  <Label className="text-base">Dinheiro</Label>
-                  <p className="text-sm text-muted-foreground">Aceitar pagamento em dinheiro</p>
-                </div>
-                <Switch
-                  checked={getSetting('enable_cash') === true}
-                  onCheckedChange={(checked) => handleUpdateSetting('enable_cash', checked)}
-                />
-              </div>
-            </CardContent>
-          </Card>
+          <PaymentSettingsTab />
         </TabsContent>
 
         <TabsContent value="notifications" className="space-y-4">

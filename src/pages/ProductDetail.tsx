@@ -109,8 +109,9 @@ const ProductDetail = () => {
     const size = sizes?.find(s => s.id === selectedSizeId);
     if (!size) return 0;
 
-    // Usar preço promocional se disponível
-    const effectivePrice = size.promotional_price ?? size.price;
+    // Use promotional price ONLY if it exists AND is lower than base price
+    const hasValidPromotion = size.promotional_price !== null && size.promotional_price < size.price;
+    const effectivePrice = hasValidPromotion ? size.promotional_price! : size.price;
 
     const toppingsPrice = Object.entries(selectedToppings).reduce((sum, [id, qty]) => {
       const topping = allToppings?.find(t => t.id === id);
@@ -168,6 +169,9 @@ const ProductDetail = () => {
       }
     });
 
+    const hasValidPromotion = size.promotional_price !== null && size.promotional_price < size.price;
+    const effectivePrice = hasValidPromotion ? size.promotional_price! : size.price;
+
     addItem({
       product_id: product!.id,
       product_name: product!.name,
@@ -175,7 +179,7 @@ const ProductDetail = () => {
       size_id: size.id,
       size_name: size.name,
       size_ml: size.ml_size,
-      size_price: size.promotional_price ?? size.price, // Usa preço promocional se disponível
+      size_price: effectivePrice,
       quantity,
       toppings: selectedToppingList,
       notes: notes || undefined,

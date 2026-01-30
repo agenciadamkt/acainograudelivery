@@ -18,6 +18,11 @@ interface Store {
   delivery_radius_km: number | null;
   franchisee_user_id: string | null;
   active: boolean;
+  banner_url: string | null;
+  delivery_time: string | null;
+  mercadopago_public_key: string | null;
+  mercadopago_access_token: string | null;
+  business_hours: any;
 }
 
 interface StoreContextType {
@@ -60,15 +65,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
       if (error) throw error;
 
-      setStores(data || []);
+      const storesData = (data as unknown as Store[]) || [];
+      setStores(storesData);
 
       // Set current store from localStorage or first available store
       const savedStoreId = localStorage.getItem('currentStoreId');
-      if (savedStoreId && data?.find(s => s.id === savedStoreId)) {
-        setCurrentStore(data.find(s => s.id === savedStoreId) || null);
-      } else if (data && data.length > 0) {
-        setCurrentStore(data[0]);
-        localStorage.setItem('currentStoreId', data[0].id);
+      if (savedStoreId && storesData.find(s => s.id === savedStoreId)) {
+        setCurrentStore(storesData.find(s => s.id === savedStoreId) || null);
+      } else if (storesData.length > 0) {
+        setCurrentStore(storesData[0]);
+        localStorage.setItem('currentStoreId', storesData[0].id);
       }
     } catch (error) {
       console.error('Error fetching stores:', error);

@@ -8,7 +8,7 @@ import type { Coordinates } from './useGeolocation';
 export interface StoreWithInfo extends Store {
   distance?: number;
   isOpen: boolean;
-  estimatedTime?: number;
+  estimatedTime?: string;
 }
 
 /**
@@ -23,18 +23,20 @@ export function useStoresByCity(city: string | null, coordinates?: Coordinates |
       const { data, error } = await supabase
         .from('stores')
         .select('*')
-        .eq('status', 'active')
         .eq('active', true)
         .eq('city', city)
         .order('name');
 
       if (error) throw error;
 
-      const stores: StoreWithInfo[] = data.map((store) => {
-        const storeIsOpen = isStoreOpen(store.business_hours as any);
-        
+      const stores: StoreWithInfo[] = (data as unknown as Store[]).map((store) => {
+        // A loja só está aberta se status for 'active' E estiver no horário
+        const isStatusActive = store.status === 'active';
+        const isHoursOpen = isStoreOpen(store.business_hours as any);
+        const storeIsOpen = isStatusActive && isHoursOpen;
+
         let distance: number | undefined;
-        let estimatedTime: number | undefined;
+        let estimatedTime: string | undefined;
 
         if (coordinates) {
           // Temporariamente usando coordenadas fixas
@@ -51,7 +53,14 @@ export function useStoresByCity(city: string | null, coordinates?: Coordinates |
             storeCoords.longitude
           );
 
-          estimatedTime = (store.preparation_time || 30) + (store.delivery_time || 40);
+          // Se a loja já tem um tempo definido (ex: "40-60"), usamos ele.
+          // Caso contrário, poderíamos calcular baseada na distância + preparo.
+          if (store.delivery_time) {
+            estimatedTime = store.delivery_time; // ex: "40-60"
+          } else {
+            const prepTime = store.preparation_time || 30;
+            estimatedTime = `${prepTime + 20}-${prepTime + 40} min`;
+          }
         }
 
         return {

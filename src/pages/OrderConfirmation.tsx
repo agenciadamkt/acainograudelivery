@@ -7,12 +7,23 @@ import { Card } from '@/components/ui/card';
 import { CheckCircle, Clock, Home, FileText } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
+import { Payment, initMercadoPago, StatusScreen } from '@mercadopago/sdk-react';
+
+import { useLocation } from 'react-router-dom';
+
 export default function OrderConfirmation() {
   const { orderId } = useParams<{ orderId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { getStoreAwareRoute } = useCart();
   const { data: order, isLoading } = useOrderById(orderId!);
   const [storeSlug, setStoreSlug] = useState<string | null>(null);
+  const [mpPublicKey, setMpPublicKey] = useState<string | null>(null);
+
+  // Extract Payment ID from state (fresh navigation) or notes (persistent fallback)
+  const paymentIdFromState = location.state?.paymentId;
+  const paymentIdFromNotes = order?.customer_notes?.match(/\[Pagamento ID: (\d+)\]/)?.[1];
+  const effectivePaymentId = order?.payment_id || paymentIdFromState || paymentIdFromNotes;
 
   useEffect(() => {
     if (!orderId) {
@@ -24,12 +35,16 @@ export default function OrderConfirmation() {
     if (order?.store_id) {
       supabase
         .from('stores')
-        .select('slug')
+        .select('slug, mercadopago_public_key')
         .eq('id', order.store_id)
         .single()
-        .then(({ data }) => {
+        .then(({ data }: { data: any }) => {
           if (data?.slug) {
             setStoreSlug(data.slug);
+          }
+          if (data?.mercadopago_public_key) {
+            setMpPublicKey(data.mercadopago_public_key);
+            initMercadoPago(data.mercadopago_public_key, { locale: 'pt-BR' });
           }
         });
     }
@@ -54,6 +69,28 @@ export default function OrderConfirmation() {
           <p className="text-muted-foreground mb-4">Pedido não encontrado</p>
           <Button onClick={() => navigate(getStoreAwareRoute())}>Voltar ao Cardápio</Button>
         </div>
+      </div>
+    );
+  }
+
+  // Se tiver ID de pagamento e estiver pendente (ex: PIX), mostra o status do MP
+  if (effectivePaymentId && order.payment_status === 'pending' && mpPublicKey && order.payment_method === 'pix') {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
+        <Card className="max-w-md w-full p-4 overflow-hidden">
+          <h2 className="text-center text-lg font-bold mb-4">Pagamento Pendente</h2>
+          <div className="mb-4 text-center">
+            <p className="text-sm text-muted-foreground mb-2">Escaneie o QR Code ou copie o código abaixo para pagar.</p>
+          </div>
+          <StatusScreen
+            initialization={{ paymentId: effectivePaymentId }}
+            onReady={() => console.log('Status Screen Ready')}
+            onError={(error) => console.error('Status Screen Error', error)}
+          />
+          <div className="mt-4 flex justify-center">
+            <Button variant="outline" onClick={() => navigate(`/orders`)}>Ver Meus Pedidos</Button>
+          </div>
+        </Card>
       </div>
     );
   }

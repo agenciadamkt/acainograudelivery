@@ -60,25 +60,7 @@ export function ProductToppingsManager({ productId }: ProductToppingsManagerProp
         }
     };
 
-    const handleUpdateConfig = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!editingLink) return;
 
-        const formData = new FormData(e.target as HTMLFormElement);
-        const minQty = parseInt(formData.get('min_quantity') as string) || 0;
-        const maxQty = parseInt(formData.get('max_quantity') as string) || 1;
-
-        // Switch values are not present if unchecked, so we look at the state or use controlled components
-        // but let's use the local state for specific boolean toggles? No, uncontrolled active/required is easier with manual values
-
-        // Actually, for switches in a form submission without controlled state, it's tricky.
-        // Let's iterate: editingLink state should hold the draft values? 
-        // Or just read from a small local state that syncs when opening.
-
-        // Simpler: use the passed editingLink object + generic form handling or controlled inputs.
-        // Let's do a simple update call directly with the current state of inputs.
-        // But to keep it clean, let's use state for the values being edited.
-    };
 
     const saveConfig = async (data: Partial<ProductToppingCategory>) => {
         if (!editingLink) return;

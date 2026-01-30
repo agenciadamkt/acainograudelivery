@@ -1,3 +1,4 @@
+
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -12,36 +13,68 @@ serve(async (req) => {
   }
 
   try {
-    const { token, amount, email, installments } = await req.json()
+    const { token, amount, email, installments, storeId, description, paymentMethodId, payer } = await req.json()
 
-    const accessToken = Deno.env.get('MERCADOPAGO_ACCESS_TOKEN')
+    if (!storeId) {
+      throw new Error('Store ID is required')
+    }
+
+    // Initialize Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Fetch store's Mercado Pago Access Token
+    const { data: store, error: storeError } = await supabase
+      .from('stores')
+      .select('mercadopago_access_token')
+      .eq('id', storeId)
+      .single();
+
+    if (storeError || !store) {
+      console.error('Error fetching store:', storeError);
+      throw new Error('Store not found');
+    }
+
+    const accessToken = store.mercadopago_access_token;
+
     if (!accessToken) {
-      throw new Error('Mercado Pago access token not configured')
+      throw new Error('Esta loja não possui o Mercado Pago configurado. Entre em contato com o estabelecimento.')
     }
 
     // Processar pagamento com Mercado Pago
+    const paymentBody: any = {
+      token,
+      transaction_amount: amount,
+      installments: installments || 1,
+      description: description || 'Pedido - Açaí Delivery',
+      statement_descriptor: 'ACAI APP',
+      payer: {
+        email,
+        ...payer // Inclui identification, first_name, etc. enviados pelo frontend
+      },
+      notification_url: `${Deno.env.get('SUPABASE_URL')}/functions/v1/mercadopago-webhook`,
+    };
+
+    if (paymentMethodId) {
+      paymentBody.payment_method_id = paymentMethodId;
+    }
+
     const paymentResponse = await fetch('https://api.mercadopago.com/v1/payments', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${accessToken}`,
+        'X-Idempotency-Key': crypto.randomUUID(),
       },
-      body: JSON.stringify({
-        token,
-        transaction_amount: amount,
-        installments: installments || 1,
-        payment_method_id: 'visa', // Será detectado automaticamente pelo MP
-        payer: {
-          email,
-        },
-        description: 'Pedido - Açaí Delivery',
-      }),
+      body: JSON.stringify(paymentBody),
     })
 
     const paymentData = await paymentResponse.json()
 
     if (!paymentResponse.ok) {
-      throw new Error(paymentData.message || 'Payment failed')
+      console.error('Mercado Pago Error:', paymentData);
+      throw new Error(paymentData.message || 'Payment processing failed')
     }
 
     return new Response(
@@ -57,7 +90,7 @@ serve(async (req) => {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Internal server error'
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         error: errorMessage
       }),
       {

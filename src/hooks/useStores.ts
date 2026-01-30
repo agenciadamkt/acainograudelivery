@@ -13,11 +13,14 @@ export interface Store {
   zipcode: string | null;
   phone: string | null;
   logo_url: string | null;
+  banner_url: string | null;
   delivery_fee: number | null;
   min_order_value: number | null;
   delivery_radius_km: number | null;
   preparation_time: number | null;
-  delivery_time: number | null;
+  delivery_time: string | null;
+  mercadopago_public_key: string | null;
+  mercadopago_access_token: string | null;
   business_hours: any;
   franchisee_user_id: string | null;
   created_by: string | null;
@@ -38,7 +41,7 @@ export function useStores() {
         .order('name');
 
       if (error) throw error;
-      return data as Store[];
+      return data as unknown as Store[];
     },
   });
 }
@@ -57,7 +60,7 @@ export function useStoreBySlug(slug: string | undefined) {
         .single();
 
       if (error) throw error;
-      return data as Store;
+      return data as unknown as Store;
     },
     enabled: !!slug,
   });
@@ -76,13 +79,13 @@ export function useUpdateStore() {
     }) => {
       const { data, error } = await supabase
         .from('stores')
-        .update(updates)
+        .update(updates as any)
         .eq('id', id)
         .select()
         .single();
 
       if (error) throw error;
-      return data;
+      return data as unknown as Store;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['stores'] });

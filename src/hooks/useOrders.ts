@@ -32,6 +32,7 @@ export interface Order {
   customer?: any;
   delivery_address?: any;
   items?: any[];
+  payment_id?: string | null;
 }
 
 interface OrderFilters {
