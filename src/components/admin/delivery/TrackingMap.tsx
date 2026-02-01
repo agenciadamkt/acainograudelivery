@@ -170,6 +170,13 @@ const TrackingMap = ({ orders, drivers, areas }: TrackingMapProps) => {
                             markersRef.current.set(`order-fallback-${order.id}`, marker);
                             bounds.extend([lat, lon]);
                             map.fitBounds(bounds, { padding: [50, 50] });
+
+                            // Draw Line to Fallback Location
+                            if (areas && areas.length > 0) {
+                                const start = [areas[0].center_lat, areas[0].center_lng];
+                                const end = [lat, lon];
+                                L.polyline([start, end], { color: 'red', weight: 2, dashArray: '5, 10', opacity: 0.5 }).addTo(map);
+                            }
                         }
                     })
                     .catch(err => console.error("Geocoding failed", err));
