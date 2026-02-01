@@ -83,8 +83,8 @@ const TrackingMap = ({ orders, drivers, areas }: TrackingMapProps) => {
             });
         }
 
-        // Helper to draw line
-        const drawLine = (order: any, endLat: number, endLng: number) => {
+        // Helper to draw line using OSRM
+        const drawLine = async (order: any, endLat: number, endLng: number) => {
             let startLat, startLng;
 
             // 1. Try Driver Location
@@ -100,13 +100,57 @@ const TrackingMap = ({ orders, drivers, areas }: TrackingMapProps) => {
             }
 
             if (startLat && startLng) {
-                const line = L.polyline([[startLat, startLng], [endLat, endLng]], {
-                    color: '#8D42DD', // Brand Purple for better visibility
-                    weight: 3,
-                    dashArray: '10, 10',
-                    opacity: 0.7
-                }).addTo(map);
-                markersRef.current.set(`line-${order.id}`, line);
+                try {
+                    // Fetch OSRM Route
+                    const response = await fetch(
+                        `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson`
+                    );
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.routes && data.routes.length > 0) {
+                            const route = data.routes[0];
+                            const geojson = route.geometry;
+
+                            // Draw the solid blue line (Waze style)
+                            const activeRouteLayer = L.geoJSON(geojson, {
+                                style: {
+                                    color: '#8D42DD', // Brand Purple
+                                    weight: 4,
+                                    opacity: 0.8,
+                                    lineCap: 'round',
+                                    lineJoin: 'round'
+                                }
+                            }).addTo(map);
+
+                            // Optional: Add a subtle glow/border
+                            const glowLayer = L.geoJSON(geojson, {
+                                style: {
+                                    color: '#a78bfa', // Lighter purple
+                                    weight: 7,
+                                    opacity: 0.3
+                                }
+                            }).addTo(map);
+
+                            // Store reference to clean up later
+                            // We use a composite key or just push to markersRef with unique ID
+                            markersRef.current.set(`line-${order.id}`, activeRouteLayer);
+                            markersRef.current.set(`glow-${order.id}`, glowLayer);
+                        }
+                    } else {
+                        // Fallback to straight line if OSRM fails
+                        throw new Error("OSRM Failed");
+                    }
+                } catch (e) {
+                    // Fallback: Straight Line
+                    const line = L.polyline([[startLat, startLng], [endLat, endLng]], {
+                        color: '#8D42DD',
+                        weight: 3,
+                        dashArray: '10, 10',
+                        opacity: 0.6
+                    }).addTo(map);
+                    markersRef.current.set(`line-${order.id}`, line);
+                }
             }
         }
 
