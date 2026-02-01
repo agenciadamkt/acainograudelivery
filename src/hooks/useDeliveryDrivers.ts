@@ -29,8 +29,11 @@ export function useDeliveryDrivers() {
   useEffect(() => {
     if (!currentStore?.id) return;
 
+    // Unique channel name to avoid collisions
+    const channelName = `drivers-tracking-${currentStore.id}`;
+
     const channel = supabase
-      .channel('drivers-realtime')
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
@@ -40,11 +43,18 @@ export function useDeliveryDrivers() {
           filter: `store_id=eq.${currentStore.id}`, // Filter by store
         },
         (payload) => {
+          // Log for debugging
+          // console.log('Realtime Driver Update:', payload);
+
           // Invalidate cache to refresh list immediately
           queryClient.invalidateQueries({ queryKey: ['delivery-drivers'] });
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          // console.log('Connected to driver tracking');
+        }
+      });
 
     return () => {
       supabase.removeChannel(channel);
