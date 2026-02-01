@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useStore } from '@/contexts/StoreContext';
@@ -21,7 +22,35 @@ export interface DeliveryDriver {
 
 export function useDeliveryDrivers() {
   const { currentStore } = useStore();
-  
+  const queryClient = useQueryClient();
+
+  // Setup Realtime Subscription
+  // This is crucial for tracking driver location updates live
+  useEffect(() => {
+    if (!currentStore?.id) return;
+
+    const channel = supabase
+      .channel('drivers-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen to INSERT, UPDATE, DELETE
+          schema: 'public',
+          table: 'delivery_drivers',
+          filter: `store_id=eq.${currentStore.id}`, // Filter by store
+        },
+        (payload) => {
+          // Invalidate cache to refresh list immediately
+          queryClient.invalidateQueries({ queryKey: ['delivery-drivers'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentStore?.id, queryClient]);
+
   return useQuery({
     queryKey: ['delivery-drivers', currentStore?.id],
     queryFn: async () => {
@@ -39,6 +68,7 @@ export function useDeliveryDrivers() {
       return data as DeliveryDriver[];
     },
     enabled: !!currentStore?.id,
+    refetchInterval: 10000, // Fallback polling every 10s just in case
   });
 }
 
