@@ -30,8 +30,20 @@ export default function DeliveryPage() {
     o.order_type === 'delivery'
   );
 
-  const availableDrivers = drivers?.filter(d => d.status === 'disponivel' && d.active) || [];
-  const activeDeliveries = drivers?.filter(d => d.status === 'em_entrega') || [];
+  // Calculate real status based on Orders, not just Driver Status field
+  const deliveringDriverIds = new Set(
+    orders
+      .filter(o => o.status === 'out_for_delivery' && (o as any).driver_id)
+      .map(o => (o as any).driver_id)
+  );
+
+  const availableDrivers = drivers?.filter(d =>
+    d.status === 'disponivel' &&
+    d.active &&
+    !deliveringDriverIds.has(d.id)
+  ) || [];
+
+  const activeDeliveriesCount = orders.filter(o => o.status === 'out_for_delivery').length;
 
   const handleCreateDriver = async (data: any) => {
     await createDriver.mutateAsync(data);
@@ -92,7 +104,7 @@ export default function DeliveryPage() {
             <MapPin className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{activeDeliveries.length}</div>
+            <div className="text-2xl font-bold text-blue-600">{activeDeliveriesCount}</div>
             <p className="text-xs text-muted-foreground">Entregas ativas</p>
           </CardContent>
         </Card>
