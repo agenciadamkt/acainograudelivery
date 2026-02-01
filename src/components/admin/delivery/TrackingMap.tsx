@@ -128,6 +128,51 @@ const TrackingMap = ({ orders, drivers, areas }: TrackingMapProps) => {
                     const end = [lat, lng];
                     L.polyline([start, end], { color: 'red', weight: 2, dashArray: '5, 10', opacity: 0.5 }).addTo(map);
                 }
+            } else if ((order as any).delivery_address) {
+                // Fallback Geocoding
+                const addr = (order as any).delivery_address;
+                const query = `${addr.street}, ${addr.number}, ${addr.city}`;
+
+                fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data && data.length > 0) {
+                            const lat = data[0].lat;
+                            const lon = data[0].lon;
+                            const customerName = order.customer?.name?.split(' ')[0] || 'Cliente';
+
+                            const orderIcon = L.divIcon({
+                                html: `
+                                  <div style="display: flex; flex-direction: column; align-items: center; transform: translateY(-100%); width: 100px;">
+                                    <span style="background: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; box-shadow: 0 1px 3px rgba(0,0,0,0.3); margin-bottom: 4px; white-space: nowrap; color: #111;">
+                                      ${customerName}
+                                    </span>
+                                    <div style="background-color: #ef4444; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+                                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                        <circle cx="12" cy="7" r="4"></circle>
+                                      </svg>
+                                    </div>
+                                  </div>
+                                `,
+                                className: 'custom-order-icon-fallback',
+                                iconSize: [100, 60],
+                                iconAnchor: [50, 60]
+                            });
+
+                            const marker = L.marker([lat, lon], { icon: orderIcon })
+                                .addTo(map)
+                                .bindPopup(`
+                                   <b>Pedido #${order.order_number}</b><br>
+                                   Cliente: ${order.customer?.name} (Geocodificado)<br>
+                                   Status: ${order.status}
+                                 `);
+                            markersRef.current.set(`order-fallback-${order.id}`, marker);
+                            bounds.extend([lat, lon]);
+                            map.fitBounds(bounds, { padding: [50, 50] });
+                        }
+                    })
+                    .catch(err => console.error("Geocoding failed", err));
             }
         });
 
