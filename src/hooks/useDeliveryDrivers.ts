@@ -24,44 +24,39 @@ export function useDeliveryDrivers() {
   const { currentStore } = useStore();
   const queryClient = useQueryClient();
 
-  // Setup Realtime Subscription - GLOBAL (no filter, we filter on fetch)
-  // This ensures we catch ALL driver updates regardless of store_id issues
+  // Setup Realtime Subscription - Only for current_location updates
   useEffect(() => {
-    // Unique channel name per store session (but listen to ALL drivers)
-    const channelName = `drivers-tracking-global-${Date.now()}`;
+    if (!currentStore?.id) return;
 
-    console.log('[Realtime] Setting up driver tracking...');
+    // Stable channel name per store (no Date.now() to avoid recreating)
+    const channelName = `drivers-tracking-${currentStore.id}`;
 
     const channel = supabase
       .channel(channelName)
       .on(
         'postgres_changes',
         {
-          event: 'UPDATE', // Only care about updates for location tracking
+          event: 'UPDATE',
           schema: 'public',
           table: 'delivery_drivers',
-          // NO FILTER - listen to all driver updates, filter on data fetch
+          filter: `store_id=eq.${currentStore.id}`,
         },
         (payload) => {
-          console.log('[Realtime] Driver update received:', payload.new);
-          // Invalidate cache to refresh list immediately
-          queryClient.invalidateQueries({ queryKey: ['delivery-drivers'] });
+          // Only invalidate if current_location actually changed
+          const oldLoc = (payload.old as any)?.current_location;
+          const newLoc = (payload.new as any)?.current_location;
+
+          if (JSON.stringify(oldLoc) !== JSON.stringify(newLoc)) {
+            queryClient.invalidateQueries({ queryKey: ['delivery-drivers'] });
+          }
         }
       )
-      .subscribe((status, err) => {
-        console.log('[Realtime] Subscription status:', status, err || '');
-        if (status === 'SUBSCRIBED') {
-          console.log('[Realtime] ✅ Connected to driver tracking!');
-        } else if (status === 'CHANNEL_ERROR') {
-          console.error('[Realtime] ❌ Connection error:', err);
-        }
-      });
+      .subscribe();
 
     return () => {
-      console.log('[Realtime] Cleaning up channel...');
       supabase.removeChannel(channel);
     };
-  }, [queryClient]); // Removed currentStore dependency - always listen
+  }, [currentStore?.id, queryClient]);
 
   return useQuery({
     queryKey: ['delivery-drivers', currentStore?.id],
@@ -80,7 +75,7 @@ export function useDeliveryDrivers() {
       return data as DeliveryDriver[];
     },
     enabled: !!currentStore?.id,
-    refetchInterval: 5000, // Poll every 5 seconds as backup if realtime fails
+    staleTime: 2000, // Consider data fresh for 2 seconds to prevent excessive refetches
   });
 }
 
