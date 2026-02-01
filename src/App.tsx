@@ -41,6 +41,7 @@ import Login from "./pages/admin/Login";
 import Signup from "./pages/admin/Signup";
 import DriverLogin from "./pages/driver/DriverLogin";
 import DriverDashboard from "./pages/driver/DriverDashboard";
+import OrderTracking from "./pages/tracking/OrderTracking";
 import Dashboard from "./pages/admin/Dashboard";
 import FranchiseRequest from "./pages/FranchiseRequest";
 import FranchiseesPage from "./pages/admin/franchisees/FranchiseesPage";
@@ -99,6 +100,9 @@ const App = () => (
                       <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
                       <Route path="/checkout/infinitepay/success" element={<ProtectedRoute><InfinitePaySuccess /></ProtectedRoute>} />
                       <Route path="/order-confirmation/:orderId" element={<ProtectedRoute><OrderConfirmation /></ProtectedRoute>} />
+
+                      {/* Public Tracking Route (from Email/WhatsApp) */}
+                      <Route path="/tracking/:orderId" element={<OrderTracking />} />
 
                       {/* Admin auth routes */}
                       <Route path="/admin" element={<Navigate to="/admin/login" replace />} />
