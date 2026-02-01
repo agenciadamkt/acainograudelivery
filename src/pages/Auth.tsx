@@ -67,7 +67,7 @@ export default function Auth() {
   const { signIn, register } = useAuth();
   const [successModal, setSuccessModal] = useState<{ open: boolean, title: React.ReactNode }>({ open: false, title: '' });
 
-  const from = (location.state as any)?.from?.pathname || '/menu';
+  const from = (location.state as any)?.from?.pathname || '/';
 
   // Login com telefone (vamos usar email = phone@app.local por baixo dos panos)
   const loginForm = useForm<LoginFormData>({
@@ -274,8 +274,8 @@ export default function Auth() {
         <div
           key={step}
           className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium transition-all ${signupStep >= step
-              ? 'bg-primary text-primary-foreground'
-              : 'bg-muted text-muted-foreground'
+            ? 'bg-primary text-primary-foreground'
+            : 'bg-muted text-muted-foreground'
             }`}
         >
           {signupStep > step ? <CheckCircle className="w-4 h-4" /> : step}
@@ -436,13 +436,13 @@ export default function Auth() {
                               value={field.value}
                               onChange={field.onChange}
                             >
-                              <InputOTPGroup>
-                                <InputOTPSlot index={0} />
-                                <InputOTPSlot index={1} />
-                                <InputOTPSlot index={2} />
-                                <InputOTPSlot index={3} />
-                                <InputOTPSlot index={4} />
-                                <InputOTPSlot index={5} />
+                              <InputOTPGroup className="gap-2">
+                                <InputOTPSlot index={0} className="w-12 h-12 text-xl" />
+                                <InputOTPSlot index={1} className="w-12 h-12 text-xl" />
+                                <InputOTPSlot index={2} className="w-12 h-12 text-xl" />
+                                <InputOTPSlot index={3} className="w-12 h-12 text-xl" />
+                                <InputOTPSlot index={4} className="w-12 h-12 text-xl" />
+                                <InputOTPSlot index={5} className="w-12 h-12 text-xl" />
                               </InputOTPGroup>
                             </InputOTP>
                           </FormControl>
