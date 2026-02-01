@@ -232,24 +232,39 @@ export default function Auth() {
 
     setIsLoading(true);
     try {
-      // Criar email fictício baseado no telefone
+      // Criar email fictício baseado no telefone (se não informado)
       const cleanPhone = verifiedData.phone.replace(/\D/g, '');
       const email = data.email || `${cleanPhone}@acainograu.app`;
 
-      const { error } = await register(
-        email,
-        data.password,
-        verifiedData.name,
-        verifiedData.phone
-      );
+      // Chamar Edge Function para criar usuário (já confirmado)
+      const response = await supabase.functions.invoke('register-customer', {
+        body: {
+          phone: verifiedData.phone,
+          name: verifiedData.name,
+          password: data.password,
+          email: data.email || null,
+          birthdate: data.birthdate || null,
+          address: data.address || null,
+        }
+      });
 
-      if (error) {
-        toast.error(error.message || 'Erro ao criar conta');
-        return;
+      if (response.error) {
+        throw new Error(response.error.message);
       }
 
-      // Atualizar customer com endereço e data de nascimento
-      // Isso será feito após o login automático pelo trigger do Supabase
+      if (!response.data?.success) {
+        throw new Error(response.data?.error || 'Erro ao criar conta');
+      }
+
+      // Fazer login automático com as credenciais criadas
+      const { error: loginError } = await signIn(email, data.password);
+
+      if (loginError) {
+        // Se falhar o login automático, mostrar sucesso mas redirecionar para login
+        toast.success('Conta criada! Faça login para continuar.');
+        navigate('/auth', { replace: true });
+        return;
+      }
 
       setSuccessModal({
         open: true,
@@ -258,6 +273,7 @@ export default function Auth() {
 
       setTimeout(() => {
         navigate(from, { replace: true });
+
       }, 1500);
 
     } catch (error: any) {
