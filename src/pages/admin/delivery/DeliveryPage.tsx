@@ -12,13 +12,15 @@ import TrackingMap from '@/components/admin/delivery/TrackingMap';
 import RoutePlanner from '@/components/admin/delivery/RoutePlanner';
 import { useOrders } from '@/hooks/useOrders';
 import { useDeliveryAreas } from '@/hooks/useDeliveryAreas';
+import { useStore } from '@/contexts/StoreContext';
 
 export default function DeliveryPage() {
   const [driverDialogOpen, setDriverDialogOpen] = useState(false);
   const [editingDriver, setEditingDriver] = useState<any>(null);
+  const { currentStore } = useStore();
 
   const { data: drivers } = useDeliveryDrivers();
-  const { deliveryAreas: areas } = useDeliveryAreas();
+  const { deliveryAreas: areas } = useDeliveryAreas(currentStore?.id);
   const { data: orders = [] } = useOrders(); // Fetch all orders to filter locally
   const createDriver = useCreateDeliveryDriver();
   const updateDriver = useUpdateDeliveryDriver();
