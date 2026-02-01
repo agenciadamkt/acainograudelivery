@@ -83,6 +83,33 @@ const TrackingMap = ({ orders, drivers, areas }: TrackingMapProps) => {
             });
         }
 
+        // Helper to draw line
+        const drawLine = (order: any, endLat: number, endLng: number) => {
+            let startLat, startLng;
+
+            // 1. Try Driver Location
+            const driver = drivers.find(d => d.id === order.driver_id);
+            if (driver && driver.current_location) {
+                startLat = (driver.current_location as any).lat;
+                startLng = (driver.current_location as any).lng;
+            }
+            // 2. Fallback to Store/Area
+            else if (areas && areas.length > 0) {
+                startLat = areas[0].center_lat;
+                startLng = areas[0].center_lng;
+            }
+
+            if (startLat && startLng) {
+                const line = L.polyline([[startLat, startLng], [endLat, endLng]], {
+                    color: '#8D42DD', // Brand Purple for better visibility
+                    weight: 3,
+                    dashArray: '10, 10',
+                    opacity: 0.7
+                }).addTo(map);
+                markersRef.current.set(`line-${order.id}`, line);
+            }
+        }
+
         // 2. Plot Active Orders
         orders.forEach(order => {
             // Check if order has delivery address with lat/lng
@@ -122,12 +149,9 @@ const TrackingMap = ({ orders, drivers, areas }: TrackingMapProps) => {
                 markersRef.current.set(`order-${order.id}`, marker);
                 bounds.extend([lat, lng]);
 
-                // Connect Store to Order with Line (if First Area exists as Store)
-                if (areas && areas.length > 0) {
-                    const start = [areas[0].center_lat, areas[0].center_lng];
-                    const end = [lat, lng];
-                    L.polyline([start, end], { color: 'red', weight: 2, dashArray: '5, 10', opacity: 0.5 }).addTo(map);
-                }
+                // Draw line
+                drawLine(order, lat, lng);
+
             } else if ((order as any).delivery_address) {
                 // Fallback Geocoding
                 const addr = (order as any).delivery_address;
@@ -136,7 +160,7 @@ const TrackingMap = ({ orders, drivers, areas }: TrackingMapProps) => {
                 fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`)
                     .then(res => res.json())
                     .then(data => {
-                        if (data && data.length > 0) {
+                        if (data && data.length > 0 && mapInstanceRef.current) {
                             const lat = data[0].lat;
                             const lon = data[0].lon;
                             const customerName = order.customer?.name?.split(' ')[0] || 'Cliente';
@@ -171,12 +195,8 @@ const TrackingMap = ({ orders, drivers, areas }: TrackingMapProps) => {
                             bounds.extend([lat, lon]);
                             map.fitBounds(bounds, { padding: [50, 50] });
 
-                            // Draw Line to Fallback Location
-                            if (areas && areas.length > 0) {
-                                const start = [areas[0].center_lat, areas[0].center_lng];
-                                const end = [lat, lon];
-                                L.polyline([start, end], { color: 'red', weight: 2, dashArray: '5, 10', opacity: 0.5 }).addTo(map);
-                            }
+                            // Draw Line using helper
+                            drawLine(order, lat, lon);
                         }
                     })
                     .catch(err => console.error("Geocoding failed", err));
