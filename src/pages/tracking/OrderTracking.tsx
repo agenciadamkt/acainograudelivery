@@ -180,7 +180,95 @@ export default function OrderTracking() {
             }
         }
 
+
     }, [loading, map, order, order?.driver?.current_location]);
+
+    // OSRM Routing Logic
+    useEffect(() => {
+        if (!map || !order || !order.driver?.current_location || !order.delivery_address?.latitude) return;
+
+        const driverLat = order.driver.current_location.lat;
+        const driverLng = order.driver.current_location.lng;
+        const targetLat = order.delivery_address.latitude;
+        const targetLng = order.delivery_address.longitude;
+
+        // Skip if invalid coords
+        if (!driverLat || !driverLng || !targetLat || !targetLng) return;
+
+        const fetchRoute = async () => {
+            try {
+                // Fetch OSRM Route (Driving)
+                // Docs: http://project-osrm.org/docs/v5.5.1/api/#route-service
+                const response = await fetch(
+                    `https://router.project-osrm.org/route/v1/driving/${driverLng},${driverLat};${targetLng},${targetLat}?overview=full&geometries=geojson`
+                );
+
+                if (!response.ok) return;
+
+                const data = await response.json();
+
+                if (data.routes && data.routes.length > 0) {
+                    const route = data.routes[0];
+                    const geojson = route.geometry;
+
+                    // Remove old route layer if exists (we can store it in a ref or just rely on react re-renders if map clearing was robust, but here we add directly)
+                    // Ideally we should manage layer ref. For now let's clear all polylines or assume simple add.
+                    // A better way is to use a unique class/id or clear map. 
+                    // Let's rely on map clearing mechanism from previous effect OR add a specific cleanup here.
+
+                    // Actually, the previous effect doesn't clear the map on update, it only updates markers.
+                    // We need a ref for the polyline.
+
+                    // Since we didn't define a ref for polyline, let's just draw it for now. 
+                    // To avoid duplicates, we can look up layers.
+
+                    // Simple approach: Add new polyline with specific class.
+
+                    const routeLayer = L.geoJSON(geojson, {
+                        style: {
+                            color: '#3b82f6', // Blue-500
+                            weight: 5,
+                            opacity: 0.7,
+                            lineCap: 'round',
+                            lineJoin: 'round',
+                            dashArray: '1, 10', // Dashed for "motion" effect? Or solid for route?
+                        }
+                    });
+
+                    // Add solid main line
+                    const mainRoute = L.geoJSON(geojson, {
+                        style: {
+                            color: '#2563eb', // Blue-600
+                            weight: 4,
+                            opacity: 0.9
+                        }
+                    }).addTo(map);
+
+                    // Fit bounds to show whole route
+                    const bounds = mainRoute.getBounds();
+                    // Extend bounds to include markers slightly loosely
+                    map.fitBounds(bounds, { padding: [50, 50] });
+
+                    // Store ref to remove later? 
+                    // For this simple simplified version, we just render. 
+                    // React strict mode might double render.
+                    return () => {
+                        map.removeLayer(mainRoute);
+                    };
+                }
+            } catch (err) {
+                console.error("OSRM Route Error:", err);
+            }
+        };
+
+        const cleanup = fetchRoute();
+
+        // Cleanup function for useEffect
+        return () => {
+            cleanup.then(cleanFn => cleanFn && cleanFn());
+        };
+
+    }, [map, order?.driver?.current_location, order?.delivery_address?.latitude]);
 
 
     if (loading) {
