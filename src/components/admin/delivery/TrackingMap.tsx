@@ -127,7 +127,7 @@ const TrackingMap = ({ orders, drivers, areas }: TrackingMapProps) => {
             .addTo(map)
             .bindPopup('<b>Sales</b><br>Base de Entregas');
 
-    }, [areas]);
+    }, [areas, isMapReady]);
 
     // Update Driver Markers (when drivers change position)
     useEffect(() => {
@@ -168,7 +168,7 @@ const TrackingMap = ({ orders, drivers, areas }: TrackingMapProps) => {
             }
         });
 
-    }, [drivers, createDriverIcon]);
+    }, [drivers, createDriverIcon, isMapReady]);
 
     // Update Order Markers and Routes
     useEffect(() => {
@@ -297,7 +297,7 @@ const TrackingMap = ({ orders, drivers, areas }: TrackingMapProps) => {
             map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
         }
 
-    }, [orders, drivers, areas, createOrderIcon]);
+    }, [orders, drivers, areas, createOrderIcon, isMapReady]);
 
     return (
         <div className="h-full w-full relative">
