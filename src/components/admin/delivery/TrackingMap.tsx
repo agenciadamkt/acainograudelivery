@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import "leaflet/dist/leaflet.css";
 import { Order } from "@/hooks/useOrders";
 import { DeliveryDriver } from "@/hooks/useDeliveryDrivers";
@@ -11,299 +11,297 @@ interface TrackingMapProps {
 }
 
 const TrackingMap = ({ orders, drivers, areas }: TrackingMapProps) => {
-    const mapRef = useRef<any>(null);
+    const mapContainerRef = useRef<HTMLDivElement>(null);
     const mapInstanceRef = useRef<any>(null);
-    const markersRef = useRef<Map<string, any>>(new Map());
-    const [L, setL] = useState<any>(null);
+    const leafletRef = useRef<any>(null);
 
-    // Load Leaflet
+    // Store references to map elements for updates
+    const driverMarkersRef = useRef<Map<string, any>>(new Map());
+    const orderMarkersRef = useRef<Map<string, any>>(new Map());
+    const routeLinesRef = useRef<Map<string, any>>(new Map());
+    const storeMarkerRef = useRef<any>(null);
+
+    // Initialize Leaflet and Map (only once)
     useEffect(() => {
-        import('leaflet').then((leaflet) => {
-            // Fix default icons
-            delete (leaflet.Icon.Default.prototype as any)._getIconUrl;
-            leaflet.Icon.Default.mergeOptions({
-                iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-                iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-                shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-            });
-            setL(leaflet);
+        if (mapInstanceRef.current) return;
+
+        import('leaflet').then((L) => {
+            if (mapContainerRef.current && !mapInstanceRef.current) {
+                // Fix default icons
+                delete (L.Icon.Default.prototype as any)._getIconUrl;
+                L.Icon.Default.mergeOptions({
+                    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+                    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+                    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+                });
+
+                leafletRef.current = L;
+
+                // Default center (Teresina)
+                const defaultCenter: [number, number] = areas && areas.length > 0
+                    ? [areas[0].center_lat, areas[0].center_lng]
+                    : [-5.089210, -42.801600];
+
+                const map = L.map(mapContainerRef.current).setView(defaultCenter, 13);
+
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; OpenStreetMap'
+                }).addTo(map);
+
+                mapInstanceRef.current = map;
+            }
+        });
+
+        return () => {
+            if (mapInstanceRef.current) {
+                mapInstanceRef.current.remove();
+                mapInstanceRef.current = null;
+            }
+        };
+    }, []);
+
+    // Create driver icon
+    const createDriverIcon = useCallback((L: any, name: string) => {
+        return L.divIcon({
+            html: `
+              <div style="display: flex; flex-direction: column; align-items: center; transform: translateY(-100%); width: 100px;">
+                <span style="background: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; box-shadow: 0 1px 3px rgba(0,0,0,0.3); margin-bottom: 4px; white-space: nowrap; color: #8D42DD; border: 1px solid #8D42DD;">
+                    ${name}
+                </span>
+                <div style="background-color: white; border-radius: 50%; padding: 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border: 2px solid #8D42DD;">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#8D42DD" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 26px; height: 26px;">
+                        <circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5V14l-3-3 4-3 2 3h2"/><path d="M5 17.5h14"/>
+                    </svg>
+                </div>
+              </div>`,
+            className: 'custom-driver-icon',
+            iconSize: [100, 70],
+            iconAnchor: [50, 70]
         });
     }, []);
 
-    // Initialize Map
+    // Create customer icon
+    const createOrderIcon = useCallback((L: any, name: string) => {
+        return L.divIcon({
+            html: `
+              <div style="display: flex; flex-direction: column; align-items: center; transform: translateY(-100%); width: 100px;">
+                <span style="background: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; box-shadow: 0 1px 3px rgba(0,0,0,0.3); margin-bottom: 4px; white-space: nowrap; color: #111;">
+                  ${name}
+                </span>
+                <div style="background-color: #ef4444; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                  </svg>
+                </div>
+              </div>
+            `,
+            className: 'custom-order-icon',
+            iconSize: [100, 60],
+            iconAnchor: [50, 60]
+        });
+    }, []);
+
+    // Update Store Marker (only when areas change)
     useEffect(() => {
-        if (!L || !mapRef.current || mapInstanceRef.current) return;
-
-        // Default center (Teresina or First Area)
-        const defaultCenter: [number, number] = areas && areas.length > 0
-            ? [areas[0].center_lat, areas[0].center_lng]
-            : [-5.089210, -42.801600];
-
-        const map = L.map(mapRef.current).setView(defaultCenter, 13);
-
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        }).addTo(map);
-
-        mapInstanceRef.current = map;
-
-        return () => {
-            map.remove();
-            mapInstanceRef.current = null;
-        };
-    }, [L]);
-
-    // Update Markers
-    useEffect(() => {
-        if (!L || !mapInstanceRef.current) return;
-
+        const L = leafletRef.current;
         const map = mapInstanceRef.current;
+        if (!L || !map || !areas || areas.length === 0) return;
 
-        // Clear old markers
-        markersRef.current.forEach((marker) => marker.remove());
-        markersRef.current.clear();
+        // Remove old store marker
+        if (storeMarkerRef.current) {
+            storeMarkerRef.current.remove();
+        }
 
+        const area = areas[0];
+        const storeIcon = L.divIcon({
+            html: `<div style="background: #8D42DD; width: 20px; height: 20px; border-radius: 4px; border: 2px solid white; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: bold;">🏪</div>`,
+            className: 'store-icon',
+            iconSize: [20, 20],
+            iconAnchor: [10, 10]
+        });
+
+        storeMarkerRef.current = L.marker([area.center_lat, area.center_lng], { icon: storeIcon })
+            .addTo(map)
+            .bindPopup('<b>Sales</b><br>Base de Entregas');
+
+    }, [areas]);
+
+    // Update Driver Markers (when drivers change position)
+    useEffect(() => {
+        const L = leafletRef.current;
+        const map = mapInstanceRef.current;
+        if (!L || !map) return;
+
+        const currentDriverIds = new Set<string>();
+
+        drivers.forEach(driver => {
+            const loc = driver.current_location as any;
+            if (!loc?.lat || !loc?.lng) return;
+
+            currentDriverIds.add(driver.id);
+            const driverName = driver.name.split(' ')[0];
+            const latLng: [number, number] = [loc.lat, loc.lng];
+
+            const existingMarker = driverMarkersRef.current.get(driver.id);
+
+            if (existingMarker) {
+                // Just update position (smooth!)
+                existingMarker.setLatLng(latLng);
+            } else {
+                // Create new marker
+                const icon = createDriverIcon(L, driverName);
+                const marker = L.marker(latLng, { icon, zIndexOffset: 1000 })
+                    .addTo(map)
+                    .bindPopup(`<b>${driver.name}</b><br>Status: ${driver.status}`);
+                driverMarkersRef.current.set(driver.id, marker);
+            }
+        });
+
+        // Remove markers for drivers no longer in the list
+        driverMarkersRef.current.forEach((marker, id) => {
+            if (!currentDriverIds.has(id)) {
+                marker.remove();
+                driverMarkersRef.current.delete(id);
+            }
+        });
+
+    }, [drivers, createDriverIcon]);
+
+    // Update Order Markers and Routes
+    useEffect(() => {
+        const L = leafletRef.current;
+        const map = mapInstanceRef.current;
+        if (!L || !map) return;
+
+        const currentOrderIds = new Set<string>();
         const bounds = L.latLngBounds([]);
 
-        // 1. Plot Store/Areas Centers (Base)
-        if (areas) {
-            areas.forEach(area => {
-                if (areas.length > 0) {
-                    // Maybe draw a store icon at center?
-                    const storeIcon = L.divIcon({
-                        html: '<div style="background-color: blue; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white;"></div>',
-                        className: 'custom-div-icon',
-                        iconSize: [12, 12]
-                    });
-                    L.marker([area.center_lat, area.center_lng], { icon: storeIcon })
-                        .addTo(map)
-                        .bindPopup('Loja / Base');
-                    bounds.extend([area.center_lat, area.center_lng]);
-                }
-            });
+        // Add store to bounds
+        if (areas && areas.length > 0) {
+            bounds.extend([areas[0].center_lat, areas[0].center_lng]);
         }
 
-        // Helper to draw line using OSRM
-        const drawLine = async (order: any, endLat: number, endLng: number) => {
-            let startLat, startLng;
-
-            // 1. Try Driver Location
-            const driver = drivers.find(d => d.id === order.driver_id);
-            if (driver && driver.current_location) {
-                startLat = (driver.current_location as any).lat;
-                startLng = (driver.current_location as any).lng;
-            }
-            // 2. Fallback to Store/Area
-            else if (areas && areas.length > 0) {
-                startLat = areas[0].center_lat;
-                startLng = areas[0].center_lng;
-            }
-
-            if (startLat && startLng) {
-                try {
-                    // Fetch OSRM Route
-                    const response = await fetch(
-                        `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson`
-                    );
-
-                    if (response.ok) {
-                        const data = await response.json();
-                        if (data.routes && data.routes.length > 0) {
-                            const route = data.routes[0];
-                            const geojson = route.geometry;
-
-                            // Draw the solid blue line (Waze style)
-                            const activeRouteLayer = L.geoJSON(geojson, {
-                                style: {
-                                    color: '#8D42DD', // Brand Purple
-                                    weight: 4,
-                                    opacity: 0.8,
-                                    lineCap: 'round',
-                                    lineJoin: 'round'
-                                }
-                            }).addTo(map);
-
-                            // Optional: Add a subtle glow/border
-                            const glowLayer = L.geoJSON(geojson, {
-                                style: {
-                                    color: '#a78bfa', // Lighter purple
-                                    weight: 7,
-                                    opacity: 0.3
-                                }
-                            }).addTo(map);
-
-                            // Store reference to clean up later
-                            // We use a composite key or just push to markersRef with unique ID
-                            markersRef.current.set(`line-${order.id}`, activeRouteLayer);
-                            markersRef.current.set(`glow-${order.id}`, glowLayer);
-                        }
-                    } else {
-                        // Fallback to straight line if OSRM fails
-                        throw new Error("OSRM Failed");
-                    }
-                } catch (e) {
-                    // Fallback: Straight Line
-                    const line = L.polyline([[startLat, startLng], [endLat, endLng]], {
-                        color: '#8D42DD',
-                        weight: 3,
-                        dashArray: '10, 10',
-                        opacity: 0.6
-                    }).addTo(map);
-                    markersRef.current.set(`line-${order.id}`, line);
-                }
-            }
-        }
-
-        // 2. Plot Active Orders
         orders.forEach(order => {
-            // Check if order has delivery address with lat/lng
-            // We assume delivery_address is populated similar to types
             const lat = (order as any).delivery_address?.latitude;
             const lng = (order as any).delivery_address?.longitude;
 
-            if (lat && lng) {
-                const customerName = order.customer?.name?.split(' ')[0] || 'Cliente';
-                const orderIcon = L.divIcon({
-                    html: `
-                      <div style="display: flex; flex-direction: column; align-items: center; transform: translateY(-100%); width: 100px;">
-                        <span style="background: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; box-shadow: 0 1px 3px rgba(0,0,0,0.3); margin-bottom: 4px; white-space: nowrap; color: #111;">
-                          ${customerName}
-                        </span>
-                        <div style="background-color: #ef4444; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                            <circle cx="12" cy="7" r="4"></circle>
-                          </svg>
-                        </div>
-                      </div>
-                    `,
-                    className: 'custom-order-icon',
-                    iconSize: [100, 60],
-                    iconAnchor: [50, 60]
-                });
+            if (!lat || !lng) return;
 
-                const marker = L.marker([lat, lng], { icon: orderIcon })
+            currentOrderIds.add(order.id);
+            const customerName = order.customer?.name?.split(' ')[0] || 'Cliente';
+            const latLng: [number, number] = [lat, lng];
+
+            bounds.extend(latLng);
+
+            // Update or create order marker
+            const existingMarker = orderMarkersRef.current.get(order.id);
+            if (existingMarker) {
+                existingMarker.setLatLng(latLng);
+            } else {
+                const icon = createOrderIcon(L, customerName);
+                const marker = L.marker(latLng, { icon })
                     .addTo(map)
-                    .bindPopup(`
-            <b>Pedido #${order.order_number}</b><br>
-            Cliente: ${order.customer?.name}<br>
-            Status: ${order.status}
-          `);
+                    .bindPopup(`<b>Pedido #${order.order_number}</b><br>Cliente: ${order.customer?.name}`);
+                orderMarkersRef.current.set(order.id, marker);
+            }
 
-                markersRef.current.set(`order-${order.id}`, marker);
-                bounds.extend([lat, lng]);
+            // Handle route line
+            const driver = drivers.find(d => d.id === (order as any).driver_id);
+            const driverLoc = driver?.current_location as any;
 
-                // Draw line
-                drawLine(order, lat, lng);
+            let startLat: number, startLng: number;
 
-            } else if ((order as any).delivery_address) {
-                // Fallback Geocoding
-                const addr = (order as any).delivery_address;
-                const query = `${addr.street}, ${addr.number}, ${addr.city}`;
+            if (driverLoc?.lat && driverLoc?.lng) {
+                startLat = driverLoc.lat;
+                startLng = driverLoc.lng;
+                bounds.extend([startLat, startLng]);
+            } else if (areas && areas.length > 0) {
+                startLat = areas[0].center_lat;
+                startLng = areas[0].center_lng;
+            } else {
+                return;
+            }
 
-                fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`)
-                    .then(res => res.json())
+            // Check if we need to update the route
+            const routeKey = `${order.id}`;
+            const existingRoute = routeLinesRef.current.get(routeKey);
+            const routeData = existingRoute?.routeData;
+
+            // Only fetch new route if positions changed significantly (> 50 meters)
+            const needsUpdate = !routeData ||
+                Math.abs(routeData.startLat - startLat) > 0.0005 ||
+                Math.abs(routeData.startLng - startLng) > 0.0005;
+
+            if (needsUpdate) {
+                // Remove old route
+                if (existingRoute?.layer) {
+                    existingRoute.layer.remove();
+                }
+                if (existingRoute?.glow) {
+                    existingRoute.glow.remove();
+                }
+
+                // Fetch new route from OSRM
+                fetch(`https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${lng},${lat}?overview=full&geometries=geojson`)
+                    .then(res => res.ok ? res.json() : null)
                     .then(data => {
-                        if (data && data.length > 0 && mapInstanceRef.current) {
-                            const lat = data[0].lat;
-                            const lon = data[0].lon;
-                            const customerName = order.customer?.name?.split(' ')[0] || 'Cliente';
+                        if (data?.routes?.[0]?.geometry) {
+                            const geojson = data.routes[0].geometry;
 
-                            const orderIcon = L.divIcon({
-                                html: `
-                                  <div style="display: flex; flex-direction: column; align-items: center; transform: translateY(-100%); width: 100px;">
-                                    <span style="background: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; box-shadow: 0 1px 3px rgba(0,0,0,0.3); margin-bottom: 4px; white-space: nowrap; color: #111;">
-                                      ${customerName}
-                                    </span>
-                                    <div style="background-color: #ef4444; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">
-                                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                                        <circle cx="12" cy="7" r="4"></circle>
-                                      </svg>
-                                    </div>
-                                  </div>
-                                `,
-                                className: 'custom-order-icon-fallback',
-                                iconSize: [100, 60],
-                                iconAnchor: [50, 60]
+                            const glow = L.geoJSON(geojson, {
+                                style: { color: '#a78bfa', weight: 7, opacity: 0.3 }
+                            }).addTo(map);
+
+                            const layer = L.geoJSON(geojson, {
+                                style: { color: '#8D42DD', weight: 4, opacity: 0.8 }
+                            }).addTo(map);
+
+                            routeLinesRef.current.set(routeKey, {
+                                layer,
+                                glow,
+                                routeData: { startLat, startLng, endLat: lat, endLng: lng }
                             });
-
-                            const marker = L.marker([lat, lon], { icon: orderIcon })
-                                .addTo(map)
-                                .bindPopup(`
-                                   <b>Pedido #${order.order_number}</b><br>
-                                   Cliente: ${order.customer?.name} (Geocodificado)<br>
-                                   Status: ${order.status}
-                                 `);
-                            markersRef.current.set(`order-fallback-${order.id}`, marker);
-                            bounds.extend([lat, lon]);
-                            map.fitBounds(bounds, { padding: [50, 50] });
-
-                            // Draw Line using helper
-                            drawLine(order, lat, lon);
                         }
                     })
-                    .catch(err => console.error("Geocoding failed", err));
+                    .catch(() => {
+                        // Fallback: straight line
+                        const line = L.polyline([[startLat, startLng], [lat, lng]], {
+                            color: '#8D42DD', weight: 3, dashArray: '10, 10', opacity: 0.6
+                        }).addTo(map);
+                        routeLinesRef.current.set(routeKey, {
+                            layer: line,
+                            routeData: { startLat, startLng, endLat: lat, endLng: lng }
+                        });
+                    });
             }
         });
 
-        // 3. Plot Drivers
-        drivers.forEach(driver => {
-            const loc = driver.current_location as any; // { lat, lng } or similar
-            if (loc && loc.lat && loc.lng) {
-                const driverName = driver.name.split(' ')[0];
-                const driverIcon = L.divIcon({
-                    html: `
-                      <div style="display: flex; flex-direction: column; align-items: center; transform: translateY(-100%); width: 100px;">
-                        <span style="background: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; box-shadow: 0 1px 3px rgba(0,0,0,0.3); margin-bottom: 4px; white-space: nowrap; color: #8D42DD; border: 1px solid #8D42DD;">
-                            ${driverName}
-                        </span>
-                        <div style="background-color: white; border-radius: 50%; padding: 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border: 2px solid #8D42DD;">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#8D42DD" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 26px; height: 26px;">
-                                <circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5V14l-3-3 4-3 2 3h2"/><path d="M5 17.5h14"/>
-                            </svg>
-                        </div>
-                      </div>`,
-                    className: 'custom-driver-icon',
-                    iconSize: [100, 70],
-                    iconAnchor: [50, 70]
-                });
+        // Cleanup removed orders
+        orderMarkersRef.current.forEach((marker, id) => {
+            if (!currentOrderIds.has(id)) {
+                marker.remove();
+                orderMarkersRef.current.delete(id);
 
-                const marker = L.marker([loc.lat, loc.lng], { icon: driverIcon, zIndexOffset: 1000 })
-                    .addTo(map)
-                    .bindPopup(`<b>${driver.name}</b><br>Status: ${driver.status}`);
-
-                markersRef.current.set(`driver-${driver.id}`, marker);
-                bounds.extend([loc.lat, loc.lng]);
+                const route = routeLinesRef.current.get(id);
+                if (route?.layer) route.layer.remove();
+                if (route?.glow) route.glow.remove();
+                routeLinesRef.current.delete(id);
             }
         });
 
-        // Fit bounds if we have points
+        // Fit bounds
         if (bounds.isValid()) {
-            map.fitBounds(bounds, { padding: [50, 50] });
+            map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
         }
 
-    }, [L, orders, drivers, areas]);
+    }, [orders, drivers, areas, createOrderIcon]);
 
-    // Debug Effect
-    useEffect(() => {
-        console.log('TrackingMap Data Update:', {
-            ordersCount: orders.length,
-            driversCount: drivers.length,
-            ordersWithCoords: orders.filter(o => (o as any).delivery_address?.latitude).length
-        });
+    if (!leafletRef.current) {
+        return <div className="h-full bg-muted animate-pulse rounded-lg flex items-center justify-center">Carregando mapa...</div>;
+    }
 
-        orders.forEach(o => {
-            const addr = (o as any).delivery_address;
-            if (!addr?.latitude || !addr?.longitude) {
-                console.warn(`Order #${o.order_number} missing coordinates:`, addr);
-            }
-        });
-    }, [orders, drivers]);
-
-    if (!L) return <div className="h-full bg-muted animate-pulse rounded-lg flex items-center justify-center">Carregando mapa...</div>;
-
-    return <div ref={mapRef} className="h-full w-full rounded-lg shadow-inner border" />;
+    return <div ref={mapContainerRef} className="h-full w-full rounded-lg shadow-inner border" />;
 };
 
 export default TrackingMap;

@@ -1,5 +1,4 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useStore } from '@/contexts/StoreContext';
@@ -22,42 +21,9 @@ export interface DeliveryDriver {
 
 export function useDeliveryDrivers() {
   const { currentStore } = useStore();
-  const queryClient = useQueryClient();
 
-  // Setup Realtime Subscription - Only for current_location updates
-  useEffect(() => {
-    if (!currentStore?.id) return;
-
-    // Stable channel name per store (no Date.now() to avoid recreating)
-    const channelName = `drivers-tracking-${currentStore.id}`;
-
-    const channel = supabase
-      .channel(channelName)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'delivery_drivers',
-          filter: `store_id=eq.${currentStore.id}`,
-        },
-        (payload) => {
-          // Only invalidate if current_location actually changed
-          const oldLoc = (payload.old as any)?.current_location;
-          const newLoc = (payload.new as any)?.current_location;
-
-          if (JSON.stringify(oldLoc) !== JSON.stringify(newLoc)) {
-            queryClient.invalidateQueries({ queryKey: ['delivery-drivers'] });
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [currentStore?.id, queryClient]);
-
+  // Simple polling approach - guaranteed to work
+  // The new TrackingMap handles updates smoothly without flickering
   return useQuery({
     queryKey: ['delivery-drivers', currentStore?.id],
     queryFn: async () => {
@@ -75,7 +41,8 @@ export function useDeliveryDrivers() {
       return data as DeliveryDriver[];
     },
     enabled: !!currentStore?.id,
-    staleTime: 2000, // Consider data fresh for 2 seconds to prevent excessive refetches
+    refetchInterval: 3000, // Poll every 3 seconds for live tracking
+    staleTime: 1000, // Consider data fresh for 1 second
   });
 }
 

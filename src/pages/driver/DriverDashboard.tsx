@@ -67,31 +67,79 @@ export default function DriverDashboard() {
     // GPS Tracking Logic
     useEffect(() => {
         let watchId: number;
+        let lastUpdateTime = 0;
 
         if (isOnline && driverId) {
             if (!navigator.geolocation) {
-                setLocationError('Geolocalização não suportada');
+                setLocationError('Geolocalização não suportada neste dispositivo');
                 return;
             }
 
+            // Request permission explicitly first
+            navigator.geolocation.getCurrentPosition(
+                () => setLocationError(null), // Permission granted, clear error
+                (err) => {
+                    if (err.code === 1) {
+                        setLocationError('Permissão de localização negada. Ative nas configurações.');
+                    }
+                }
+            );
+
             watchId = navigator.geolocation.watchPosition(
                 async (position) => {
-                    const { latitude, longitude } = position.coords;
+                    const { latitude, longitude, accuracy } = position.coords;
+                    const now = Date.now();
 
-                    // Update DB
-                    await supabase
-                        .from('delivery_drivers' as any)
-                        .update({
-                            current_location: { lat: latitude, lng: longitude, timestamp: Date.now() },
-                            updated_at: new Date().toISOString()
-                        })
-                        .eq('id', driverId);
+                    // Throttle updates: only send every 2 seconds minimum
+                    if (now - lastUpdateTime < 2000) return;
+                    lastUpdateTime = now;
+
+                    // Clear any error
+                    setLocationError(null);
+
+                    try {
+                        const { error } = await supabase
+                            .from('delivery_drivers' as any)
+                            .update({
+                                current_location: {
+                                    lat: latitude,
+                                    lng: longitude,
+                                    accuracy: accuracy,
+                                    timestamp: now
+                                },
+                                updated_at: new Date().toISOString()
+                            })
+                            .eq('id', driverId);
+
+                        if (error) {
+                            console.error('GPS Update Error:', error);
+                            setLocationError('Erro ao enviar localização');
+                        }
+                    } catch (e) {
+                        console.error('GPS Network Error:', e);
+                    }
                 },
                 (error) => {
                     console.error('GPS Error:', error);
-                    setLocationError('Erro ao obter localização');
+                    switch (error.code) {
+                        case 1:
+                            setLocationError('Permissão de localização negada');
+                            break;
+                        case 2:
+                            setLocationError('Localização indisponível');
+                            break;
+                        case 3:
+                            setLocationError('Tempo esgotado ao obter localização');
+                            break;
+                        default:
+                            setLocationError('Erro ao obter localização');
+                    }
                 },
-                { enableHighAccuracy: true, timeout: 20000, maximumAge: 1000 }
+                {
+                    enableHighAccuracy: true,
+                    timeout: 15000,
+                    maximumAge: 0 // Always get fresh position
+                }
             );
         }
 
