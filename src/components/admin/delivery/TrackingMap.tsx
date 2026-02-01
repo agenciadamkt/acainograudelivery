@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import "leaflet/dist/leaflet.css";
 import { Order } from "@/hooks/useOrders";
 import { DeliveryDriver } from "@/hooks/useDeliveryDrivers";
@@ -14,6 +14,7 @@ const TrackingMap = ({ orders, drivers, areas }: TrackingMapProps) => {
     const mapContainerRef = useRef<HTMLDivElement>(null);
     const mapInstanceRef = useRef<any>(null);
     const leafletRef = useRef<any>(null);
+    const [isMapReady, setIsMapReady] = useState(false);
 
     // Store references to map elements for updates
     const driverMarkersRef = useRef<Map<string, any>>(new Map());
@@ -49,6 +50,7 @@ const TrackingMap = ({ orders, drivers, areas }: TrackingMapProps) => {
                 }).addTo(map);
 
                 mapInstanceRef.current = map;
+                setIsMapReady(true);
             }
         });
 
@@ -297,11 +299,16 @@ const TrackingMap = ({ orders, drivers, areas }: TrackingMapProps) => {
 
     }, [orders, drivers, areas, createOrderIcon]);
 
-    if (!leafletRef.current) {
-        return <div className="h-full bg-muted animate-pulse rounded-lg flex items-center justify-center">Carregando mapa...</div>;
-    }
-
-    return <div ref={mapContainerRef} className="h-full w-full rounded-lg shadow-inner border" />;
+    return (
+        <div className="h-full w-full relative">
+            <div ref={mapContainerRef} className="h-full w-full rounded-lg shadow-inner border" />
+            {!isMapReady && (
+                <div className="absolute inset-0 bg-muted animate-pulse rounded-lg flex items-center justify-center">
+                    Carregando mapa...
+                </div>
+            )}
+        </div>
+    );
 };
 
 export default TrackingMap;
