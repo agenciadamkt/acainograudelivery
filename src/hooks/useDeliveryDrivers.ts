@@ -22,8 +22,8 @@ export interface DeliveryDriver {
 export function useDeliveryDrivers() {
   const { currentStore } = useStore();
 
-  // Simple polling approach - guaranteed to work
-  // The new TrackingMap handles updates smoothly without flickering
+  // Polling approach for live tracking
+  // Updates every 10 seconds - balance between freshness and performance
   return useQuery({
     queryKey: ['delivery-drivers', currentStore?.id],
     queryFn: async () => {
@@ -41,8 +41,8 @@ export function useDeliveryDrivers() {
       return data as DeliveryDriver[];
     },
     enabled: !!currentStore?.id,
-    refetchInterval: 3000, // Poll every 3 seconds for live tracking
-    staleTime: 1000, // Consider data fresh for 1 second
+    refetchInterval: 10000, // Poll every 10 seconds for live tracking
+    staleTime: 8000, // Consider data fresh for 8 seconds
   });
 }
 
