@@ -184,12 +184,8 @@ const TrackingMap = ({ orders, drivers, areas }: TrackingMapProps) => {
             bounds.extend([areas[0].center_lat, areas[0].center_lng]);
         }
 
-        orders.forEach(order => {
-            const lat = (order as any).delivery_address?.latitude;
-            const lng = (order as any).delivery_address?.longitude;
-
-            if (!lat || !lng) return;
-
+        // Helper to add order marker and route
+        const addOrderToMap = (order: any, lat: number, lng: number, isGeocoded: boolean = false) => {
             currentOrderIds.add(order.id);
             const customerName = order.customer?.name?.split(' ')[0] || 'Cliente';
             const latLng: [number, number] = [lat, lng];
@@ -197,19 +193,20 @@ const TrackingMap = ({ orders, drivers, areas }: TrackingMapProps) => {
             bounds.extend(latLng);
 
             // Update or create order marker
-            const existingMarker = orderMarkersRef.current.get(order.id);
+            const markerId = isGeocoded ? `geo-${order.id}` : order.id;
+            const existingMarker = orderMarkersRef.current.get(markerId);
             if (existingMarker) {
                 existingMarker.setLatLng(latLng);
             } else {
                 const icon = createOrderIcon(L, customerName);
                 const marker = L.marker(latLng, { icon })
                     .addTo(map)
-                    .bindPopup(`<b>Pedido #${order.order_number}</b><br>Cliente: ${order.customer?.name}`);
-                orderMarkersRef.current.set(order.id, marker);
+                    .bindPopup(`<b>Pedido #${order.order_number}</b><br>Cliente: ${order.customer?.name}${isGeocoded ? ' (Geocodificado)' : ''}`);
+                orderMarkersRef.current.set(markerId, marker);
             }
 
             // Handle route line
-            const driver = drivers.find(d => d.id === (order as any).driver_id);
+            const driver = drivers.find(d => d.id === order.driver_id);
             const driverLoc = driver?.current_location as any;
 
             let startLat: number, startLng: number;
@@ -237,45 +234,65 @@ const TrackingMap = ({ orders, drivers, areas }: TrackingMapProps) => {
 
             if (needsUpdate) {
                 // Remove old route
-                if (existingRoute?.layer) {
-                    existingRoute.layer.remove();
-                }
-                if (existingRoute?.glow) {
-                    existingRoute.glow.remove();
-                }
+                if (existingRoute?.layer) existingRoute.layer.remove();
+                if (existingRoute?.glow) existingRoute.glow.remove();
 
                 // Fetch new route from OSRM
                 fetch(`https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${lng},${lat}?overview=full&geometries=geojson`)
                     .then(res => res.ok ? res.json() : null)
                     .then(data => {
-                        if (data?.routes?.[0]?.geometry) {
+                        if (data?.routes?.[0]?.geometry && mapInstanceRef.current) {
                             const geojson = data.routes[0].geometry;
 
                             const glow = L.geoJSON(geojson, {
                                 style: { color: '#a78bfa', weight: 7, opacity: 0.3 }
-                            }).addTo(map);
+                            }).addTo(mapInstanceRef.current);
 
                             const layer = L.geoJSON(geojson, {
                                 style: { color: '#8D42DD', weight: 4, opacity: 0.8 }
-                            }).addTo(map);
+                            }).addTo(mapInstanceRef.current);
 
                             routeLinesRef.current.set(routeKey, {
-                                layer,
-                                glow,
+                                layer, glow,
                                 routeData: { startLat, startLng, endLat: lat, endLng: lng }
                             });
                         }
                     })
                     .catch(() => {
                         // Fallback: straight line
-                        const line = L.polyline([[startLat, startLng], [lat, lng]], {
-                            color: '#8D42DD', weight: 3, dashArray: '10, 10', opacity: 0.6
-                        }).addTo(map);
-                        routeLinesRef.current.set(routeKey, {
-                            layer: line,
-                            routeData: { startLat, startLng, endLat: lat, endLng: lng }
-                        });
+                        if (mapInstanceRef.current) {
+                            const line = L.polyline([[startLat, startLng], [lat, lng]], {
+                                color: '#8D42DD', weight: 3, dashArray: '10, 10', opacity: 0.6
+                            }).addTo(mapInstanceRef.current);
+                            routeLinesRef.current.set(routeKey, {
+                                layer: line,
+                                routeData: { startLat, startLng, endLat: lat, endLng: lng }
+                            });
+                        }
                     });
+            }
+        };
+
+        orders.forEach(order => {
+            const lat = (order as any).delivery_address?.latitude;
+            const lng = (order as any).delivery_address?.longitude;
+
+            if (lat && lng) {
+                // Has coordinates
+                addOrderToMap(order, lat, lng, false);
+            } else if ((order as any).delivery_address) {
+                // Needs geocoding
+                const addr = (order as any).delivery_address;
+                const query = `${addr.street || ''}, ${addr.number || ''}, ${addr.neighborhood || ''}, ${addr.city || ''}`;
+
+                fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data && data.length > 0) {
+                            addOrderToMap(order, parseFloat(data[0].lat), parseFloat(data[0].lon), true);
+                        }
+                    })
+                    .catch(err => console.error("Geocoding failed for order", order.order_number, err));
             }
         });
 
