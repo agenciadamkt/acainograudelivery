@@ -117,15 +117,48 @@ const TrackingMap = ({ orders, drivers, areas }: TrackingMapProps) => {
 
         const area = areas[0];
         const storeIcon = L.divIcon({
-            html: `<div style="background: #8D42DD; width: 20px; height: 20px; border-radius: 4px; border: 2px solid white; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: bold;">🏪</div>`,
+            html: `
+              <div style="
+                display: flex; 
+                flex-direction: column; 
+                align-items: center; 
+                transform: translateY(-50%);
+              ">
+                <div style="
+                  width: 56px; 
+                  height: 56px; 
+                  border-radius: 50%; 
+                  background: white; 
+                  border: 3px solid #8D42DD; 
+                  box-shadow: 0 4px 12px rgba(141, 66, 221, 0.4);
+                  display: flex; 
+                  align-items: center; 
+                  justify-content: center;
+                  overflow: hidden;
+                ">
+                  <img src="/logo-acai.png" style="width: 48px; height: 48px; object-fit: contain;" alt="Açaí no Grau" />
+                </div>
+                <span style="
+                  background: #8D42DD; 
+                  color: white; 
+                  padding: 2px 8px; 
+                  border-radius: 12px; 
+                  font-size: 11px; 
+                  font-weight: bold; 
+                  margin-top: 4px;
+                  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                  white-space: nowrap;
+                ">Açaí no Grau</span>
+              </div>
+            `,
             className: 'store-icon',
-            iconSize: [20, 20],
-            iconAnchor: [10, 10]
+            iconSize: [60, 80],
+            iconAnchor: [30, 40]
         });
 
-        storeMarkerRef.current = L.marker([area.center_lat, area.center_lng], { icon: storeIcon })
+        storeMarkerRef.current = L.marker([area.center_lat, area.center_lng], { icon: storeIcon, zIndexOffset: 500 })
             .addTo(map)
-            .bindPopup('<b>Sales</b><br>Base de Entregas');
+            .bindPopup('<b>Açaí no Grau</b><br>Base de Entregas');
 
     }, [areas, isMapReady]);
 
