@@ -388,7 +388,8 @@ export default function Auth() {
       }, 1500);
 
     } catch (error: any) {
-      toast.error('Erro ao criar conta. Tente novamente.');
+      console.error('[Auth] Erro no cadastro:', error);
+      toast.error(error.message || 'Erro ao criar conta. Tente novamente.');
     } finally {
       setIsLoading(false);
     }
