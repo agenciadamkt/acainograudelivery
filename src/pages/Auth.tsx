@@ -530,12 +530,12 @@ export default function Auth() {
                               onChange={field.onChange}
                             >
                               <InputOTPGroup className="gap-2">
-                                <InputOTPSlot index={0} className="w-12 h-12 text-xl" />
-                                <InputOTPSlot index={1} className="w-12 h-12 text-xl" />
-                                <InputOTPSlot index={2} className="w-12 h-12 text-xl" />
-                                <InputOTPSlot index={3} className="w-12 h-12 text-xl" />
-                                <InputOTPSlot index={4} className="w-12 h-12 text-xl" />
-                                <InputOTPSlot index={5} className="w-12 h-12 text-xl" />
+                                <InputOTPSlot index={0} className="w-12 h-12 text-xl border-2 border-input rounded-md" />
+                                <InputOTPSlot index={1} className="w-12 h-12 text-xl border-2 border-input rounded-md" />
+                                <InputOTPSlot index={2} className="w-12 h-12 text-xl border-2 border-input rounded-md" />
+                                <InputOTPSlot index={3} className="w-12 h-12 text-xl border-2 border-input rounded-md" />
+                                <InputOTPSlot index={4} className="w-12 h-12 text-xl border-2 border-input rounded-md" />
+                                <InputOTPSlot index={5} className="w-12 h-12 text-xl border-2 border-input rounded-md" />
                               </InputOTPGroup>
                             </InputOTP>
                           </FormControl>
