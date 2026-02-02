@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { Loader2, ArrowLeft, Phone, CheckCircle, User, MapPin, Send } from 'lucide-react';
+import { Loader2, ArrowLeft, Phone, CheckCircle, User, MapPin, Send, Search, Locate } from 'lucide-react';
 import { FeedbackModal } from '@/components/common/FeedbackModal';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -62,6 +62,8 @@ export default function Auth() {
   const [signupStep, setSignupStep] = useState<1 | 2 | 3>(1);
   const [verifiedData, setVerifiedData] = useState<{ name: string; phone: string } | null>(null);
   const [countdown, setCountdown] = useState(0);
+  const [isLoadingCep, setIsLoadingCep] = useState(false);
+  const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { signIn, register } = useAuth();
@@ -102,6 +104,81 @@ export default function Auth() {
       }
     },
   });
+
+  // Buscar endereço pelo CEP (ViaCEP)
+  const handleCepSearch = async () => {
+    const cep = step3Form.getValues('address.zipcode')?.replace(/\D/g, '');
+    if (!cep || cep.length !== 8) {
+      toast.error('CEP inválido. Digite 8 números.');
+      return;
+    }
+
+    setIsLoadingCep(true);
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+      const data = await response.json();
+
+      if (data.erro) {
+        toast.error('CEP não encontrado');
+        return;
+      }
+
+      step3Form.setValue('address.street', data.logradouro || '');
+      step3Form.setValue('address.neighborhood', data.bairro || '');
+      step3Form.setValue('address.city', data.localidade || '');
+      toast.success('Endereço preenchido!');
+    } catch (error) {
+      toast.error('Erro ao buscar CEP');
+    } finally {
+      setIsLoadingCep(false);
+    }
+  };
+
+  // Buscar endereço pela localização atual
+  const handleGetLocation = async () => {
+    if (!navigator.geolocation) {
+      toast.error('Geolocalização não suportada pelo navegador');
+      return;
+    }
+
+    setIsLoadingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const { latitude, longitude } = position.coords;
+          // Usar Nominatim (OpenStreetMap) para geocodificação reversa
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`
+          );
+          const data = await response.json();
+
+          if (data.address) {
+            const addr = data.address;
+            step3Form.setValue('address.street', addr.road || addr.pedestrian || '');
+            step3Form.setValue('address.neighborhood', addr.suburb || addr.neighbourhood || addr.quarter || '');
+            step3Form.setValue('address.city', addr.city || addr.town || addr.municipality || '');
+            step3Form.setValue('address.zipcode', addr.postcode || '');
+            toast.success('Localização encontrada!');
+          } else {
+            toast.error('Não foi possível determinar o endereço');
+          }
+        } catch (error) {
+          toast.error('Erro ao buscar localização');
+        } finally {
+          setIsLoadingLocation(false);
+        }
+      },
+      (error) => {
+        setIsLoadingLocation(false);
+        if (error.code === error.PERMISSION_DENIED) {
+          toast.error('Permissão de localização negada');
+        } else {
+          toast.error('Erro ao obter localização');
+        }
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
 
   // Handle Login
   const handleLogin = async (data: LoginFormData) => {
@@ -502,6 +579,59 @@ export default function Auth() {
 
                 <Form {...step3Form}>
                   <form onSubmit={step3Form.handleSubmit(handleStep3)} className="space-y-4">
+                    {/* CEP e botões de busca */}
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <FormField
+                          control={step3Form.control}
+                          name="address.zipcode"
+                          render={({ field }) => (
+                            <FormItem className="flex-1">
+                              <FormLabel>CEP</FormLabel>
+                              <FormControl>
+                                <Input
+                                  placeholder="00000-000"
+                                  {...field}
+                                  onChange={(e) => {
+                                    // Máscara de CEP
+                                    let v = e.target.value.replace(/\D/g, '');
+                                    if (v.length > 5) v = v.slice(0, 5) + '-' + v.slice(5, 8);
+                                    field.onChange(v);
+                                  }}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <div className="flex gap-1 items-end">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={handleCepSearch}
+                            disabled={isLoadingCep}
+                            title="Buscar pelo CEP"
+                          >
+                            {isLoadingCep ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={handleGetLocation}
+                            disabled={isLoadingLocation}
+                            title="Usar minha localização"
+                          >
+                            {isLoadingLocation ? <Loader2 className="h-4 w-4 animate-spin" /> : <Locate className="h-4 w-4" />}
+                          </Button>
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Digite o CEP ou use sua localização para preencher automaticamente
+                      </p>
+                    </div>
+
                     <div className="grid grid-cols-3 gap-2">
                       <FormField
                         control={step3Form.control}
