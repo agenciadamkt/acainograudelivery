@@ -41,9 +41,9 @@ const menuSections = [
     label: '📊 Operação',
     items: [
       { title: 'Dashboard', url: '/admin/dashboard', icon: LayoutDashboard },
-      { title: 'Pedidos', url: '/admin/orders', icon: ShoppingBag },
+      { title: 'Pedidos', url: '/admin/orders', icon: ShoppingBag, highlight: true },
       { title: 'KDS Cozinha', url: '/admin/kds', icon: Monitor },
-      { title: 'Entregas', url: '/admin/delivery', icon: Truck },
+      { title: 'Entregas', url: '/admin/delivery', icon: Truck, highlight: true },
       { title: 'Áreas de Entrega', url: '/admin/delivery/areas', icon: Truck },
       { title: 'Estoque', url: '/admin/inventory', icon: Package },
     ]
@@ -112,9 +112,13 @@ export function AdminSidebar() {
               <SidebarMenu>
                 {section.items.map((item) => (
                   <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild isActive={isActive(item.url)}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isActive(item.url)}
+                      className={item.highlight ? 'bg-primary/10 hover:bg-primary/20 font-semibold' : ''}
+                    >
                       <NavLink to={item.url}>
-                        <item.icon className="h-4 w-4" />
+                        <item.icon className={`h-4 w-4 ${item.highlight ? 'text-primary' : ''}`} />
                         {!isCollapsed && <span>{item.title}</span>}
                       </NavLink>
                     </SidebarMenuButton>

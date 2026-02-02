@@ -128,12 +128,12 @@ export default function DeliveryPage() {
         </Card>
       </div>
 
-      <Tabs defaultValue="drivers" className="space-y-4">
+      <Tabs defaultValue="active" className="space-y-4">
         <div className="flex items-center justify-between">
           <TabsList>
-            <TabsTrigger value="drivers">Entregadores</TabsTrigger>
             <TabsTrigger value="active">Entregas Ativas</TabsTrigger>
             <TabsTrigger value="routes">Rotas</TabsTrigger>
+            <TabsTrigger value="drivers">Entregadores</TabsTrigger>
           </TabsList>
           <Button onClick={() => setDriverDialogOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
