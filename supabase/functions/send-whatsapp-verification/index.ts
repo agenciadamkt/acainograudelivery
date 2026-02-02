@@ -65,13 +65,16 @@ serve(async (req) => {
             throw insertError;
         }
 
-        // Enviar via WhatsApp
+        // Enviar via WhatsApp com botões interativos
         const formattedPhone = formatPhone(cleanPhone);
-        const message = `🔐 *Açaí no Grau*\n\nSeu código de verificação é:\n\n*${code}*\n\nEste código expira em 10 minutos.\n\n_Não compartilhe este código com ninguém._`;
+
+        // Texto da mensagem conforme solicitado
+        const messageText = `Seu código de verificação é *${code}*. Para sua segurança, não o compartilhe.`;
 
         console.log(`[Verification] Enviando código ${code} para ${formattedPhone}`);
 
-        const btzapResponse = await fetch(`${BTZAP_URL}/send/text`, {
+        // Tentar enviar com botões interativos
+        const btzapResponse = await fetch(`${BTZAP_URL}/send/buttons`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -79,15 +82,45 @@ serve(async (req) => {
             },
             body: JSON.stringify({
                 number: formattedPhone,
-                text: message
+                title: "Açaí no Grau",
+                text: messageText,
+                footer: "",
+                buttons: [
+                    {
+                        id: `copy_${code}`,
+                        text: "Copiar código"
+                    },
+                    {
+                        id: "not_requested",
+                        text: "Não pedi um código"
+                    }
+                ]
             })
         });
 
         const btzapResult = await btzapResponse.json();
         console.log('[Verification] Resultado BTZAP:', btzapResult);
 
+        // Se botões não funcionarem, enviar como texto simples
         if (!btzapResponse.ok || btzapResult.error) {
-            throw new Error(btzapResult.message || 'Erro ao enviar WhatsApp');
+            console.log('[Verification] Tentando enviar como texto simples...');
+
+            const textResponse = await fetch(`${BTZAP_URL}/send/text`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'token': BTZAP_TOKEN
+                },
+                body: JSON.stringify({
+                    number: formattedPhone,
+                    text: messageText
+                })
+            });
+
+            const textResult = await textResponse.json();
+            if (!textResponse.ok || textResult.error) {
+                throw new Error(textResult.message || 'Erro ao enviar WhatsApp');
+            }
         }
 
         return new Response(
