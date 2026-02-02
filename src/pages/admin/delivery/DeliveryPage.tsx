@@ -3,7 +3,7 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Truck, User, MapPin, Star, Plus, Edit, Phone } from 'lucide-react';
+import { Truck, User, MapPin, Star, Plus, Edit, Phone, Copy, Link } from 'lucide-react';
 import { useDeliveryDrivers, useCreateDeliveryDriver, useUpdateDeliveryDriver } from '@/hooks/useDeliveryDrivers';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -13,6 +13,7 @@ import RoutePlanner from '@/components/admin/delivery/RoutePlanner';
 import { useOrders } from '@/hooks/useOrders';
 import { useDeliveryAreas } from '@/hooks/useDeliveryAreas';
 import { useStore } from '@/contexts/StoreContext';
+import { toast } from 'sonner';
 
 export default function DeliveryPage() {
   const [driverDialogOpen, setDriverDialogOpen] = useState(false);
@@ -135,10 +136,24 @@ export default function DeliveryPage() {
             <TabsTrigger value="routes">Rotas</TabsTrigger>
             <TabsTrigger value="drivers">Entregadores</TabsTrigger>
           </TabsList>
-          <Button onClick={() => setDriverDialogOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Entregador
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                const url = `${window.location.origin}/driver/dashboard`;
+                navigator.clipboard.writeText(url);
+                toast.success('Link copiado!', { description: url });
+              }}
+            >
+              <Link className="h-4 w-4 mr-2" />
+              App Entregador
+              <Copy className="h-3 w-3 ml-2 opacity-50" />
+            </Button>
+            <Button onClick={() => setDriverDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Entregador
+            </Button>
+          </div>
         </div>
 
         <TabsContent value="drivers" className="space-y-4">
