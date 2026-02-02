@@ -83,12 +83,63 @@ export default function AddressFormDialog({
 
   const handleSubmit = async (data: AddressFormData) => {
     try {
+      // Geocode the address to get coordinates
+      let latitude: number | null = null;
+      let longitude: number | null = null;
+
+      try {
+        const fullAddress = `${data.street}, ${data.number}, ${data.neighborhood}, ${data.city}, ${data.state}, Brazil`;
+        const encodedAddress = encodeURIComponent(fullAddress);
+
+        const geoResponse = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodedAddress}&limit=1`,
+          {
+            headers: {
+              'User-Agent': 'AcaiNoGrauDeliveryApp/1.0'
+            }
+          }
+        );
+
+        const geoData = await geoResponse.json();
+
+        if (geoData && geoData.length > 0) {
+          latitude = parseFloat(geoData[0].lat);
+          longitude = parseFloat(geoData[0].lon);
+          console.log('Geocoded address:', { latitude, longitude });
+        } else {
+          // Fallback: try with just city and state
+          const cityAddress = `${data.city}, ${data.state}, Brazil`;
+          const cityResponse = await fetch(
+            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(cityAddress)}&limit=1`,
+            {
+              headers: {
+                'User-Agent': 'AcaiNoGrauDeliveryApp/1.0'
+              }
+            }
+          );
+          const cityData = await cityResponse.json();
+          if (cityData && cityData.length > 0) {
+            latitude = parseFloat(cityData[0].lat);
+            longitude = parseFloat(cityData[0].lon);
+            console.log('Geocoded by city:', { latitude, longitude });
+          }
+        }
+      } catch (geoError) {
+        console.warn('Geocoding failed, saving without coordinates:', geoError);
+      }
+
+      const addressData = {
+        ...data,
+        latitude,
+        longitude,
+      };
+
       if (address) {
-        await updateAddress.mutateAsync({ id: address.id, ...data });
+        await updateAddress.mutateAsync({ id: address.id, ...addressData });
       } else {
         await createAddress.mutateAsync({
           customer_id: customerId,
-          ...data,
+          ...addressData,
         });
       }
       onOpenChange(false);
@@ -100,7 +151,7 @@ export default function AddressFormDialog({
 
   const handleZipcodeBlur = async () => {
     const zipcode = form.getValues('zipcode').replace(/\D/g, '');
-    
+
     if (zipcode.length !== 8) return;
 
     try {
@@ -276,8 +327,8 @@ export default function AddressFormDialog({
                 {createAddress.isPending || updateAddress.isPending
                   ? 'Salvando...'
                   : address
-                  ? 'Atualizar'
-                  : 'Adicionar'}
+                    ? 'Atualizar'
+                    : 'Adicionar'}
               </Button>
             </div>
           </form>
