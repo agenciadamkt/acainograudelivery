@@ -154,11 +154,45 @@ export default function Auth() {
 
           if (data.address) {
             const addr = data.address;
-            step3Form.setValue('address.street', addr.road || addr.pedestrian || '');
-            step3Form.setValue('address.neighborhood', addr.suburb || addr.neighbourhood || addr.quarter || '');
-            step3Form.setValue('address.city', addr.city || addr.town || addr.municipality || '');
-            step3Form.setValue('address.zipcode', addr.postcode || '');
-            toast.success('Localização encontrada!');
+            const cep = addr.postcode?.replace(/\D/g, '');
+
+            // Se encontrou CEP, usa ViaCEP para pegar dados completos
+            if (cep && cep.length === 8) {
+              step3Form.setValue('address.zipcode', cep.slice(0, 5) + '-' + cep.slice(5, 8));
+
+              try {
+                const viaCepResponse = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+                const viaCepData = await viaCepResponse.json();
+
+                if (!viaCepData.erro) {
+                  step3Form.setValue('address.street', viaCepData.logradouro || '');
+                  step3Form.setValue('address.neighborhood', viaCepData.bairro || '');
+                  step3Form.setValue('address.city', viaCepData.localidade || '');
+                  toast.success('Endereço preenchido pela localização!');
+                } else {
+                  // Fallback para dados do Nominatim
+                  step3Form.setValue('address.street', addr.road || addr.pedestrian || '');
+                  step3Form.setValue('address.neighborhood', addr.suburb || addr.neighbourhood || addr.quarter || '');
+                  step3Form.setValue('address.city', addr.city || addr.town || addr.municipality || '');
+                  toast.success('Localização encontrada!');
+                }
+              } catch {
+                // Fallback para dados do Nominatim
+                step3Form.setValue('address.street', addr.road || addr.pedestrian || '');
+                step3Form.setValue('address.neighborhood', addr.suburb || addr.neighbourhood || addr.quarter || '');
+                step3Form.setValue('address.city', addr.city || addr.town || addr.municipality || '');
+                toast.success('Localização encontrada!');
+              }
+            } else {
+              // Sem CEP, usa dados do Nominatim diretamente
+              step3Form.setValue('address.street', addr.road || addr.pedestrian || '');
+              step3Form.setValue('address.neighborhood', addr.suburb || addr.neighbourhood || addr.quarter || '');
+              step3Form.setValue('address.city', addr.city || addr.town || addr.municipality || '');
+              if (addr.postcode) {
+                step3Form.setValue('address.zipcode', addr.postcode);
+              }
+              toast.success('Localização encontrada!');
+            }
           } else {
             toast.error('Não foi possível determinar o endereço');
           }
