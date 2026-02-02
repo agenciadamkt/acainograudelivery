@@ -222,7 +222,25 @@ export default function Auth() {
       const cleanPhone = data.phone.replace(/\D/g, '');
       const fakeEmail = `${cleanPhone}@acainograu.app`;
 
-      const { error } = await signIn(fakeEmail, data.password);
+      // Primeiro tentar com email fictício
+      let { error } = await signIn(fakeEmail, data.password);
+
+      // Se falhar, tentar buscar o email real do cliente
+      if (error) {
+        // Buscar o email real na tabela customers
+        const { data: customer } = await supabase
+          .from('customers')
+          .select('email')
+          .eq('phone', cleanPhone)
+          .single();
+
+        if (customer?.email) {
+          // Tentar login com email real
+          const result = await signIn(customer.email, data.password);
+          error = result.error;
+        }
+      }
+
       if (error) {
         if (error.message.includes('Invalid login credentials')) {
           toast.error('Telefone ou senha incorretos');
