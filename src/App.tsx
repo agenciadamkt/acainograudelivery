@@ -59,6 +59,7 @@ import DeliveryAreasPage from "./pages/admin/delivery/DeliveryAreasPage";
 import MarketingPage from "./pages/admin/MarketingPage";
 import FoodAnalyticsPage from "./pages/admin/FoodAnalyticsPage";
 import FeedbackPage from "./pages/admin/feedback/FeedbackPage";
+import GeocodingUtility from "./pages/admin/GeocodingUtility";
 
 import { ThemeProvider } from "next-themes";
 
@@ -249,6 +250,16 @@ const App = () => (
                         element={
                           <PrivateRoute requiredRole="manager">
                             <SettingsPage />
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/geocoding"
+                        element={
+                          <PrivateRoute requiredRole="manager">
+                            <AdminLayout>
+                              <GeocodingUtility />
+                            </AdminLayout>
                           </PrivateRoute>
                         }
                       />
