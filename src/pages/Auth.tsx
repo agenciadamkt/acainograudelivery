@@ -359,12 +359,10 @@ export default function Auth() {
         }
       });
 
-      if (response.error) {
-        throw new Error(response.error.message);
-      }
-
-      if (!response.data?.success) {
-        throw new Error(response.data?.error || 'Erro ao criar conta');
+      // Verificar erro na resposta
+      const errorMessage = response.data?.error || response.error?.message;
+      if (errorMessage || !response.data?.success) {
+        throw new Error(errorMessage || 'Erro ao criar conta');
       }
 
       // Fazer login automático com as credenciais criadas
