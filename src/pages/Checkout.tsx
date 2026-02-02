@@ -23,7 +23,7 @@ import { isStoreOpen, getTodayHoursString } from '@/utils/businessHours';
 export default function Checkout() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { items, subtotal, clearCart } = useCart();
+  const { items, subtotal, clearCart, calculateDelivery, deliveryFee: cartDeliveryFee } = useCart();
   const createOrder = useCreateOrder();
   // Removed unused hook
   // const { createCheckout, isLoading: isCreatingCheckout } = useInfinitePayCheckout();
@@ -36,6 +36,9 @@ export default function Checkout() {
   const [selectedAddressId, setSelectedAddressId] = useState<string>();
   const [tableNumber, setTableNumber] = useState<string>('');
   const [successModal, setSuccessModal] = useState<{ open: boolean, orderNumber: string, orderId: string, paymentId?: string, paymentType?: string }>({ open: false, orderNumber: '', orderId: '' });
+  const [calculatedDeliveryFee, setCalculatedDeliveryFee] = useState<number>(0);
+  const [isCalculatingFee, setIsCalculatingFee] = useState(false);
+  const [deliveryAllowed, setDeliveryAllowed] = useState(true);
 
   const [store, setStore] = useState<any>(null);
 
@@ -65,8 +68,65 @@ export default function Checkout() {
     fetchStore();
   }, []);
 
-  const deliveryFee = orderType === 'delivery' ? (store?.delivery_fee || 0) : 0;
+  // Use calculated fee if available, otherwise fallback to store base fee
+  const deliveryFee = orderType === 'delivery' ? (calculatedDeliveryFee || store?.delivery_fee || 0) : 0;
   const total = subtotal + deliveryFee;
+
+  // Calculate delivery fee when address changes
+  const handleAddressSelect = async (addressId: string) => {
+    setSelectedAddressId(addressId);
+
+    if (!store?.id || orderType !== 'delivery') return;
+
+    setIsCalculatingFee(true);
+    try {
+      // Fetch address coordinates
+      const { data: address } = await supabase
+        .from('customer_addresses')
+        .select('latitude, longitude')
+        .eq('id', addressId)
+        .single();
+
+      if (address?.latitude && address?.longitude) {
+        const result = await calculateDelivery(address.latitude, address.longitude, store.id);
+
+        if (result.allowed) {
+          setCalculatedDeliveryFee(result.fee);
+          setDeliveryAllowed(true);
+        } else {
+          // Check if there are any delivery areas configured
+          const { data: areas } = await supabase
+            .from('delivery_areas' as any)
+            .select('id')
+            .eq('store_id', store.id)
+            .eq('active', true)
+            .limit(1);
+
+          if (areas && areas.length > 0) {
+            // Areas are configured but address is outside all of them
+            setDeliveryAllowed(false);
+            setCalculatedDeliveryFee(0);
+            sonnerToast.error('Endereço fora da área de entrega');
+          } else {
+            // No areas configured, use store base fee
+            setCalculatedDeliveryFee(store?.delivery_fee || 0);
+            setDeliveryAllowed(true);
+          }
+        }
+      } else {
+        // No coordinates, use store base fee
+        setCalculatedDeliveryFee(store?.delivery_fee || 0);
+        setDeliveryAllowed(true);
+      }
+    } catch (error) {
+      console.error('Error calculating delivery:', error);
+      // Fallback to store base fee on error
+      setCalculatedDeliveryFee(store?.delivery_fee || 0);
+      setDeliveryAllowed(true);
+    } finally {
+      setIsCalculatingFee(false);
+    }
+  };
 
   // Função para criar o pedido APÓS o pagamento online ser aprovado
   const handleCreateOrderAfterPayment = async (paymentId: string, status: string, paymentType: string) => {
@@ -342,7 +402,7 @@ export default function Checkout() {
           <AddressSelector
             customerId={customerId}
             selectedAddressId={selectedAddressId}
-            onSelectAddress={setSelectedAddressId}
+            onSelectAddress={handleAddressSelect}
           />
         )}
 
@@ -447,9 +507,20 @@ export default function Checkout() {
               <span>Subtotal ({items.length} itens):</span>
               <span>R$ {subtotal.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between items-center">
               <span>Taxa de entrega:</span>
-              <span>R$ {deliveryFee.toFixed(2)}</span>
+              {isCalculatingFee ? (
+                <span className="flex items-center gap-2 text-muted-foreground">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Calculando...
+                </span>
+              ) : orderType === 'delivery' && !deliveryAllowed ? (
+                <span className="text-destructive font-medium">Fora da área</span>
+              ) : (
+                <span className={deliveryFee === 0 ? 'text-green-600 font-medium' : ''}>
+                  {deliveryFee === 0 && orderType === 'delivery' ? 'Grátis' : `R$ ${deliveryFee.toFixed(2)}`}
+                </span>
+              )}
             </div>
           </div>
           <Separator className="my-4" />
@@ -457,12 +528,20 @@ export default function Checkout() {
             <span>Total:</span>
             <span>R$ {total.toFixed(2)}</span>
           </div>
+
+          {/* Warning for out of area */}
+          {orderType === 'delivery' && !deliveryAllowed && (
+            <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3 mb-4 text-sm text-destructive">
+              ⚠️ Infelizmente não entregamos neste endereço. Escolha outro endereço ou retire na loja.
+            </div>
+          )}
+
           {paymentMethod !== 'credit_card' && (
             <Button
               className="w-full"
               size="lg"
               onClick={handleSubmit}
-              disabled={isSubmitting}
+              disabled={isSubmitting || isCalculatingFee || (orderType === 'delivery' && !deliveryAllowed)}
             >
               {(isSubmitting) ? (
                 <>
