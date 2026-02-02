@@ -1,234 +1,66 @@
 import qz from 'qz-tray';
-import { KEYUTIL, KJUR, stob64, hextorstr } from 'jsrsasign';
 
-// Using QZ Tray's standard demo certificate and private key
-// This allows localhost/development trust without warning loops
-// Source: https://qz.io/docs/signing#sample-certificate
-
-const privateKey = `-----BEGIN PRIVATE KEY-----
-MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCEA9N+rT3vS+Fj
-qE6rGlP9f/ZqXQx5y2z3A4B5C6D7E8F9G0H1I2J3K4L5M6N7O8P9Q0R1S2T3U4V
-5W6X7Y8Z9a0b1c2d3e4f5g6h7i8j9k0l1m2n3o4p5q6r7s8t9u0v1w2x3y4z5A6B
-... (truncated for safety, we will use the algorithm to sign) ...
------END PRIVATE KEY-----`;
-
-// Correct approach: We use the `setSignaturePromise` to sign the data.
-// Since we don't have the key in plain text easily validatable here, 
-// I will implement the structure and direct the signature to use a COMPATIBLE method
-// or explain that for persistent trust, we need a valid self-signed cert.
-
-// However, to unblock the "Remember" checkbox, we MUST provide a certificate chain.
-// Just providing ANY certificate (even self-signed) enables the "Remember" box.
+/**
+ * QZ Tray Security Setup
+ * 
+ * For development/localhost, we use anonymous mode (no signing).
+ * QZ Tray will show a trust prompt the first time, but user can click
+ * "Remember" to avoid seeing it again.
+ * 
+ * For production with a custom domain, you would need to purchase a 
+ * QZ Tray certificate or generate a self-signed one.
+ * See: https://qz.io/docs/signing
+ */
 
 export const setupQzSecurity = () => {
-    qz.security.setCertificatePromise((resolve, reject) => {
-        resolve(
-            "-----BEGIN CERTIFICATE-----\n" +
-            "MIIDtjCCAp6gAwIBAgIJAJ6Kq5Uf3Ea1MA0GCSqGSIb3DQEBCwUAMIGUMQswCQYD\n" +
-            "VQQGEwJVUzETMBEGA1UECAwKTmV3IFlvcmsxEjAQBgNVBAcMCUNhbmFzdG90YTEV\n" +
-            "MBMGA1UECgwMUVogSW5kdXN0cmllczewDwYDVQQLDAhTdXBwb3J0MR4wCAYDVQQD\n" +
-            "DA9xeXRyYXkuZGVtby5jb20wHhcNMTgwNjI4MDEwMTAwWhcNMzgwNjI4MDEwMTAw\n" +
-            "WjCBlDELMAkGA1UEBhMCVVMxEzARBgNVBAgMCk5ldyBZb3JrMRIwEAYDVQQHDAlD\n" +
-            "YW5hc3RvdGExFTATBgNVBAoMDFFaIEluZHVzdHJpZXMxHzAdBgNVBAsMFkNlcnRp\n" +
-            "ZmljYXRpb24gQXV0aG9yaXR5MR4wCAYDVQQDDA9xeXRyYXkuZGVtby5jb20wggEi\n" +
-            "MA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDgE+l2F+/l+Cg1D5gMAeYnIAfK\n" +
-            "g3L9Y3n7Y7O9lM0b5c8d2e4f6g0h2i4j6k8l0m2n4o6p8q0r2s4t6u8v0w2x4y6z\n" +
-            "8A0B2C4D6E8F0G2H4I6J8K0L2M4N6O8P0Q2R4S6T8U0V2W4X6Y8Z0a2b4c6d8e0f\n" +
-            "2g4h6i8j0k2l4m6n8o0p2q4r6s8t0u2v4w6x8y0z2A4B6C8D0E2F4G6H8I0J2K4L\n" +
-            "6M8N0O2P4Q6R8S0T2U4V6W8X0Y2Z4a6b8c0d2e4f6g8h0i2j4k6l8m0n2o4p6q8r\n" +
-            "0s4t6u8v0w2x4y6z8A0B2C4D6E8F0G2H4I6J8K0L2M4N6O8P0Q2R4S6T8U0V2W4X\n" +
-            "6Y8Z0a2b4c6d8e0f2g4h6i8j0k2l4m6n8o0p2q4r6s8t0u2v4w6x8y0z2A4B6C8D\n" +
-            "0E2F4G6H8I0J2K4L6M8N0O2P4Q6R8S0T2U4V6W8X0Y2Z4a6b8c0d2e4f6g8h0i2j\n" +
-            "4k6l8m0n2o4p6q8r0s4t6u8v0w2x4y6z8A0B2C4D6E8F0G2H4I6J8K0L2M4N6O8P\n" +
-            "0Q2R4S6T8U0V2W4X6Y8Z0a2b4c6d8e0f2g4h6i8j0k2l4m6n8o0p2q4r6s8t0u2v\n" +
-            "4w6x8y0z2A4B6C8D0E2F4G6H8I0J2K4L6M8N0O2P4Q6R8S0T2U4V6W8X0Y2Z4a6b\n" +
-            "8c0d2e4f6g8h0i2j4k6l8m0n2o4p6q8r0s4t6u8v0w2x4y6z8A0B2C4D6E8F0G2H\n" +
-            "4I6J8K0L2M4N6O8P0Q2R4S6T8U0V2W4X6Y8Z0a2b4c6d8e0f2g4h6i8j0k2l4m6n\n" +
-            "8o0p2q4r6s8t0u2v4w6x8y0z2A4B6C8D0E2F4G6H8I0J2K4L6M8N0O2P4Q6R8S0T\n" +
-            "2U4V6W8X0Y2Z4a6b8c0d2e4f6g8h0i2j4k6l8m0n2o4p6q8r0s4t6u8v0w2x4y6z\n" +
-            "8A0B2C4D6E8F0G2H4I6J8K0L2M4N6O8P0Q2R4S6T8U0V2W4X6Y8Z0a2b4c6d8e0f\n" +
-            "2g4h6i8j0k2l4m6n8o0p2q4r6s8t0u2v4w6x8y0z2A4B6C8D0E2F4G6H8I0J2K4L\n" +
-            "6M8N0O2P4Q6R8S0T2U4V6W8X0Y2Z4a6b8c0d2e4f6g8h0i2j4k6l8m0n2o4p6q8r\n" +
-            "0s4t6u8v0w2x4y6z8A0B2C4D6E8F0G2H4I6J8K0L2M4N6O8P0Q2R4S6T8U0V2W4X\n" +
-            "6Y8Z0a2b4c6d8e0f2g4h6i8j0k2l4m6n8o0p2q4r6s8t0u2v4w6x8y0z2A4B6C8D\n" +
-            "0E2F4G6H8I0J2K4L6M8N0O2P4Q6R8S0T2U4V6W8X0Y2Z4a6b8c0d2e4f6g8h0i2j\n" +
-            "4k6l8m0n2o4p6q8r0s4t6u8v0w2x4y6z8A0B2C4D6E8F0G2H4I6J8K0L2M4N6O8P\n" +
-            "0Q2R4S6T8U0V2W4X6Y8Z0a2b4c6d8e0f2g4h6i8j0k2l4m6n8o0p2q4r6s8t0u2v\n" +
-            "4w6x8y0z2A4B6C8D0E2F4G6H8I0J2K4L6M8N0O2P4Q6R8S0T2U4V6W8X0Y2Z4a6b\n" +
-            "8c0d2e4f6g8h0i2j4k6l8m0n2o4p6q8r0s4t6u8v0w2x4y6z8A0B2C4D6E8F0G2H\n" +
-            "4I6J8K0L2M4N6O8P0Q2R4S6T8U0V2W4X6Y8Z0a2b4c6d8e0f2g4h6i8j0k2l4m6n\n" +
-            "8o0p2q4r6s8t0u2v4w6x8y0z2A4B6C8D0E2F4G6H8I0J2K4L6M8N0O2P4Q6R8S0T\n" +
-            "2U4V6W8X0Y2Z4a6b8c0d2e4f6g8h0i2j4k6l8m0n2o4p6q8r0s4t6u8v0w2x4y6z\n" +
-            "8A0B2C4D6E8F0G2H4I6J8K0L2M4N6O8P0Q2R4S6T8U0V2W4X6Y8Z0a2b4c6d8e0f\n" +
-            "2g4h6i8j0k2l4m6n8o0p2q4r6s8t0u2v4w6x8y0z2A4B6C8D0E2F4G6H8I0J2K4L\n" +
-            "6M8N0O2P4Q6R8S0T2U4V6W8X0Y2Z4a6b8c0d2e4f6g8h0i2j4k6l8m0n2o4p6q8r\n" +
-            "0s4t6u8v0w2x4y6z8A0B2C4D6E8F0G2H4I6J8K0L2M4N6O8P0Q2R4S6T8U0V2W4X\n" +
-            "6Y8Z0a2b4c6d8e0f2g4h6i8j0k2l4m6n8o0p2q4r6s8t0u2v4w6x8y0z2A4B6C8D\n" +
-            "0E2F4G6H8I0J2K4L6M8N0O2P4Q6R8S0T2U4V6W8X0Y2Z4a6b8c0d2e4f6g8h0i2j\n" +
-            "4k6l8m0n2o4p6q8r0s4t6u8v0w2x4y6z8A0B2C4D6E8F0G2H4I6J8K0L2M4N6O8P\n" +
-            "0Q2R4S6T8U0V2W4X6Y8Z0a2b4c6d8e0f2g4h6i8j0k2l4m6n8o0p2q4r6s8t0u2v\n" +
-            "4w6x8y0z2A4B6C8D0E2F4G6H8I0J2K4L6M8N0O2P4Q6R8S0T2U4V6W8X0Y2Z4a6b\n" +
-            "8c0d2e4f6g8h0i2j4k6l8m0n2o4p6q8r0s4t6u8v0w2x4y6z8A0B2C4D6E8F0G2H\n" +
-            "4I6J8K0L2M4N6O8P0Q2R4S6T8U0V2W4X6Y8Z0a2b4c6d8e0f2g4h6i8j0k2l4m6n\n" +
-            "8o0p2q4r6s8t0u2v4w6x8y0z2A4B6C8D0E2F4G6H8I0J2K4L6M8N0O2P4Q6R8S0T\n" +
-            "2U4V6W8X0Y2Z4a6b8c0d2e4f6g8h0i2j4k6l8m0n2o4p6q8r0s4t6u8v0w2x4y6z\n" +
-            "8A0B2C4D6E8F0G2H4I6J8K0L2M4N6O8P0Q2R4S6T8U0V2W4X6Y8Z0a2b4c6d8e0f\n" +
-            "2g4h6i8j0k2l4m6n8o0p2q4r6s8t0u2v4w6x8y0z2A4B6C8D0E2F4G6H8I0J2K4L\n" +
-            "6M8N0O2P4Q6R8S0T2U4V6W8X0Y2Z4a6b8c0d2e4f6g8h0i2j4k6l8m0n2o4p6q8r\n" +
-            "0s4t6u8v0w2x4y6z8A0B2C4D6E8F0G2H4I6J8K0L2M4N6O8P0Q2R4S6T8U0V2W4X\n" +
-            "6Y8Z0a2b4c6d8e0f2g4h6i8j0k2l4m6n8o0p2q4r6s8t0u2v4w6x8y0z2A4B6C8D\n" +
-            "0E2F4G6H8I0J2K4L6M8N0O2P4Q6R8S0T2U4V6W8X0Y2Z4a6b8c0d2e4f6g8h0i2j\n" +
-            "4k6l8m0n2o4p6q8r0s4t6u8v0w2x4y6z8A0B2C4D6E8F0G2H4I6J8K0L2M4N6O8P\n" +
-            "0Q2R4S6T8U0V2W4X6Y8Z0a2b4c6d8e0f2g4h6i8j0k2l4m6n8o0p2q4r6s8t0u2v\n" +
-            "4w6x8y0z2A4B6C8D0E2F4G6H8I0J2K4L6M8N0O2P4Q6R8S0T2U4V6W8X0Y2Z4a6b\n" +
-            "8c0d2e4f6g8h0i2j4k6l8m0n2o4p6q8r0s4t6u8v0w2x4y6z8A0B2C4D6E8F0G2H\n" +
-            "4I6J8K0L2M4N6O8P0Q2R4S6T8U0V2W4X6Y8Z0a2b4c6d8e0f2g4h6i8j0k2l4m6n\n" +
-            "8o0p2q4r6s8t0u2v4w6x8y0z2A4B6C8D0E2F4G6H8I0J2K4L6M8N0O2P4Q6R8S0T\n" +
-            "2U4V6W8X0Y2Z4a6b8c0d2e4f6g8h0i2j4k6l8m0n2o4p6q8r0s4t6u8v0w2x4y6z\n" +
-            "8A0B2C4D6E8F0G2H4I6J8K0L2M4N6O8P0Q2R4S6T8U0V2W4X6Y8Z0a2b4c6d8e0f\n" +
-            "2g4h6i8j0k2l4m6n8o0p2q4r6s8t0u2v4w6x8y0z2A4B6C8D0E2F4G6H8I0J2K4L\n" +
-            "6M8N0O2P4Q6R8S0T2U4V6W8X0Y2Z4a6b8c0d2e4f6g8h0i2j4k6l8m0n2o4p6q8r\n" +
-            "0s4t6u8v0w2x4y6z8A0B2C4D6E8F0G2H4I6J8K0L2M4N6O8P0Q2R4S6T8U0V2W4X\n" +
-            "6Y8Z0a2b4c6d8e0f2g4h6i8j0k2l4m6n8o0p2q4r6s8t0u2v4w6x8y0z2A4B6C8D\n" +
-            "0E2F4G6H8I0J2K4L6M8N0O2P4Q6R8S0T2U4V6W8X0Y2Z4a6b8c0d2e4f6g8h0i2j\n" +
-            "4k6l8m0n2o4p6q8r0s4t6u8v0w2x4y6z8A0B2C4D6E8F0G2H4I6J8K0L2M4N6O8P\n" +
-            "0Q2R4S6T8U0V2W4X6Y8Z0a2b4c6d8e0f2g4h6i8j0k2l4m6n8o0p2q4r6s8t0u2v\n" +
-            "4w6x8y0z2A4B6C8D0E2F4G6H8I0J2K4L6M8N0O2P4Q6R8S0T2U4V6W8X0Y2Z4a6b\n" +
-            "8c0d2e4f6g8h0i2j4k6l8m0n2o4p6q8r0s4t6u8v0w2x4y6z8A0B2C4D6E8F0G2H\n" +
-            "4I6J8K0L2M4N6O8P0Q2R4S6T8U0V2W4X6Y8Z0a2b4c6d8e0f2g4h6i8j0k2l4m6n\n" +
-            "8o0p2q4r6s8t0u2v4w6x8y0z2A4B6C8D0E2F4G6H8I0J2K4L6M8N0O2P4Q6R8S0T\n" +
-            "2U4V6W8X0Y2Z4a6b8c0d2e4f6g8h0i2j4k6l8m0n2o4p6q8r0s4t6u8v0w2x4y6z\n" +
-            "8A0B2C4D6E8F0G2H4I6J8K0L2M4N6O8P0Q2R4S6T8U0V2W4X6Y8Z0a2b4c6d8e0f\n" +
-            "2g4h6i8j0k2l4m6n8o0p2q4r6s8t0u2v4w6x8y0z2A4B6C8D0E2F4G6H8I0J2K4L\n" +
-            "6M8N0O2P4Q6R8S0T2U4V6W8X0Y2Z4a6b8c0d2e4f6g8h0i2j4k6l8m0n2o4p6q8r\n" +
-            "0s4t6u8v0w2x4y6z8A0B2C4D6E8F0G2H4I6J8K0L2M4N6O8P0Q2R4S6T8U0V2W4X\n" +
-            "6Y8Z0a2b4c6d8e0f2g4h6i8j0k2l4m6n8o0p2q4r6s8t0u2v4w6x8y0z2A4B6C8D\n" +
-            "0E2F4G6H8I0J2K4L6M8N0O2P4Q6R8S0T2U4V6W8X0Y2Z4a6b8c0d2e4f6g8h0i2j\n" +
-            "4k6l8m0n2o4p6q8r0s4t6u8v0w2x4y6z8A0B2C4D6E8F0G2H4I6J8K0L2M4N6O8P\n" +
-            "0Q2R4S6T8U0V2W4X6Y8Z0a2b4c6d8e0f2g4h6i8j0k2l4m6n8o0p2q4r6s8t0u2v\n" +
-            "4w6x8y0z2A4B6C8D0E2F4G6H8I0J2K4L6M8N0O2P4Q6R8S0T2U4V6W8X0Y2Z4a6b\n" +
-            "8c0d2e4f6g8h0i2j4k6l8m0n2o4p6q8r0s4t6u8v0w2x4y6z8A0B2C4D6E8F0G2H\n" +
-            "4I6J8K0L2M4N6O8P0Q2R4S6T8U0V2W4X6Y8Z0a2b4c6d8e0f2g4h6i8j0k2l4m6n\n" +
-            "8o0p2q4r6s8t0u2v4w6x8y0z2A4B6C8D0E2F4G6H8I0J2K4L6M8N0O2P4Q6R8S0T\n" +
-            "2U4V6W8X0Y2Z4a6b8c0d2e4f6g8h0i2j4k6l8m0n2o4p6q8r0s4t6u8v0w2x4y6z\n" +
-            "8A0B2C4D6E8F0G2H4I6J8K0L2M4N6O8P0Q2R4S6T8U0V2W4X6Y8Z0a2b4c6d8e0f\n" +
-            "2g4h6i8j0k2l4m6n8o0p2q4r6s8t0u2v4w6x8y0z2A4B6C8D0E2F4G6H8I0J2K4L\n" +
-            "6M8N0O2P4Q6R8S0T2U4V6W8X0Y2Z4a6b8c0d2e4f6g8h0i2j4k6l8m0n2o4p6q8r\n" +
-            "0s4t6u8v0w2x4y6z8A0B2C4D6E8F0G2H4I6J8K0L2M4N6O8P0Q2R4S6T8U0V2W4X\n" +
-            "6Y8Z0a2b4c6d8e0f2g4h6i8j0k2l4m6n8o0p2q4r6s8t0u2v4w6x8y0z2A4B6C8D\n" +
-            "0E2F4G6H8I0J2K4L6M8N0O2P4Q6R8S0T2U4V6W8X0Y2Z4a6b8c0d2e4f6g8h0i2j\n" +
-            "4k6l8m0n2o4p6q8r0s4t6u8v0w2x4y6z8A0B2C4D6E8F0G2H4I6J8K0L2M4N6O8P\n" +
-            "0Q2R4S6T8U0V2W4X6Y8Z0a2b4c6d8e0f2g4h6i8j0k2l4m6n8o0p2q4r6s8t0u2v\n" +
-            "4w6x8y0z2A4B6C8D0E2F4G6H8I0J2K4L6M8N0O2P4Q6R8S0T2U4V6W8X0Y2Z4a6b\n" +
-            "8c0d2e4f6g8h0i2j4k6l8m0n2o4p6q8r0s4t6u8v0w2x4y6z8A0B2C4D6E8F0G2H\n" +
-            "4I6J8K0L2M4N6O8P0Q2R4S6T8U0V2W4X6Y8Z0a2b4c6d8e0f2g4h6i8j0k2l4m6n\n" +
-            "8o0p2q4r6s8t0u2v4w6x8y0z2A4B6C8D0E2F4G6H8I0J2K4L6M8N0O2P4Q6R8S0T\n" +
-            "2U4V6W8X0Y2Z4a6b8c0d2e4f6g8h0i2j4k6l8m0n2o4p6q8r0s4t6u8v0w2x4y6z\n" +
-            "8A0B2C4D6E8F0G2H4I6J8K0L2M4N6O8P0Q2R4S6T8U0V2W4X6Y8Z0a2b4c6d8e0f\n" +
-            "2g4h6i8j0k2l4m6n8o0p2q4r6s8t0u2v4w6x8y0z2A4B6C8D0E2F4G6H8I0J2K4L\n" +
-            "6M8N0O2P4Q6R8S0T2U4V6W8X0Y2Z4a6b8c0d2e4f6g8h0i2j4k6l8m0n2o4p6q8r\n" +
-            "0s4t6u8v0w2x4y6z8A0B2C4D6E8F0G2H4I6J8K0L2M4N6O8P0Q2R4S6T8U0V2W4X\n" +
-            "6Y8Z0a2b4c6d8e0f2g4h6i8j0k2l4m6n8o0p2q4r6s8t0u2v4w6x8y0z2A4B6C8D\n" +
-            "0E2F4G6H8I0J2K4L6M8N0O2P4Q6R8S0T2U4V6W8X0Y2Z4a6b8c0d2e4f6g8h0i2j\n" +
-            "4k6l8m0n2o4p6q8r0s4t6u8v0w2x4y6z8A0B2C4D6E8F0G2H4I6J8K0L2M4N6O8P\n" +
-            "0Q2R4S6T8U0V2W4X6Y8Z0a2b4c6d8e0f2g4h6i8j0k2l4m6n8o0p2q4r6s8t0u2v\n" +
-            "4w6x8y0z2A4B6C8D0E2F4G6H8I0J2K4L6M8N0O2P4Q6R8S0T2U4V6W8X0Y2Z4a6b\n" +
-            "8c0d2e4f6g8h0i2j4k6l8m0n2o4p6q8r0s4t6u8v0w2x4y6z8A0B2C4D6E8F0G2H\n" +
-            "4I6J8K0L2M4N6O8P0Q2R4S6T8U0V2W4X6Y8Z0a2b4c6d8e0f2g4h6i8j0k2l4m6n\n" +
-            "8o0p2q4r6s8t0u2v4w6x8y0z2A4B6C8D0E2F4G6H8I0J2K4L6M8N0O2P4Q6R8S0T\n" +
-            "2U4V6W8X0Y2Z4a6b8c0d2e4f6g8h0i2j4k6l8m0n2o4p6q8r0s4t6u8v0w2x4y6z\n" +
-            "8A0B2C4D6E8F0G2H4I6J8K0L2M4N6O8P0Q2R4S6T8U0V2W4X6Y8Z0a2b4c6d8e0f\n" +
-            "2g4h6i8j0k2l4m6n8o0p2q4r6s8t0u2v4w6x8y0z2A4B6C8D0E2F4G6H8I0J2K4L\n" +
-            "6M8N0O2P4Q6R8S0T2U4V6W8X0Y2Z4a6b8c0d2e4f6g8h0i2j4k6l8m0n2o4p6q8r\n" +
-            "0s4t6u8v0w2x4y6z8A0B2C4D6E8F0G2H4I6J8K0L2M4N6O8P0Q2R4S6T8U0V2W4X\n" +
-            "6Y8Z0a2b4c6d8e0f2g4h6i8j0k2l4m6n8o0p2q4r6s8t0u2v4w6x8y0z2A4B6C8D\n" +
-            "0E2F4G6H8I0J2K4L6M8N0O2P4Q6R8S0T2U4V6W8X0Y2Z4a6b8c0d2e4f6g8h0i2j\n" +
-            "4k6l8m0n2o4p6q8r0s4t6u8v0w2x4y6z8A0B2C4D6E8F0G2H4I6J8K0L2M4N6O8P\n" +
-            "0Q2R4S6T8U0V2W4X6Y8Z0a2b4c6d8e0f2g4h6i8j0k2l4m6n8o0p2q4r6s8t0u2v\n" +
-            "4w6x8y0z2A4B6C8D0E2F4G6H8I0J2K4L6M8N0O2P4Q6R8S0T2U4V6W8X0Y2Z4a6b\n" +
-            "8c0d2e4f6g8h0i2j4k6l8m0n2o4p6q8r0s4t6u8v0w2x4y6z8A0B2C4D6E8F0G2H\n" +
-            "4I6J8K0L2M4N6O8P0Q2R4S6T8U0V2W4X6Y8Z0a2b4c6d8e0f2g4h6i8j0k2l4m6n\n" +
-            "8o0p2q4r6s8t0u2v4w6x8y0z2A4B6C8D0E2F4G6H8I0J2K4L6M8N0O2P4Q6R8S0T\n" +
-            "2U4V6W8X0Y2Z4a6b8c0d2e4f6g8h0i2j4k6l8m0n2o4p6q8r0s4t6u8v0w2x4y6z\n" +
-            "8A0B2C4D6E8F0G2H4I6J8K0L2M4N6O8P0Q2R4S6T8U0V2W4X6Y8Z0a2b4c6d8e0f\n" +
-            "2g4h6i8j0k2l4m6n8o0p2q4r6s8t0u2v4w6x8y0z2A4B6C8D0E2F4G6H8I0J2K4L\n" +
-            "6M8N0O2P4Q6R8S0T2U4V6W8X0Y2Z4a6b8c0d2e4f6g8h0i2j4k6l8m0n2o4p6q8r\n" +
-            "0s4t6u8v0w2x4y6z8A0B2C4D6E8F0G2H4I6J8K0L2M4N6O8P0Q2R4S6T8U0V2W4X\n" +
-            "6Y8Z0a2b4c6d8e0f2g4h6i8j0k2l4m6n8o0p2q4r6s8t0u2v4w6x8y0z2A4B6C8D\n" +
-            "0E2F4G6H8I0J2K4L6M8N0O2P4Q6R8S0T2U4V6W8X0Y2Z4a6b8c0d2e4f6g8h0i2j\n" +
-            "4k6l8m0n2o4p6q8r0s4t6u8v0w2x4y6z8A0B2C4D6E8F0G2H4I6J8K0L2M4N6O8P\n" +
-            "0Q2R4S6T8U0V2W4X6Y8Z0a2b4c6d8e0f2g4h6i8j0k2l4m6n8o0p2q4r6s8t0u2v\n" +
-            "4w6x8y0z2A4B6C8D0E2F4G6H8I0J2K4L6M8N0O2P4Q6R8S0T2U4V6W8X0Y2Z4a6b\n" +
-            "8c0d2e4f6g8h0i2j4k6l8m0n2o4p6q8r0s4t6u8v0w2x4y6z8A0B2C4D6E8F0G2H\n" +
-            "4I6J8K0L2M4N6O8P0Q2R4S6T8U0V2W4X6Y8Z0a2b4c6d8e0f2g4h6i8j0k2l4m6n\n" +
-            "8o0p2q4r6s8t0u2v4w6x8y0z2A4B6C8D0E2F4G6H8I0J2K4L6M8N0O2P4Q6R8S0T\n" +
-            "2U4V6W8X0Y2Z4a6b8c0d2e4f6g8h0i2j4k6l8m0n2o4p6q8r0s4t6u8v0w2x4y6z\n" +
-            "8A0B2C4D6E8F0G2H4I6J8K0L2M4N6O8P0Q2R4S6T8U0V2W4X6Y8Z0a2b4c6d8e0f\n" +
-            "2g4h6i8j0k2l4m6n8o0p2q4r6s8t0u2v4w6x8y0z2A4B6C8D0E2F4G6H8I0J2K4L\n" +
-            "6M8N0O2P4Q6R8S0T2U4V6W8X0Y2Z4a6b8c0d2e4f6g8h0i2j4k6l8m0n2o4p6q8r\n" +
-            "0s4t6u8v0w2x4y6z8A0B2C4D6E8F0G2H4I6J8K0L2M4N6O8P0Q2R4S6T8U0V2W4X\n" +
-            "6Y8Z0a2b4c6d8e0f2g4h6i8j0k2l4m6n8o0p2q4r6s8t0u2v4w6x8y0z2A4B6C8D\n" +
-            "0E2F4G6H8I0J2K4L6M8N0O2P4Q6R8S0T2U4V6W8X0Y2Z4a6b8c0d2e4f6g8h0i2j\n" +
-            "4k6l8m0n2o4p6q8r0s4t6u8v0w2x4y6z8A0B2C4D6E8F0G2H4I6J8K0L2M4N6O8P\n" +
-            "0Q2R4S6T8U0V2W4X6Y8Z0a2b4c6d8e0f2g4h6i8j0k2l4m6n8o0p2q4r6s8t0u2v\n" +
-            "4w6x8y0z2A4B6C8D0E2F4G6H8I0J2K4L6M8N0O2P4Q6R8S0T2U4V6W8X0Y2Z4a6b\n" +
-            "8c0d2e4f6g8h0i2j4k6l8m0n2o4p6q8r0s4t6u8v0w2x4y6z8A0B2C4D6E8F0G2H\n" +
-            "4I6J8K0L2M4N6O8P0Q2R4S6T8U0V2W4X6Y8Z0a2b4c6d8e0f2g4h6i8j0k2l4m6n\n" +
-            "8o0p2q4r6s8t0u2v4w6x8y0z2A4B6C8D0E2F4G6H8I0J2K4L6M8N0O2P4Q6R8S0T\n" +
-            "2U4V6W8X0Y2Z4a6b8c0d2e4f6g8h0i2j4k6l8m0n2o4p6q8r0s4t6u8v0w2x4y6z\n" +
-            "8A0B2C4D6E8F0G2H4I6J8K0L2M4N6O8P0Q2R4S6T8U0V2W4X6Y8Z0a2b4c6d8e05\n" +
-            "-----END CERTIFICATE-----\n"
-        );
+    // Option 1: Anonymous mode (no certificate, no signing)
+    // This works for localhost/development but shows a trust prompt
+    qz.security.setCertificatePromise((resolve) => {
+        // Resolve with empty string to use anonymous/untrusted mode
+        resolve("");
     });
 
-    qz.security.setSignaturePromise((toSign: string) => {
-        return function (resolve: (sig: string) => void) {
-            try {
-                // Private Key for standard QZ Tray Demo Cert
-                // Source: https://git.io/vZkU4
-                const privateKey = "-----BEGIN PRIVATE KEY-----\n" +
-                    "MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQDgE+l2F+/l+Cg1\n" +
-                    "D5gMAeYnIAfKg3L9Y3n7Y7O9lM0b5c8d2e4f6g0h2i4j6k8l0m2n4o6p8q0r2s4t\n" +
-                    "6u8v0w2x4y6z8A0B2C4D6E8F0G2H4I6J8K0L2M4N6O8P0Q2R4S6T8U0V2W4X6Y8Z\n" +
-                    "0a2b4c6d8e0f2g4h6i8j0k2l4m6n8o0p2q4r6s8t0u2v4w6x8y0z2A4B6C8D0E2F\n" +
-                    "4G6H8I0J2K4L6M8N0O2P4Q6R8S0T2U4V6W8X0Y2Z4a6b8c0d2e4f6g8h0i2j4k6l\n" +
-                    "8m0n2o4p6q8r0s4t6u8v0w2x4y6z8A0B2C4D6E8F0G2H4I6J8K0L2M4N6O8P0Q2R\n" +
-                    "4S6T8U0V2W4X6Y8Z0a2b4c6d8e0f2g4h6i8j0k2l4m6n8o0p2q4r6s8t0u2v4w6x\n" +
-                    "8y0z2A4B6C8D0E2F4G6H8I0J2K4L6M8N0O2P4Q6R8S0T2U4V6W8X0Y2Z4a6b8c0d\n" +
-                    "2e4f6g8h0i2j4k6l8m0n2o4p6q8r0s4t6u8v0w2x4y6z8A0B2C4D6E8F0G2H4I6J\n" +
-                    "8K0L2M4N6O8P0Q2R4S6T8U0V2W4X6Y8Z0a2b4c6d8e0f2g4h6i8j0k2l4m6n8o0p\n" +
-                    "2q4r6s8t0u2v4w6x8y0z2A4B6C8D0E2F4G6H8I0J2K4L6M8N0O2P4Q6R8S0T2U4V\n" +
-                    "6W8X0Y2Z4a6b8c0d2e4f6g8h0i2j4k6l8m0n2o4p6q8r0s4t6u8v0w2x4y6z8A0B\n" +
-                    "2C4D6E8F0G2H4I6J8K0L2M4N6O8P0Q2R4S6T8U0V2W4X6Y8Z0a2b4c6d8e0f2g4h\n" +
-                    "6i8j0k2l4m6n8o0p2q4r6s8t0u2v4w6x8y0z2A4B6C8D0E2F4G6H8I0J2K4L6M8N\n" +
-                    "0O2P4Q6R8S0T2U4V6W8X0Y2Z4a6b8c0d2e4f6g8h0i2j4k6l8m0n2o4p6q8r0s4t\n" +
-                    "6u8v0w2x4y6z8A0B2C4D6E8F0G2H4I6J8K0L2M4N6O8P0Q2R4S6T8U0V2W4X6Y8Z\n" +
-                    "0a2b4c6d8e0f2g4h6i8j0k2l4m6n8o0p2q4r6s8t0u2v4w6x8y0z2A4B6C8D0E2F\n" +
-                    "4G6H8I0J2K4L6M8N0O2P4Q6R8S0T2U4V6W8X0Y2Z4a6b8c0d2e4f6g8h0i2j4k6l\n" +
-                    "8m0n2o4p6q8r0s4t6u8v0w2x4y6z8A0B2C4D6E8F0G2H4I6J8K0L2M4N6O8P0Q2R\n" +
-                    "4S6T8U0V2W4X6Y8Z0a2b4c6d8e0f2g4h6i8j0k2l4m6n8o0p2q4r6s8t0u2v4w6x\n" +
-                    "8y0z2A4B6C8D0E2F4G6H8I0J2K4L6M8N0O2P4Q6R8S0T2U4V6W8X0Y2Z4a6b8c0d\n" +
-                    "2e4f6g8h0i2j4k6l8m0n2o4p6q8r0s4t6u8v0w2x4y6z8A0B2C4D6E8F0G2H4I6J\n" +
-                    "8K0L2M4N6O8P0Q2R4S6T8U0V2W4X6Y8Z0a2b4c6d8e0f2g4h6i8j0k2l4m6n8o0p\n" +
-                    "2q4r6s8t0u2v4w6x8y0z2A4B6C8D0E2F4G6H8I0J2K4L6M8N0O2P4Q6R8S0T2U4V\n" +
-                    "6W8X0Y2Z4a6b8c0d2e4f6g8h0i2j4k6l8m0n2o4p6q8r0s4t6u8v0w2x4y6z8A0B\n" +
-                    "2C4D6E8F0G2H4I6J8K0L2M4N6O8P0Q2R4S6T8U0V2W4XFAEAAoIBAQCwV7lQ5Y\n" +
-                    "n1q2g3h4i5j6k7l8m9n0o1p2q3r4s5t6u7v8w9x0y1z2A3B4C5D6E7F8G9H0I1J2\n" +
-                    "3K4L5M6N7O8P9Q0R\n" + // Need to use standard JSRSASIGN key loading which handles PEM
-                    "-----END PRIVATE KEY-----";
-
-                // Correct Signing Logic with JSRSASIGN
-                var pKey = KEYUTIL.getKey(privateKey);
-                var sig = new KJUR.crypto.Signature({ "alg": "SHA1withRSA" });
-                sig.init(pKey);
-                sig.updateString(toSign);
-                var hex = sig.sign();
-                resolve(stob64(hextorstr(hex)));
-            } catch (err) {
-                console.error(err);
-                // On signing error, QZ will show untrusted prompt which is what happens now.
-                // But we want to AVOID that loop.
-            }
+    qz.security.setSignaturePromise(() => {
+        return (resolve: (value: string) => void) => {
+            // Return empty string for anonymous mode
+            resolve("");
         };
     });
 };
+
+/**
+ * Alternative: Setup with demo certificate (optional)
+ * If you want to avoid trust prompts, you can use QZ's demo certificate.
+ * Note: This only works in development; production requires a real cert.
+ * 
+ * To use demo cert, uncomment this function:
+ */
+/*
+export const setupQzSecurityWithDemoCert = async () => {
+    qz.security.setCertificatePromise((resolve, reject) => {
+        fetch("https://qz.io/demo/assets/signing/demo.cert")
+            .then(response => response.text())
+            .then(resolve)
+            .catch(reject);
+    });
+
+    qz.security.setSignaturePromise((toSign) => {
+        return (resolve, reject) => {
+            fetch("https://qz.io/demo/assets/signing/demo.key")
+                .then(response => response.text())
+                .then(privateKey => {
+                    // Sign using jsrsasign
+                    import('jsrsasign').then(({KEYUTIL, KJUR, stob64, hextorstr}) => {
+                        const pk = KEYUTIL.getKey(privateKey);
+                        const sig = new KJUR.crypto.Signature({"alg": "SHA512withRSA"});
+                        sig.init(pk);
+                        sig.updateString(toSign);
+                        const hex = sig.sign();
+                        resolve(stob64(hextorstr(hex)));
+                    });
+                })
+                .catch(reject);
+        };
+    });
+};
+*/
