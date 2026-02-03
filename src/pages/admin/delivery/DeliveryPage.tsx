@@ -3,7 +3,7 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Truck, User, MapPin, Star, Plus, Edit, Phone, Copy, Link, FileBarChart, Gauge } from 'lucide-react';
+import { Truck, User, MapPin, Star, Plus, Edit, Phone, Copy, Link, FileBarChart, Gauge, Activity } from 'lucide-react';
 import { useDeliveryDrivers, useCreateDeliveryDriver, useUpdateDeliveryDriver } from '@/hooks/useDeliveryDrivers';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -12,6 +12,7 @@ import TrackingMap from '@/components/admin/delivery/TrackingMap';
 import RoutePlanner from '@/components/admin/delivery/RoutePlanner';
 import DeliveryReportsTab from '@/components/admin/delivery/DeliveryReportsTab';
 import CapacityMonitoringDashboard from '@/components/admin/delivery/CapacityMonitoringDashboard';
+import LogisticsHealthMonitor from '@/components/admin/delivery/LogisticsHealthMonitor';
 import { useOrders } from '@/hooks/useOrders';
 import { useDeliveryAreas } from '@/hooks/useDeliveryAreas';
 import { useStore } from '@/contexts/StoreContext';
@@ -135,6 +136,10 @@ export default function DeliveryPage() {
         <div className="flex items-center justify-between">
           <TabsList>
             <TabsTrigger value="active">Entregas Ativas</TabsTrigger>
+            <TabsTrigger value="health" className="flex items-center gap-1">
+              <Activity className="h-4 w-4" />
+              Saúde Logística
+            </TabsTrigger>
             <TabsTrigger value="capacity" className="flex items-center gap-1">
               <Gauge className="h-4 w-4" />
               Capacidade
@@ -263,6 +268,10 @@ export default function DeliveryPage() {
 
         <TabsContent value="routes">
           <RoutePlanner />
+        </TabsContent>
+
+        <TabsContent value="health">
+          <LogisticsHealthMonitor />
         </TabsContent>
 
         <TabsContent value="capacity">
