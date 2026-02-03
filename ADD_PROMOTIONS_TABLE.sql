@@ -1,3 +1,8 @@
+-- =============================================
+-- PROMOTIONS TABLE - VERSÃO CORRIGIDA
+-- Sem dependência de user_stores (usa user_roles)
+-- =============================================
+
 -- Add promotions table for managing discounts and coupon codes
 CREATE TABLE IF NOT EXISTS promotions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -33,44 +38,29 @@ WHERE coupon_code IS NOT NULL;
 -- Enable RLS
 ALTER TABLE promotions ENABLE ROW LEVEL SECURITY;
 
--- RLS Policies
-CREATE POLICY "Staff can view promotions" ON promotions
+-- RLS Policies - Usando has_role() que já existe
+-- Staff e Managers podem ver promoções (acesso aberto para leitura)
+CREATE POLICY "Authenticated users can view promotions" ON promotions
   FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM user_stores us
-      WHERE us.store_id = promotions.store_id
-      AND us.user_id = auth.uid()
-    )
+    auth.uid() IS NOT NULL
   );
 
+-- Apenas Managers e Franchisee Masters podem inserir
 CREATE POLICY "Managers can insert promotions" ON promotions
   FOR INSERT WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM user_stores us
-      WHERE us.store_id = promotions.store_id
-      AND us.user_id = auth.uid()
-      AND us.role IN ('manager', 'franchisee_master')
-    )
+    has_role('manager', auth.uid()) OR has_role('franchisee_master', auth.uid())
   );
 
+-- Apenas Managers e Franchisee Masters podem atualizar
 CREATE POLICY "Managers can update promotions" ON promotions
   FOR UPDATE USING (
-    EXISTS (
-      SELECT 1 FROM user_stores us
-      WHERE us.store_id = promotions.store_id
-      AND us.user_id = auth.uid()
-      AND us.role IN ('manager', 'franchisee_master')
-    )
+    has_role('manager', auth.uid()) OR has_role('franchisee_master', auth.uid())
   );
 
+-- Apenas Managers e Franchisee Masters podem deletar
 CREATE POLICY "Managers can delete promotions" ON promotions
   FOR DELETE USING (
-    EXISTS (
-      SELECT 1 FROM user_stores us
-      WHERE us.store_id = promotions.store_id
-      AND us.user_id = auth.uid()
-      AND us.role IN ('manager', 'franchisee_master')
-    )
+    has_role('manager', auth.uid()) OR has_role('franchisee_master', auth.uid())
   );
 
 -- Trigger for updated_at
@@ -82,10 +72,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trigger_promotions_updated_at ON promotions;
 CREATE TRIGGER trigger_promotions_updated_at
   BEFORE UPDATE ON promotions
   FOR EACH ROW
   EXECUTE FUNCTION update_promotions_updated_at();
 
--- Sample comment
 COMMENT ON TABLE promotions IS 'Stores promotions, discounts, and coupon codes for each store';

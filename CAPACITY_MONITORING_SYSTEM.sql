@@ -1,5 +1,7 @@
--- Capacity Monitoring System Tables
--- Sistema de Monitoramento Preditivo de Capacidade Logística
+-- =============================================
+-- CAPACITY MONITORING SYSTEM - VERSÃO CORRIGIDA
+-- Sem dependência de user_stores (usa user_roles)
+-- =============================================
 
 -- Table to store capacity alerts
 CREATE TABLE IF NOT EXISTS capacity_alerts (
@@ -22,12 +24,12 @@ CREATE TABLE IF NOT EXISTS capacity_alerts (
 CREATE TABLE IF NOT EXISTS store_capacity_settings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE UNIQUE,
-  avg_delivery_time_minutes INTEGER DEFAULT 30, -- average time to complete a delivery
-  max_orders_per_driver INTEGER DEFAULT 3, -- max concurrent orders per driver
-  warning_threshold DECIMAL(5,2) DEFAULT 80.00, -- percentage
-  critical_threshold DECIMAL(5,2) DEFAULT 100.00, -- percentage
-  alert_radius_km DECIMAL(5,2) DEFAULT 5.00, -- radius for nearby store alerts
-  daily_operating_minutes INTEGER DEFAULT 480, -- 8 hours default
+  avg_delivery_time_minutes INTEGER DEFAULT 30,
+  max_orders_per_driver INTEGER DEFAULT 3,
+  warning_threshold DECIMAL(5,2) DEFAULT 80.00,
+  critical_threshold DECIMAL(5,2) DEFAULT 100.00,
+  alert_radius_km DECIMAL(5,2) DEFAULT 5.00,
+  daily_operating_minutes INTEGER DEFAULT 480,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -57,79 +59,40 @@ ALTER TABLE capacity_alerts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE store_capacity_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE store_support_requests ENABLE ROW LEVEL SECURITY;
 
--- RLS Policies for capacity_alerts
-CREATE POLICY "Staff can view store alerts" ON capacity_alerts
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM user_stores us
-      WHERE us.store_id = capacity_alerts.store_id
-      AND us.user_id = auth.uid()
-    )
-  );
+-- RLS Policies usando has_role()
+-- capacity_alerts
+CREATE POLICY "Authenticated can view capacity alerts" ON capacity_alerts
+  FOR SELECT USING (auth.uid() IS NOT NULL);
 
-CREATE POLICY "System can insert alerts" ON capacity_alerts
+CREATE POLICY "System can insert capacity alerts" ON capacity_alerts
   FOR INSERT WITH CHECK (true);
 
-CREATE POLICY "Managers can update alerts" ON capacity_alerts
+CREATE POLICY "Managers can update capacity alerts" ON capacity_alerts
   FOR UPDATE USING (
-    EXISTS (
-      SELECT 1 FROM user_stores us
-      WHERE us.store_id = capacity_alerts.store_id
-      AND us.user_id = auth.uid()
-      AND us.role IN ('manager', 'franchisee_master')
-    )
+    has_role('manager', auth.uid()) OR has_role('franchisee_master', auth.uid())
   );
 
--- RLS Policies for store_capacity_settings
-CREATE POLICY "Staff can view capacity settings" ON store_capacity_settings
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM user_stores us
-      WHERE us.store_id = store_capacity_settings.store_id
-      AND us.user_id = auth.uid()
-    )
-  );
+-- store_capacity_settings
+CREATE POLICY "Authenticated can view capacity settings" ON store_capacity_settings
+  FOR SELECT USING (auth.uid() IS NOT NULL);
 
 CREATE POLICY "Managers can manage capacity settings" ON store_capacity_settings
   FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM user_stores us
-      WHERE us.store_id = store_capacity_settings.store_id
-      AND us.user_id = auth.uid()
-      AND us.role IN ('manager', 'franchisee_master')
-    )
+    has_role('manager', auth.uid()) OR has_role('franchisee_master', auth.uid())
   );
 
--- RLS Policies for store_support_requests
-CREATE POLICY "Staff can view support requests" ON store_support_requests
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM user_stores us
-      WHERE (us.store_id = store_support_requests.requesting_store_id
-          OR us.store_id = store_support_requests.supporting_store_id)
-      AND us.user_id = auth.uid()
-    )
-  );
+-- store_support_requests
+CREATE POLICY "Authenticated can view support requests" ON store_support_requests
+  FOR SELECT USING (auth.uid() IS NOT NULL);
 
 CREATE POLICY "Managers can create support requests" ON store_support_requests
   FOR INSERT WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM user_stores us
-      WHERE us.store_id = store_support_requests.requesting_store_id
-      AND us.user_id = auth.uid()
-      AND us.role IN ('manager', 'franchisee_master')
-    )
+    has_role('manager', auth.uid()) OR has_role('franchisee_master', auth.uid()) OR has_role('staff', auth.uid())
   );
 
 CREATE POLICY "Managers can update support requests" ON store_support_requests
   FOR UPDATE USING (
-    EXISTS (
-      SELECT 1 FROM user_stores us
-      WHERE (us.store_id = store_support_requests.requesting_store_id
-          OR us.store_id = store_support_requests.supporting_store_id)
-      AND us.user_id = auth.uid()
-      AND us.role IN ('manager', 'franchisee_master')
-    )
+    has_role('manager', auth.uid()) OR has_role('franchisee_master', auth.uid()) OR has_role('staff', auth.uid())
   );
 
 -- Function to calculate store occupancy rate
