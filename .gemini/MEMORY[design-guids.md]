@@ -12,8 +12,8 @@
 **É** o **Marketplace Logístico Açaí no Grau** - uma plataforma onde a Franqueadora atua como **provedora de tecnologia e logística** para sua rede de Franqueados.
 
 ### Cenário Operacional:
-- **Cidade**: Teresina, Piauí
-- **Escala**: 17 Lojas Franqueadas (Pontos de Coleta)
+- **Cidade**: Teresina, Piauí (expansível para outras cidades)
+- **Escala**: 17+ Lojas Franqueadas (Pontos de Coleta) - escalável
 - **Modelo**: Frota de entregadores CENTRALIZADA e COMPARTILHADA
 
 ### Princípio Fundamental:
@@ -28,7 +28,7 @@
 | Aspecto | Descrição |
 |---------|-----------|
 | **Visão** | "Deus" do sistema - vê TUDO |
-| **Escopo** | Mapa completo de Teresina, todas as 17 lojas, todos os entregadores |
+| **Escopo** | Mapa completo, todas as lojas da rede, todos os entregadores |
 | **Responsabilidades** | Saúde Logística global, vazios de cobertura, aprovação de entregadores, qualidade da marca |
 | **Ferramentas** | Dashboard de Orquestração, Mapa de Calor, Alertas de Gargalo |
 
@@ -103,7 +103,7 @@
 │  └─────────────┘            │                     │       │
 │  ┌─────────────┐            │   Todos disponíveis │       │
 │  │ Loja B      │            │   para todas as     │       │
-│  │ seus pedidos│            │   17 lojas          │       │
+│  │ seus pedidos│            │   todas as lojas    │       │
 │  └─────────────┘            │                     │       │
 │  ┌─────────────┐            └─────────────────────┘       │
 │  │ Loja C      │                                          │
@@ -117,7 +117,7 @@
 
 ### 2. Geolocalização Avançada
 
-- Cálculo de rotas considerando **17 pontos de origem simultaneamente**
+- Cálculo de rotas considerando **múltiplos pontos de origem simultaneamente**
 - Matching baseado em:
   - Proximidade do entregador à loja solicitante
   - Disponibilidade atual
@@ -126,7 +126,7 @@
 
 ### 3. Escalabilidade
 
-- Suportar picos das 17 lojas simultaneamente
+- Suportar picos de todas as lojas simultaneamente
 - Horário crítico: **18h-20h**
 - Sistema de filas para distribuição justa
 
@@ -136,7 +136,7 @@
 
 ### Monitor de Saúde Logística
 **ANTES**: Monitorava capacidade de uma loja
-**AGORA**: Monitora capacidade de TODO o pool de entregadores para TODAS as 17 lojas
+**AGORA**: Monitora capacidade de TODO o pool de entregadores para TODAS as lojas
 
 ### Vazios de Cobertura
 **ANTES**: Uma zona sem entregadores para UMA loja
@@ -206,7 +206,7 @@ geo_zones (
    - Sistema busca no pool quem está apto
 
 3. **Dashboard de Orquestração (COO)**
-   - Visão de todas as 17 lojas
+   - Visão de todas as lojas da rede
    - Mapa de calor unificado
    - Distribuição da frota em tempo real
 
