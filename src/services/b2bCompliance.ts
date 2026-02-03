@@ -166,7 +166,8 @@ export async function validateAndRegisterCNPJ(
 
     if (error) {
         console.error('Erro ao registrar validação:', error);
-        throw new Error('Erro ao processar validação do CNPJ.');
+        // Retorna mensagem específica do banco se houver (ajuda a identificar se faltou rodar o SQL)
+        throw new Error(`Erro ao processar validação: ${error.message || error.details || 'Erro desconhecido no banco de dados'}`);
     }
 
     return data as CNPJValidationResult;

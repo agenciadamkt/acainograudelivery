@@ -102,15 +102,47 @@ export default function B2BOnboarding({
         }
     };
 
-    // Handle terms scroll
-    const handleTermsScroll = () => {
+    // Callback Ref para garantir que verificamos assim que o elemento existir no DOM
+    const setTermsRef = (node: HTMLDivElement | null) => {
+        termsScrollRef.current = node;
+        if (node) {
+            // Verificar imediatamente ao montar
+            checkScroll();
+        }
+    };
+
+    // Handle terms scroll and initial check
+    const checkScroll = () => {
         if (termsScrollRef.current) {
             const { scrollTop, scrollHeight, clientHeight } = termsScrollRef.current;
-            const isAtBottom = scrollTop + clientHeight >= scrollHeight - 20;
-            if (isAtBottom) {
+
+            // Debug: descomente se precisar
+            // console.log('Scroll Check:', { scrollTop, scrollHeight, clientHeight });
+
+            // Lógica mais permissiva:
+            // 1. Se não tem barra de rolagem (scrollHeight <= clientHeight + padding)
+            // 2. Se rolou até o fim (com tolerância de 10px)
+            const isNoScrollNeeded = scrollHeight <= clientHeight + 20;
+            const isAtBottom = scrollTop + clientHeight >= scrollHeight - 10;
+
+            if ((isNoScrollNeeded || isAtBottom) && !hasScrolledToEnd) {
                 setHasScrolledToEnd(true);
             }
         }
+    };
+
+    useEffect(() => {
+        // Tenta verificar novamente após renderização (fallback)
+        const timer = setTimeout(checkScroll, 500);
+        window.addEventListener('resize', checkScroll);
+        return () => {
+            window.removeEventListener('resize', checkScroll);
+            clearTimeout(timer);
+        };
+    }, [terms]);
+
+    const handleTermsScroll = () => {
+        checkScroll();
     };
 
     // Step 1: Validate CNPJ
@@ -406,9 +438,11 @@ export default function B2BOnboarding({
                                 </div>
 
                                 <div
-                                    ref={termsScrollRef}
+                                    ref={setTermsRef}
                                     onScroll={handleTermsScroll}
-                                    className="h-64 overflow-y-auto border rounded-lg p-4 bg-muted/30 text-sm whitespace-pre-wrap"
+                                    onClick={checkScroll}
+                                    onMouseEnter={checkScroll}
+                                    className="h-64 overflow-y-auto border rounded-lg p-4 bg-muted/30 text-sm whitespace-pre-wrap cursor-pointer"
                                 >
                                     {terms.content}
                                 </div>

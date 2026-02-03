@@ -9,6 +9,7 @@
 -- =============================================
 
 -- Adicionar campos de CNPJ na tabela delivery_drivers
+ALTER TABLE delivery_drivers ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id); -- VÍNCULO COM AUTH
 ALTER TABLE delivery_drivers ADD COLUMN IF NOT EXISTS cnpj VARCHAR(18);
 ALTER TABLE delivery_drivers ADD COLUMN IF NOT EXISTS razao_social VARCHAR(255);
 ALTER TABLE delivery_drivers ADD COLUMN IF NOT EXISTS nome_fantasia VARCHAR(255);
@@ -24,6 +25,9 @@ ALTER TABLE delivery_drivers ADD COLUMN IF NOT EXISTS b2b_terms_version VARCHAR(
 ALTER TABLE delivery_drivers ADD COLUMN IF NOT EXISTS b2b_terms_pdf_url TEXT;
 ALTER TABLE delivery_drivers ADD COLUMN IF NOT EXISTS mei_status VARCHAR(50) DEFAULT 'pending' CHECK (mei_status IN ('pending', 'active', 'inactive', 'divergent', 'rejected'));
 ALTER TABLE delivery_drivers ADD COLUMN IF NOT EXISTS pj_bank_account JSONB;
+
+-- Criar índice para user_id para performance nas queries RLS
+CREATE INDEX IF NOT EXISTS idx_delivery_drivers_user_id ON delivery_drivers(user_id);
 
 -- Criar unique index para CNPJ
 CREATE UNIQUE INDEX IF NOT EXISTS idx_delivery_drivers_cnpj ON delivery_drivers(cnpj) WHERE cnpj IS NOT NULL;
