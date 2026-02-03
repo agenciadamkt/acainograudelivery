@@ -1,6 +1,6 @@
 -- =============================================
--- CAPACITY MONITORING SYSTEM - VERSÃO CORRIGIDA
--- Sem dependência de user_stores (usa user_roles)
+-- CAPACITY MONITORING SYSTEM - VERSÃO DEFINITIVA
+-- Usando user_roles diretamente (sem has_role)
 -- =============================================
 
 -- Table to store capacity alerts
@@ -8,11 +8,11 @@ CREATE TABLE IF NOT EXISTS capacity_alerts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
   alert_type VARCHAR(50) NOT NULL CHECK (alert_type IN ('warning', 'critical', 'resolved')),
-  occupancy_rate DECIMAL(5,2) NOT NULL, -- percentage
+  occupancy_rate DECIMAL(5,2) NOT NULL,
   active_orders INTEGER NOT NULL,
   available_drivers INTEGER NOT NULL,
   total_drivers INTEGER NOT NULL,
-  estimated_wait_time INTEGER, -- in minutes
+  estimated_wait_time INTEGER,
   message TEXT,
   acknowledged_at TIMESTAMP WITH TIME ZONE,
   acknowledged_by UUID REFERENCES auth.users(id),
@@ -59,9 +59,12 @@ ALTER TABLE capacity_alerts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE store_capacity_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE store_support_requests ENABLE ROW LEVEL SECURITY;
 
--- RLS Policies usando has_role()
+-- =============================================
+-- RLS POLICIES - Usando user_roles diretamente
+-- =============================================
+
 -- capacity_alerts
-CREATE POLICY "Authenticated can view capacity alerts" ON capacity_alerts
+CREATE POLICY "Anyone authenticated can view capacity alerts" ON capacity_alerts
   FOR SELECT USING (auth.uid() IS NOT NULL);
 
 CREATE POLICY "System can insert capacity alerts" ON capacity_alerts
@@ -69,31 +72,60 @@ CREATE POLICY "System can insert capacity alerts" ON capacity_alerts
 
 CREATE POLICY "Managers can update capacity alerts" ON capacity_alerts
   FOR UPDATE USING (
-    has_role('manager', auth.uid()) OR has_role('franchisee_master', auth.uid())
+    EXISTS (
+      SELECT 1 FROM user_roles 
+      WHERE user_id = auth.uid() 
+      AND role IN ('manager', 'franchisee_master', 'admin', 'staff')
+    )
   );
 
 -- store_capacity_settings
-CREATE POLICY "Authenticated can view capacity settings" ON store_capacity_settings
+CREATE POLICY "Anyone authenticated can view capacity settings" ON store_capacity_settings
   FOR SELECT USING (auth.uid() IS NOT NULL);
 
-CREATE POLICY "Managers can manage capacity settings" ON store_capacity_settings
-  FOR ALL USING (
-    has_role('manager', auth.uid()) OR has_role('franchisee_master', auth.uid())
+CREATE POLICY "Managers can insert capacity settings" ON store_capacity_settings
+  FOR INSERT WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM user_roles 
+      WHERE user_id = auth.uid() 
+      AND role IN ('manager', 'franchisee_master', 'admin')
+    )
+  );
+
+CREATE POLICY "Managers can update capacity settings" ON store_capacity_settings
+  FOR UPDATE USING (
+    EXISTS (
+      SELECT 1 FROM user_roles 
+      WHERE user_id = auth.uid() 
+      AND role IN ('manager', 'franchisee_master', 'admin')
+    )
   );
 
 -- store_support_requests
-CREATE POLICY "Authenticated can view support requests" ON store_support_requests
+CREATE POLICY "Anyone authenticated can view support requests" ON store_support_requests
   FOR SELECT USING (auth.uid() IS NOT NULL);
 
-CREATE POLICY "Managers can create support requests" ON store_support_requests
+CREATE POLICY "Staff can create support requests" ON store_support_requests
   FOR INSERT WITH CHECK (
-    has_role('manager', auth.uid()) OR has_role('franchisee_master', auth.uid()) OR has_role('staff', auth.uid())
+    EXISTS (
+      SELECT 1 FROM user_roles 
+      WHERE user_id = auth.uid() 
+      AND role IN ('manager', 'franchisee_master', 'admin', 'staff')
+    )
   );
 
-CREATE POLICY "Managers can update support requests" ON store_support_requests
+CREATE POLICY "Staff can update support requests" ON store_support_requests
   FOR UPDATE USING (
-    has_role('manager', auth.uid()) OR has_role('franchisee_master', auth.uid()) OR has_role('staff', auth.uid())
+    EXISTS (
+      SELECT 1 FROM user_roles 
+      WHERE user_id = auth.uid() 
+      AND role IN ('manager', 'franchisee_master', 'admin', 'staff')
+    )
   );
+
+-- =============================================
+-- FUNCTIONS
+-- =============================================
 
 -- Function to calculate store occupancy rate
 CREATE OR REPLACE FUNCTION calculate_store_occupancy(p_store_id UUID)
@@ -134,7 +166,7 @@ BEGIN
   v_warning_threshold := COALESCE(v_warning_threshold, 80);
   v_critical_threshold := COALESCE(v_critical_threshold, 100);
 
-  -- Count active orders (pending, confirmed, preparing, ready, out_for_delivery)
+  -- Count active orders
   SELECT COUNT(*)
   INTO v_active_orders
   FROM orders
@@ -235,13 +267,15 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Trigger function to auto-create alerts when capacity issues detected
+-- =============================================
+-- TRIGGER para alertas automáticos
+-- =============================================
+
 CREATE OR REPLACE FUNCTION check_capacity_on_order_change()
 RETURNS TRIGGER AS $$
 DECLARE
   v_occupancy RECORD;
   v_last_alert RECORD;
-  v_settings RECORD;
 BEGIN
   -- Only check for delivery orders
   IF NEW.order_type != 'delivery' THEN
@@ -251,9 +285,6 @@ BEGIN
   -- Get current occupancy
   SELECT * INTO v_occupancy FROM calculate_store_occupancy(NEW.store_id);
 
-  -- Get settings
-  SELECT * INTO v_settings FROM store_capacity_settings WHERE store_id = NEW.store_id;
-
   -- Check if there's already an unresolved alert
   SELECT * INTO v_last_alert 
   FROM capacity_alerts 
@@ -262,7 +293,7 @@ BEGIN
   ORDER BY created_at DESC 
   LIMIT 1;
 
-  -- Create alert if threshold exceeded and no recent unresolved alert
+  -- Create alert if threshold exceeded
   IF v_occupancy.status IN ('warning', 'critical') THEN
     IF v_last_alert IS NULL OR v_last_alert.alert_type != v_occupancy.status THEN
       INSERT INTO capacity_alerts (
@@ -283,29 +314,26 @@ BEGIN
         v_occupancy.total_drivers,
         v_occupancy.estimated_wait_time,
         CASE v_occupancy.status
-          WHEN 'critical' THEN 'ALERTA CRÍTICO: Capacidade de entrega excedida. Taxa de ocupação: ' || ROUND(v_occupancy.occupancy_rate, 1) || '%'
-          WHEN 'warning' THEN 'Aviso: Capacidade de entrega próxima do limite. Taxa de ocupação: ' || ROUND(v_occupancy.occupancy_rate, 1) || '%'
+          WHEN 'critical' THEN 'ALERTA CRÍTICO: Capacidade excedida. Taxa: ' || ROUND(v_occupancy.occupancy_rate, 1) || '%'
+          WHEN 'warning' THEN 'Aviso: Capacidade próxima do limite. Taxa: ' || ROUND(v_occupancy.occupancy_rate, 1) || '%'
         END
       );
     END IF;
   ELSIF v_occupancy.status = 'normal' AND v_last_alert IS NOT NULL THEN
-    -- Resolve previous alert
-    UPDATE capacity_alerts
-    SET resolved_at = NOW()
-    WHERE id = v_last_alert.id;
+    UPDATE capacity_alerts SET resolved_at = NOW() WHERE id = v_last_alert.id;
   END IF;
 
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Create trigger on orders table
 DROP TRIGGER IF EXISTS trigger_check_capacity_on_order ON orders;
 CREATE TRIGGER trigger_check_capacity_on_order
   AFTER INSERT OR UPDATE OF status ON orders
   FOR EACH ROW
   EXECUTE FUNCTION check_capacity_on_order_change();
 
+-- Comments
 COMMENT ON TABLE capacity_alerts IS 'Stores capacity alerts when delivery volume exceeds thresholds';
 COMMENT ON TABLE store_capacity_settings IS 'Stores capacity configuration for each store';
 COMMENT ON TABLE store_support_requests IS 'Stores mutual support requests between nearby franchises';

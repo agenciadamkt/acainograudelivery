@@ -1,6 +1,6 @@
 -- =============================================
--- PROMOTIONS TABLE - VERSÃO CORRIGIDA
--- Sem dependência de user_stores (usa user_roles)
+-- PROMOTIONS TABLE - VERSÃO DEFINITIVA
+-- Usando user_roles diretamente (sem has_role)
 -- =============================================
 
 -- Add promotions table for managing discounts and coupon codes
@@ -38,29 +38,35 @@ WHERE coupon_code IS NOT NULL;
 -- Enable RLS
 ALTER TABLE promotions ENABLE ROW LEVEL SECURITY;
 
--- RLS Policies - Usando has_role() que já existe
--- Staff e Managers podem ver promoções (acesso aberto para leitura)
-CREATE POLICY "Authenticated users can view promotions" ON promotions
-  FOR SELECT USING (
-    auth.uid() IS NOT NULL
-  );
+-- RLS Policies - Usando verificação direta em user_roles
+CREATE POLICY "Anyone can view promotions" ON promotions
+  FOR SELECT USING (true);
 
--- Apenas Managers e Franchisee Masters podem inserir
 CREATE POLICY "Managers can insert promotions" ON promotions
   FOR INSERT WITH CHECK (
-    has_role('manager', auth.uid()) OR has_role('franchisee_master', auth.uid())
+    EXISTS (
+      SELECT 1 FROM user_roles 
+      WHERE user_id = auth.uid() 
+      AND role IN ('manager', 'franchisee_master', 'admin')
+    )
   );
 
--- Apenas Managers e Franchisee Masters podem atualizar
 CREATE POLICY "Managers can update promotions" ON promotions
   FOR UPDATE USING (
-    has_role('manager', auth.uid()) OR has_role('franchisee_master', auth.uid())
+    EXISTS (
+      SELECT 1 FROM user_roles 
+      WHERE user_id = auth.uid() 
+      AND role IN ('manager', 'franchisee_master', 'admin')
+    )
   );
 
--- Apenas Managers e Franchisee Masters podem deletar
 CREATE POLICY "Managers can delete promotions" ON promotions
   FOR DELETE USING (
-    has_role('manager', auth.uid()) OR has_role('franchisee_master', auth.uid())
+    EXISTS (
+      SELECT 1 FROM user_roles 
+      WHERE user_id = auth.uid() 
+      AND role IN ('manager', 'franchisee_master', 'admin')
+    )
   );
 
 -- Trigger for updated_at
