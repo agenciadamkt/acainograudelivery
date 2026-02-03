@@ -60,6 +60,7 @@ import MarketingPage from "./pages/admin/MarketingPage";
 import FoodAnalyticsPage from "./pages/admin/FoodAnalyticsPage";
 import FeedbackPage from "./pages/admin/feedback/FeedbackPage";
 import GeocodingUtility from "./pages/admin/GeocodingUtility";
+import PromotionsPage from "./pages/admin/promotions/PromotionsPage";
 
 import { ThemeProvider } from "next-themes";
 
@@ -176,6 +177,14 @@ const App = () => (
                             <AdminLayout>
                               <ToppingsPage />
                             </AdminLayout>
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/promotions"
+                        element={
+                          <PrivateRoute requiredRole="manager">
+                            <PromotionsPage />
                           </PrivateRoute>
                         }
                       />

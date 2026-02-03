@@ -54,7 +54,7 @@ const menuSections = [
       { title: 'Categorias', url: '/admin/menu/categories', icon: FolderTree },
       { title: 'Produtos', url: '/admin/menu/products', icon: PackageOpen },
       { title: 'Complementos', url: '/admin/menu/toppings', icon: Plus },
-      { title: 'Promoções', url: '/admin/promotions', icon: Settings },
+      { title: 'Promoções', url: '/admin/promotions', icon: Megaphone },
     ]
   },
   {
