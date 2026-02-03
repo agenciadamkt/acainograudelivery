@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -39,6 +39,7 @@ export default function Checkout() {
   const [calculatedDeliveryFee, setCalculatedDeliveryFee] = useState<number>(0);
   const [isCalculatingFee, setIsCalculatingFee] = useState(false);
   const [deliveryAllowed, setDeliveryAllowed] = useState(true);
+  const [hasDoneInitialFeeCalc, setHasDoneInitialFeeCalc] = useState(false);
 
   const [store, setStore] = useState<any>(null);
 
@@ -68,12 +69,8 @@ export default function Checkout() {
     fetchStore();
   }, []);
 
-  // Use calculated fee if available, otherwise fallback to store base fee
-  const deliveryFee = orderType === 'delivery' ? (calculatedDeliveryFee || store?.delivery_fee || 0) : 0;
-  const total = subtotal + deliveryFee;
-
-  // Calculate delivery fee when address changes
-  const handleAddressSelect = async (addressId: string) => {
+  // Calculate delivery fee when address changes - defined before useEffects that use it
+  const handleAddressSelect = useCallback(async (addressId: string) => {
     setSelectedAddressId(addressId);
 
     if (!store?.id || orderType !== 'delivery') return;
@@ -125,8 +122,47 @@ export default function Checkout() {
       setDeliveryAllowed(true);
     } finally {
       setIsCalculatingFee(false);
+      setHasDoneInitialFeeCalc(true);
     }
-  };
+  }, [store?.id, store?.delivery_fee, orderType, calculateDelivery]);
+
+  // Auto-select default address and calculate delivery fee when customer loads
+  useEffect(() => {
+    const autoSelectDefaultAddress = async () => {
+      if (!customerId || selectedAddressId) return;
+
+      const { data: addresses } = await supabase
+        .from('customer_addresses')
+        .select('id, is_default, latitude, longitude')
+        .eq('customer_id', customerId)
+        .order('is_default', { ascending: false })
+        .limit(1);
+
+      if (addresses && addresses.length > 0) {
+        const defaultAddress = addresses[0];
+        setSelectedAddressId(defaultAddress.id);
+
+        // Trigger delivery calculation if store is loaded
+        if (store?.id && orderType === 'delivery') {
+          handleAddressSelect(defaultAddress.id);
+        }
+      }
+    };
+
+    autoSelectDefaultAddress();
+  }, [customerId, store?.id, orderType, handleAddressSelect]);
+
+  // Recalculate when order type changes to delivery and address is already selected
+  useEffect(() => {
+    if (orderType === 'delivery' && selectedAddressId && store?.id && !hasDoneInitialFeeCalc && !isCalculatingFee) {
+      handleAddressSelect(selectedAddressId);
+      setHasDoneInitialFeeCalc(true);
+    }
+  }, [orderType, store?.id, selectedAddressId, hasDoneInitialFeeCalc, isCalculatingFee, handleAddressSelect]);
+
+  // Use calculated fee if available, otherwise fallback to store base fee
+  const deliveryFee = orderType === 'delivery' ? (calculatedDeliveryFee || store?.delivery_fee || 0) : 0;
+  const total = subtotal + deliveryFee;
 
   // Função para criar o pedido APÓS o pagamento online ser aprovado
   const handleCreateOrderAfterPayment = async (paymentId: string, status: string, paymentType: string) => {
