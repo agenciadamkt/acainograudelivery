@@ -3,13 +3,14 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Truck, User, MapPin, Star, Plus, Edit, Phone, Copy, Link } from 'lucide-react';
+import { Truck, User, MapPin, Star, Plus, Edit, Phone, Copy, Link, FileBarChart } from 'lucide-react';
 import { useDeliveryDrivers, useCreateDeliveryDriver, useUpdateDeliveryDriver } from '@/hooks/useDeliveryDrivers';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DriverForm } from '@/components/admin/delivery/DriverForm';
 import TrackingMap from '@/components/admin/delivery/TrackingMap';
 import RoutePlanner from '@/components/admin/delivery/RoutePlanner';
+import DeliveryReportsTab from '@/components/admin/delivery/DeliveryReportsTab';
 import { useOrders } from '@/hooks/useOrders';
 import { useDeliveryAreas } from '@/hooks/useDeliveryAreas';
 import { useStore } from '@/contexts/StoreContext';
@@ -135,6 +136,10 @@ export default function DeliveryPage() {
             <TabsTrigger value="active">Entregas Ativas</TabsTrigger>
             <TabsTrigger value="routes">Rotas</TabsTrigger>
             <TabsTrigger value="drivers">Entregadores</TabsTrigger>
+            <TabsTrigger value="reports" className="flex items-center gap-1">
+              <FileBarChart className="h-4 w-4" />
+              Relatórios
+            </TabsTrigger>
           </TabsList>
           <div className="flex items-center gap-2">
             <Button
@@ -253,6 +258,10 @@ export default function DeliveryPage() {
 
         <TabsContent value="routes">
           <RoutePlanner />
+        </TabsContent>
+
+        <TabsContent value="reports">
+          <DeliveryReportsTab />
         </TabsContent>
       </Tabs>
 
