@@ -3,7 +3,7 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Truck, User, MapPin, Star, Plus, Edit, Phone, Copy, Link, FileBarChart, Gauge, Activity, Navigation } from 'lucide-react';
+import { Truck, User, MapPin, Star, Plus, Edit, Phone, Copy, Link, FileBarChart, Gauge, Activity, Navigation, Shield } from 'lucide-react';
 import { useDeliveryDrivers, useCreateDeliveryDriver, useUpdateDeliveryDriver } from '@/hooks/useDeliveryDrivers';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -14,6 +14,7 @@ import DeliveryReportsTab from '@/components/admin/delivery/DeliveryReportsTab';
 import CapacityMonitoringDashboard from '@/components/admin/delivery/CapacityMonitoringDashboard';
 import LogisticsHealthMonitor from '@/components/admin/delivery/LogisticsHealthMonitor';
 import FleetDisplacementDashboard from '@/components/admin/delivery/FleetDisplacementDashboard';
+import AdminComplianceDashboard from '@/components/admin/delivery/AdminComplianceDashboard';
 import { useOrders } from '@/hooks/useOrders';
 import { useDeliveryAreas } from '@/hooks/useDeliveryAreas';
 import { useStore } from '@/contexts/StoreContext';
@@ -151,6 +152,10 @@ export default function DeliveryPage() {
             </TabsTrigger>
             <TabsTrigger value="routes">Rotas</TabsTrigger>
             <TabsTrigger value="drivers">Entregadores</TabsTrigger>
+            <TabsTrigger value="compliance" className="flex items-center gap-1">
+              <Shield className="h-4 w-4" />
+              Compliance
+            </TabsTrigger>
             <TabsTrigger value="reports" className="flex items-center gap-1">
               <FileBarChart className="h-4 w-4" />
               Relatórios
@@ -277,6 +282,10 @@ export default function DeliveryPage() {
 
         <TabsContent value="health">
           <LogisticsHealthMonitor />
+        </TabsContent>
+
+        <TabsContent value="compliance">
+          <AdminComplianceDashboard />
         </TabsContent>
 
         <TabsContent value="fleet">

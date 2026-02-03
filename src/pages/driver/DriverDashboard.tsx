@@ -20,6 +20,8 @@ import DriverProgressBar from '@/components/driver/DriverProgressBar';
 import GamerStatement from '@/components/driver/GamerStatement';
 import CareerPlan from '@/components/driver/CareerPlan';
 import DriverHeatmapMissions from '@/components/driver/DriverHeatmapMissions';
+import B2BOnboarding from '@/components/driver/B2BOnboarding';
+import { checkDriverCompliance } from '@/services/b2bCompliance';
 
 interface Order {
     id: string;
@@ -70,6 +72,10 @@ export default function DriverDashboard() {
     const [reportOrders, setReportOrders] = useState<Order[]>([]);
     const [isLoadingReport, setIsLoadingReport] = useState(false);
 
+    // B2B Compliance
+    const [isCheckingCompliance, setIsCheckingCompliance] = useState(true);
+    const [isCompliant, setIsCompliant] = useState(true);
+
     const audioRef = useState(new Audio('https://github.com/rafaelreis-hotmart/audio-assets/raw/main/notification_simple_02.mp3'))[0];
     const [previousOrderCount, setPreviousOrderCount] = useState(0);
 
@@ -97,6 +103,17 @@ export default function DriverDashboard() {
                 if (driverData && driverData.status !== 'offline') {
                     setIsOnline(true);
                 }
+            });
+
+        // Check B2B Compliance
+        checkDriverCompliance(id)
+            .then(compliance => {
+                setIsCompliant(compliance.compliant);
+                setIsCheckingCompliance(false);
+            })
+            .catch(() => {
+                setIsCompliant(false); // Assume non-compliant on error to be safe
+                setIsCheckingCompliance(false);
             });
 
         // Set default report dates
@@ -362,6 +379,33 @@ export default function DriverDashboard() {
     const reportTotalDeliveries = reportOrders.length;
     const reportTotalFees = reportOrders.reduce((sum, o) => sum + (o.delivery_fee || 0), 0);
     const reportDeliveredCount = reportOrders.filter(o => o.status === 'delivered').length;
+
+    if (isCheckingCompliance) {
+        return (
+            <div className="flex h-screen items-center justify-center bg-gray-100">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+                    <p className="text-gray-500">Verificando cadastro...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (!isCompliant && driverId) {
+        return (
+            <div className="min-h-screen bg-gray-100 p-4 pb-20">
+                <div className="mb-8 text-center pt-8">
+                    <h1 className="text-2xl font-bold text-primary mb-2">Regularização MEI</h1>
+                    <p className="text-gray-600">Para continuar operando, precisamos atualizar seu cadastro para B2B.</p>
+                </div>
+                <B2BOnboarding
+                    driverId={driverId}
+                    driverName={driverName || ''}
+                    onComplete={() => setIsCompliant(true)}
+                />
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gray-100 pb-20">
