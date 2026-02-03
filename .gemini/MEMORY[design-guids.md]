@@ -1,0 +1,235 @@
+# 🏗️ ARQUITETURA DO MARKETPLACE LOGÍSTICO AÇAÍ NO GRAU
+
+> **ATENÇÃO AGENTE**: Este documento define a visão estratégica e arquitetural do projeto.
+> Todas as implementações DEVEM seguir este paradigma.
+
+---
+
+## 🎯 VISÃO ESTRATÉGICA
+
+### O que estamos construindo:
+**NÃO** é um gestor de entregas para uma única loja.
+**É** o **Marketplace Logístico Açaí no Grau** - uma plataforma onde a Franqueadora atua como **provedora de tecnologia e logística** para sua rede de Franqueados.
+
+### Cenário Operacional:
+- **Cidade**: Teresina, Piauí
+- **Escala**: 17 Lojas Franqueadas (Pontos de Coleta)
+- **Modelo**: Frota de entregadores CENTRALIZADA e COMPARTILHADA
+
+### Princípio Fundamental:
+> **O Franqueado PRODUZ (monta o açaí). A Franqueadora ENTREGA (gere a frota).**
+
+---
+
+## 👥 HIERARQUIA DE ATORES
+
+### A. SUPER-ADMIN (Franqueadora / COO)
+
+| Aspecto | Descrição |
+|---------|-----------|
+| **Visão** | "Deus" do sistema - vê TUDO |
+| **Escopo** | Mapa completo de Teresina, todas as 17 lojas, todos os entregadores |
+| **Responsabilidades** | Saúde Logística global, vazios de cobertura, aprovação de entregadores, qualidade da marca |
+| **Ferramentas** | Dashboard de Orquestração, Mapa de Calor, Alertas de Gargalo |
+
+### B. CLIENTE (Loja Franqueada)
+
+| Aspecto | Descrição |
+|---------|-----------|
+| **Visão** | Apenas SUA operação (multi-tenancy) |
+| **Ação** | Recebe pedido → Prepara produto → Solicita "BUSCA" ao sistema |
+| **IMPORTANTE** | NÃO gerencia entregador próprio. Solicita recurso ao POOL da Franqueadora |
+
+### C. PARCEIRO (Entregador)
+
+| Aspecto | Descrição |
+|---------|-----------|
+| **Status** | AUTÔNOMO - não vinculado a loja fixa |
+| **Ação** | Recebe ofertas baseadas em geolocalização |
+| **Fluxo** | Pode pegar pedido na Loja A (Zona Leste) e depois na Loja B (Zona Norte) |
+| **Inteligência** | Guiado pelo algoritmo de matching |
+
+---
+
+## 🔄 FLUXO OPERACIONAL (O "Ritual")
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    FLUXO DO MARKETPLACE                         │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  1. INPUT                                                       │
+│     └── Pedido entra na Loja Franqueada (App/Balcão)           │
+│                        ↓                                        │
+│  2. PREPARO                                                     │
+│     └── Franqueado prepara o produto                           │
+│                        ↓                                        │
+│  3. SOLICITAÇÃO                                                 │
+│     └── Franqueado marca "PRONTO PARA ENTREGA"                 │
+│                        ↓                                        │
+│  4. MATCHING (O CÉREBRO)                                        │
+│     └── Algoritmo busca no POOL:                               │
+│         • Quem está PERTO da loja?                             │
+│         • Quem está DISPONÍVEL agora?                          │
+│         • Qual a capacidade atual?                             │
+│                        ↓                                        │
+│  5. OFERTA                                                      │
+│     └── Entregador recebe o chamado                            │
+│                        ↓                                        │
+│  6. EXECUÇÃO                                                    │
+│     └── Coleta na Loja → Entrega ao Cliente Final              │
+│                        ↓                                        │
+│  7. RASTREIO                                                    │
+│     └── Franqueadora monitora (Consequência da Consequência)   │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🛠️ IMPERATIVOS TÉCNICOS
+
+### 1. Multi-Tenancy
+
+```
+┌───────────────────────────────────────────────────────────┐
+│                    SEGREGAÇÃO DE DADOS                    │
+├───────────────────────────────────────────────────────────┤
+│                                                           │
+│  PEDIDOS (orders)           ENTREGADORES (drivers)        │
+│  ┌─────────────┐            ┌─────────────────────┐       │
+│  │ Loja A      │            │                     │       │
+│  │ seus pedidos│            │   POOL UNIFICADO    │       │
+│  └─────────────┘            │                     │       │
+│  ┌─────────────┐            │   Todos disponíveis │       │
+│  │ Loja B      │            │   para todas as     │       │
+│  │ seus pedidos│            │   17 lojas          │       │
+│  └─────────────┘            │                     │       │
+│  ┌─────────────┐            └─────────────────────┘       │
+│  │ Loja C      │                                          │
+│  │ seus pedidos│                                          │
+│  └─────────────┘                                          │
+│                                                           │
+│  SEGREGADO por store_id     UNIFICADO (sem store_id fixo) │
+│                                                           │
+└───────────────────────────────────────────────────────────┘
+```
+
+### 2. Geolocalização Avançada
+
+- Cálculo de rotas considerando **17 pontos de origem simultaneamente**
+- Matching baseado em:
+  - Proximidade do entregador à loja solicitante
+  - Disponibilidade atual
+  - Histórico de entregas na região
+  - Capacidade do veículo
+
+### 3. Escalabilidade
+
+- Suportar picos das 17 lojas simultaneamente
+- Horário crítico: **18h-20h**
+- Sistema de filas para distribuição justa
+
+---
+
+## 🗺️ REINTERPRETAÇÃO DOS SISTEMAS EXISTENTES
+
+### Monitor de Saúde Logística
+**ANTES**: Monitorava capacidade de uma loja
+**AGORA**: Monitora capacidade de TODO o pool de entregadores para TODAS as 17 lojas
+
+### Vazios de Cobertura
+**ANTES**: Uma zona sem entregadores para UMA loja
+**AGORA**: Uma zona sem entregadores para VÁRIAS lojas daquela região
+
+> Exemplo: "Vazio no Grande Dirceu" significa que as 3-4 lojas dessa região não têm cobertura adequada.
+
+### Deslocamento de Frota
+**ANTES**: Mover entregador para ajudar UMA loja
+**AGORA**: Mover entregador para REGIÃO onde há múltiplas lojas com demanda
+
+---
+
+## 📊 MODELO DE DADOS (Conceitual)
+
+```sql
+-- Entregadores NÃO pertencem a uma loja
+delivery_drivers (
+    id UUID,
+    name VARCHAR,
+    status ENUM('disponivel', 'em_rota', 'offline'),
+    current_lat DECIMAL,
+    current_lng DECIMAL,
+    -- SEM store_id fixo!
+    -- Pode atender QUALQUER loja
+);
+
+-- Pedidos são segregados por loja
+orders (
+    id UUID,
+    store_id UUID,  -- Cada pedido pertence a UMA loja
+    driver_id UUID, -- Entregador atribuído (do pool)
+    status ENUM('pending', 'ready_for_pickup', 'assigned', 'in_transit', 'delivered'),
+);
+
+-- Solicitação de busca (Loja solicita ao Pool)
+pickup_requests (
+    id UUID,
+    order_id UUID,
+    store_id UUID,          -- Quem está solicitando
+    requested_at TIMESTAMP,
+    assigned_driver_id UUID, -- Quem pegou do pool
+    assigned_at TIMESTAMP,
+);
+
+-- Geo-Zones cobrem REGIÕES com múltiplas lojas
+geo_zones (
+    id UUID,
+    name VARCHAR,
+    center_lat DECIMAL,
+    center_lng DECIMAL,
+    radius_km DECIMAL,
+    -- Monitora cobertura para TODAS as lojas na região
+);
+```
+
+---
+
+## 🎯 PRIORIDADES DE IMPLEMENTAÇÃO
+
+1. **Pool Unificado de Entregadores**
+   - Desvincular entregadores de lojas específicas
+   - Criar sistema de matching por geolocalização
+
+2. **Sistema de Solicitação de Busca**
+   - Loja marca "Pronto para Entrega"
+   - Sistema busca no pool quem está apto
+
+3. **Dashboard de Orquestração (COO)**
+   - Visão de todas as 17 lojas
+   - Mapa de calor unificado
+   - Distribuição da frota em tempo real
+
+4. **App do Entregador (Marketplace)**
+   - Receber ofertas de múltiplas lojas
+   - Aceitar/recusar entregas
+   - Navegação otimizada
+
+---
+
+## ⚠️ REGRAS DE OURO
+
+1. **Entregador é recurso COMPARTILHADO** - Nunca trate como "funcionário" de uma loja
+
+2. **Loja SOLICITA, não GERENCIA** - O matching é feito pelo algoritmo central
+
+3. **Cobertura é por REGIÃO** - Uma zona com vazio afeta TODAS as lojas nela
+
+4. **Franqueadora tem visão TOTAL** - Pode intervir em qualquer operação
+
+5. **Escalabilidade SEMPRE** - Código deve suportar 17+ lojas simultâneas
+
+---
+
+*Última atualização: 2026-02-03*
+*Versão: 2.0 - Marketplace Logístico*
