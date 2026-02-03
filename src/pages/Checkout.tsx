@@ -214,7 +214,7 @@ export default function Checkout() {
           customer_notes: (notes || '') + `\n[Pagamento ID: ${paymentId}]`,
           status: 'pending',
         }])
-        .select()
+        .select('id, order_number')
         .single();
 
       if (orderError) throw orderError;
@@ -342,7 +342,7 @@ export default function Checkout() {
           customer_notes: notes || null,
           status: 'pending',
         }])
-        .select()
+        .select('id, order_number')
         .single();
 
       if (orderError) throw orderError;
