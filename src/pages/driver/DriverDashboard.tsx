@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import {
     MapPin, Navigation, Package, Power, RefreshCw, Phone,
     MessageCircle, Store, User, Clock, DollarSign, CheckCircle,
-    FileText, Calendar, Filter
+    FileText, Calendar, Filter, Wallet, Trophy, Sparkles, Flame
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -16,6 +16,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import DriverProgressBar from '@/components/driver/DriverProgressBar';
+import GamerStatement from '@/components/driver/GamerStatement';
+import CareerPlan from '@/components/driver/CareerPlan';
+import DriverHeatmapMissions from '@/components/driver/DriverHeatmapMissions';
 
 interface Order {
     id: string;
@@ -89,7 +93,8 @@ export default function DriverDashboard() {
             .eq('id', id)
             .single()
             .then(({ data }) => {
-                if (data && data.status !== 'offline') {
+                const driverData = data as any;
+                if (driverData && driverData.status !== 'offline') {
                     setIsOnline(true);
                 }
             });
@@ -378,16 +383,35 @@ export default function DriverDashboard() {
                 </div>
             </div>
 
+            {/* Progress Bar - Gamification */}
+            {driverId && (
+                <div className="px-4 pt-4 bg-gray-100">
+                    <DriverProgressBar driverId={driverId} compact />
+                </div>
+            )}
+
             {/* Tabs */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="w-full justify-center bg-white border-b sticky top-16 z-10">
+                <TabsList className="w-full justify-center bg-white border-b sticky top-16 z-10 flex-wrap">
                     <TabsTrigger value="deliveries" className="flex-1">
-                        <Package className="w-4 h-4 mr-2" />
+                        <Package className="w-4 h-4 mr-1" />
                         Entregas
                     </TabsTrigger>
+                    <TabsTrigger value="missions" className="flex-1">
+                        <Flame className="w-4 h-4 mr-1" />
+                        Missões
+                    </TabsTrigger>
+                    <TabsTrigger value="wallet" className="flex-1">
+                        <Wallet className="w-4 h-4 mr-1" />
+                        Carteira
+                    </TabsTrigger>
+                    <TabsTrigger value="career" className="flex-1">
+                        <Trophy className="w-4 h-4 mr-1" />
+                        Carreira
+                    </TabsTrigger>
                     <TabsTrigger value="reports" className="flex-1">
-                        <FileText className="w-4 h-4 mr-2" />
-                        Relatórios
+                        <FileText className="w-4 h-4 mr-1" />
+                        Histórico
                     </TabsTrigger>
                 </TabsList>
 
@@ -539,6 +563,23 @@ export default function DriverDashboard() {
                             </Card>
                         ))
                     )}
+                </TabsContent>
+
+                {/* Missions Tab */}
+                <TabsContent value="missions" className="p-4">
+                    {driverId && (
+                        <DriverHeatmapMissions driverId={driverId} driverName={driverName || undefined} />
+                    )}
+                </TabsContent>
+
+                {/* Wallet Tab */}
+                <TabsContent value="wallet" className="p-4">
+                    {driverId && <GamerStatement driverId={driverId} />}
+                </TabsContent>
+
+                {/* Career Tab */}
+                <TabsContent value="career" className="p-4">
+                    {driverId && <CareerPlan driverId={driverId} />}
                 </TabsContent>
 
                 {/* Reports Tab */}
