@@ -35,6 +35,34 @@ const FormattedText = ({ text }: { text: string }) => {
   );
 };
 
+// Helper function to convert YouTube URLs to embed format
+const getYouTubeEmbedUrl = (url: string): string | null => {
+  if (!url) return null;
+
+  try {
+    // Pattern for youtube.com/shorts/VIDEO_ID
+    const shortsMatch = url.match(/youtube\.com\/shorts\/([a-zA-Z0-9_-]+)/);
+    if (shortsMatch) return `https://www.youtube.com/embed/${shortsMatch[1]}`;
+
+    // Pattern for youtube.com/watch?v=VIDEO_ID
+    const watchMatch = url.match(/[?&]v=([a-zA-Z0-9_-]+)/);
+    if (watchMatch) return `https://www.youtube.com/embed/${watchMatch[1]}`;
+
+    // Pattern for youtu.be/VIDEO_ID
+    const youtuBeMatch = url.match(/youtu\.be\/([a-zA-Z0-9_-]+)/);
+    if (youtuBeMatch) return `https://www.youtube.com/embed/${youtuBeMatch[1]}`;
+
+    // Pattern for youtube.com/embed/VIDEO_ID (already embed format)
+    const embedMatch = url.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]+)/);
+    if (embedMatch) return url;
+
+    return null;
+  } catch (e) {
+    console.error('Error parsing YouTube URL:', e);
+    return null;
+  }
+};
+
 const ProductDetail = () => {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -55,6 +83,11 @@ const ProductDetail = () => {
   const [notes, setNotes] = useState<string>('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [addModalTitle, setAddModalTitle] = useState<React.ReactNode>('');
+
+
+  // Get embed URL for product video
+  const videoEmbedUrl = (product as any)?.video_url ? getYouTubeEmbedUrl((product as any).video_url) : null;
+
 
   // Auto-select first size
   useEffect(() => {
@@ -270,6 +303,22 @@ const ProductDetail = () => {
             </div>
           )}
         </div>
+
+        {/* YouTube Video - NEW SECTION */}
+        {videoEmbedUrl && (
+          <div className="space-y-3">
+            <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Veja o produto</h2>
+            <div className="relative w-full rounded-xl overflow-hidden shadow-lg bg-black" style={{ paddingBottom: '56.25%' }}>
+              <iframe
+                src={videoEmbedUrl}
+                title="Vídeo do produto"
+                className="absolute top-0 left-0 w-full h-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+          </div>
+        )}
 
         {/* Sizes */}
         {sizes && sizes.length > 0 && (

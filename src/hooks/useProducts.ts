@@ -8,6 +8,7 @@ export interface Product {
   description: string | null;
   category_id: string;
   base_image_url: string | null;
+  video_url: string | null;
   active: boolean;
   display_order: number;
   created_at: string;

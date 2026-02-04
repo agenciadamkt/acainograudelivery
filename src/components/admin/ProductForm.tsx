@@ -43,6 +43,7 @@ const productSchema = z.object({
   description: z.string().optional(),
   category_id: z.string().min(1, 'Categoria é obrigatória'),
   base_image_url: z.string().optional(),
+  video_url: z.string().url('URL inválida').optional().or(z.literal('')),
   active: z.boolean().default(true),
   display_order: z.number().default(0),
   sizes: z.array(productSizeSchema).min(1, 'Adicione pelo menos um tamanho'),
@@ -74,6 +75,7 @@ export function ProductForm({
       description: '',
       category_id: '',
       base_image_url: '',
+      video_url: '',
       active: true,
       display_order: 0,
       sizes: [{ name: 'Padrão', price: 0, active: true, display_order: 0 }],
@@ -93,6 +95,7 @@ export function ProductForm({
         description: product.description || '',
         category_id: product.category?.id || product.category_id || '',
         base_image_url: product.base_image_url || '',
+        video_url: product.video_url || '',
         active: product.active ?? true,
         display_order: product.display_order ?? 0,
         sizes: product.sizes?.map((size: any) => ({
@@ -215,6 +218,26 @@ export function ProductForm({
                     }}
                   />
                 </div>
+
+                <FormField
+                  control={form.control}
+                  name="video_url"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Vídeo do Produto (YouTube)</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Ex: https://youtube.com/shorts/UnY-sT-ILn8"
+                          {...field}
+                        />
+                      </FormControl>
+                      <p className="text-xs text-muted-foreground">
+                        Cole o link do YouTube (normal, shorts ou embed)
+                      </p>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">

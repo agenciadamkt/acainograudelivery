@@ -289,33 +289,41 @@ export default function Checkout() {
     setIsSubmitting(true);
 
     try {
+      // Safety timeout
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Tempo limite excedido. Verifique seus pedidos, pode ser que já tenha sido criado.')), 15000)
+      );
+
       // Buscar ou criar customer (mesma lógica)
-      let { data: customer } = await supabase
-        .from('customers')
-        .select('id')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (!customer) {
-        const { data: newCustomer, error: createError } = await supabase
+      let customerPromise = async () => {
+        let { data: customer } = await supabase
           .from('customers')
-          .insert({
-            user_id: user.id,
-            email: user.email,
-            name: user.user_metadata?.name || user.email?.split('@')[0] || 'Cliente',
-            phone: user.user_metadata?.phone || null
-          })
           .select('id')
-          .single();
+          .eq('user_id', user.id)
+          .maybeSingle();
 
-        if (createError || !newCustomer) {
-          toast({ title: 'Complete seu cadastro', description: 'Precisamos de seus dados.' });
-          navigate('/profile');
-          setIsSubmitting(false);
-          return;
+        if (!customer) {
+          const { data: newCustomer, error: createError } = await supabase
+            .from('customers')
+            .insert({
+              user_id: user.id,
+              email: user.email,
+              name: user.user_metadata?.name || user.email?.split('@')[0] || 'Cliente',
+              phone: user.user_metadata?.phone || null
+            })
+            .select('id')
+            .single();
+
+          if (createError || !newCustomer) {
+            throw new Error('Falha ao criar cadastro de cliente.');
+          }
+          customer = newCustomer;
         }
-        customer = newCustomer;
-      }
+        return customer;
+      };
+
+      const customer = await Promise.race([customerPromise(), timeoutPromise]) as any;
+      if (!customer) return;
 
       // Buscar loja (simplificado pois já temos no state na maioria das vezes)
       if (!store) {
@@ -324,56 +332,61 @@ export default function Checkout() {
       }
 
       // Criar pedido (Pagamento na Entrega)
-      const { data: order, error: orderError } = await supabase
-        .from('orders')
-        .insert([{
-          order_number: '', // Trigger generates this
-          customer_id: customer.id,
-          store_id: store.id,
-          order_type: orderType,
-          payment_method: paymentMethod, // dinheiro, cartao, pix
-          payment_status: 'pending',
-          delivery_address_id: orderType === 'delivery' ? selectedAddressId : null,
-          table_number: orderType === 'dine_in' ? tableNumber : null,
-          subtotal,
-          delivery_fee: deliveryFee,
-          discount_amount: 0,
-          total_amount: total,
-          customer_notes: notes || null,
-          status: 'pending',
-        }])
-        .select('id, order_number')
-        .single();
-
-      if (orderError) throw orderError;
-
-      // Itens
-      for (const item of items) {
-        const { data: orderItem, error: itemError } = await supabase
-          .from('order_items')
-          .insert({
-            order_id: order.id,
-            product_id: item.product_id,
-            product_size_id: item.size_id,
-            quantity: item.quantity,
-            unit_price: item.size_price,
-            subtotal: item.subtotal,
-            notes: item.notes || null,
-          })
-          .select()
+      const createOrderPromise = async () => {
+        const { data: order, error: orderError } = await supabase
+          .from('orders')
+          .insert([{
+            order_number: '', // Trigger generates this
+            customer_id: customer.id,
+            store_id: store.id,
+            order_type: orderType,
+            payment_method: paymentMethod, // dinheiro, cartao, pix
+            payment_status: 'pending',
+            delivery_address_id: orderType === 'delivery' ? selectedAddressId : null,
+            table_number: orderType === 'dine_in' ? tableNumber : null,
+            subtotal,
+            delivery_fee: deliveryFee,
+            discount_amount: 0,
+            total_amount: total,
+            customer_notes: notes || null,
+            status: 'pending',
+          }])
+          .select('id, order_number')
           .single();
 
-        if (itemError) throw itemError;
+        if (orderError) throw orderError;
 
-        for (const topping of item.toppings) {
-          await supabase.from('order_item_toppings').insert({
-            order_item_id: orderItem.id,
-            topping_id: topping.id,
-            quantity: 1,
-            unit_price: topping.price,
-          });
+        // Itens
+        for (const item of items) {
+          const { data: orderItem, error: itemError } = await supabase
+            .from('order_items')
+            .insert({
+              order_id: order.id,
+              product_id: item.product_id,
+              product_size_id: item.size_id,
+              quantity: item.quantity,
+              unit_price: item.size_price,
+              subtotal: item.subtotal,
+              notes: item.notes || null,
+            })
+            .select()
+            .single();
+
+          if (itemError) throw itemError;
+
+          for (const topping of item.toppings) {
+            await supabase.from('order_item_toppings').insert({
+              order_item_id: orderItem.id,
+              topping_id: topping.id,
+              quantity: 1,
+              unit_price: topping.price,
+            });
+          }
         }
-      }
+        return order;
+      };
+
+      const order = await Promise.race([createOrderPromise(), timeoutPromise]) as any;
 
       clearCart();
       setSuccessModal({
