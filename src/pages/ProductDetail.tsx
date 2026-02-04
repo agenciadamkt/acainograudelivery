@@ -81,7 +81,7 @@ const getYouTubeEmbedUrl = (url: string): string | null => {
     // playsinline=1: Play inline on mobile
     // loop=1: Loop the video
     // playlist=videoId: Required for loop to work
-    return `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=0&controls=0&modestbranding=1&rel=0&showinfo=0&iv_load_policy=3&disablekb=1&fs=0&playsinline=1&loop=1&playlist=${videoId}`;
+    return `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&showinfo=0&iv_load_policy=3&disablekb=1&fs=0&playsinline=1&loop=1&playlist=${videoId}`;
   } catch (e) {
     console.error('Error parsing YouTube URL:', e);
     return null;
@@ -611,14 +611,8 @@ const ProductDetail = () => {
                     <iframe
                       src={embedUrl}
                       title={story.title}
-                      className="w-full h-full pointer-events-none" // pointer-events-none to prevent stealing clicks if we want tap to advance, but iframe might need interaction? 
-                      // actually Stories usually tap sides to advance. The provided Story component handles navigation based on time?
-                      // Wait, the provided Story component has <StoryControls> but also handles auto-progress.
-                      // For iframe user interaction (unmute etc) we might need pointer-events-auto. 
-                      // But native clicks might conflict with Story navigation if it listens to clicks on container.
-                      // Looking at Story component: it doesn't seem to have tap-to-advance logic built-in on container, 
-                      // only Progress bar clicks and Control button. 
-                      // So iframe interaction is fine.
+                      className="w-full h-full pointer-events-auto relative z-10"
+                      // Removed pointer-events-none to allow YouTube interaction (unmute/play if autoplay fails)
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                       allowFullScreen
                     />
