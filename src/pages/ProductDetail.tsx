@@ -41,23 +41,44 @@ const getYouTubeEmbedUrl = (url: string): string | null => {
   if (!url) return null;
 
   try {
+    let videoId = null;
+
     // Pattern for youtube.com/shorts/VIDEO_ID
     const shortsMatch = url.match(/youtube\.com\/shorts\/([a-zA-Z0-9_-]+)/);
-    if (shortsMatch) return `https://www.youtube.com/embed/${shortsMatch[1]}`;
+    if (shortsMatch) videoId = shortsMatch[1];
 
     // Pattern for youtube.com/watch?v=VIDEO_ID
-    const watchMatch = url.match(/[?&]v=([a-zA-Z0-9_-]+)/);
-    if (watchMatch) return `https://www.youtube.com/embed/${watchMatch[1]}`;
+    if (!videoId) {
+      const watchMatch = url.match(/[?&]v=([a-zA-Z0-9_-]+)/);
+      if (watchMatch) videoId = watchMatch[1];
+    }
 
     // Pattern for youtu.be/VIDEO_ID
-    const youtuBeMatch = url.match(/youtu\.be\/([a-zA-Z0-9_-]+)/);
-    if (youtuBeMatch) return `https://www.youtube.com/embed/${youtuBeMatch[1]}`;
+    if (!videoId) {
+      const youtuBeMatch = url.match(/youtu\.be\/([a-zA-Z0-9_-]+)/);
+      if (youtuBeMatch) videoId = youtuBeMatch[1];
+    }
 
     // Pattern for youtube.com/embed/VIDEO_ID (already embed format)
-    const embedMatch = url.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]+)/);
-    if (embedMatch) return url;
+    if (!videoId) {
+      const embedMatch = url.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]+)/);
+      if (embedMatch) videoId = embedMatch[1];
+    }
 
-    return null;
+    if (!videoId) return null;
+
+    // Add parameters to completely hide YouTube interface
+    // controls=0: Remove all controls overlay
+    // modestbranding=1: Remove YouTube logo
+    // rel=0: Don't show related videos
+    // showinfo=0: Hide video title and uploader info
+    // iv_load_policy=3: Disable annotations
+    // disablekb=1: Disable keyboard controls
+    // fs=0: Hide fullscreen button
+    // playsinline=1: Play inline on mobile
+    // loop=1: Loop the video
+    // playlist=videoId: Required for loop to work
+    return `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=0&controls=0&modestbranding=1&rel=0&showinfo=0&iv_load_policy=3&disablekb=1&fs=0&playsinline=1&loop=1&playlist=${videoId}`;
   } catch (e) {
     console.error('Error parsing YouTube URL:', e);
     return null;
