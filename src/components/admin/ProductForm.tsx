@@ -130,25 +130,12 @@ export function ProductForm({
   return (
     <div className="h-full flex flex-col">
       <Tabs defaultValue="details" className="w-full flex-1 flex flex-col">
-        <TabsList className="w-full justify-start border-b rounded-none p-0 h-10 bg-transparent">
-          <TabsTrigger
-            value="details"
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2"
-          >
-            Detalhes
-          </TabsTrigger>
-          <TabsTrigger
-            value="toppings"
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2"
-            disabled={!product?.id}
-          >
+        <TabsList className="grid w-full grid-cols-3 mb-4">
+          <TabsTrigger value="details">Detalhes</TabsTrigger>
+          <TabsTrigger value="toppings" disabled={!product?.id}>
             Complementos
           </TabsTrigger>
-          <TabsTrigger
-            value="videos"
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2"
-            disabled={!product?.id}
-          >
+          <TabsTrigger value="videos" disabled={!product?.id}>
             Vídeos (Stories)
           </TabsTrigger>
         </TabsList>
@@ -240,8 +227,14 @@ export function ProductForm({
                         />
                       </FormControl>
                       <p className="text-xs text-muted-foreground">
-                        Cole o link do YouTube (normal, shorts ou embed)
+                        Cole o link do YouTube (normal, shorts ou embed).
                       </p>
+                      {product?.id && (
+                        <div className="text-xs text-muted-foreground bg-blue-50/50 p-2 rounded border border-blue-100 flex items-center gap-2 mt-1">
+                          <span className="mb-px">💡 Dica:</span>
+                          <span>Você pode adicionar múltiplos vídeos na aba <strong>Vídeos (Stories)</strong> no topo.</span>
+                        </div>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
