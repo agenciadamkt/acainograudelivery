@@ -4,12 +4,13 @@ import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { MapPin, Phone, User, CreditCard, Clock, MessageSquare, Wallet, ExternalLink, RefreshCw, Loader2 } from 'lucide-react';
+import { MapPin, Phone, User, CreditCard, Clock, MessageSquare, Wallet, ExternalLink, RefreshCw, Loader2, Printer } from 'lucide-react';
 import { useCheckoutByOrderId } from '@/hooks/useInfinitePayCheckout';
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { WHATSAPP_MESSAGES, getWhatsAppUrl } from '@/utils/whatsappMessages';
+
 const WhatsAppIcon = ({ className }: { className?: string }) => (
   <svg
     viewBox="0 0 24 24"
@@ -39,6 +40,135 @@ export function OrderDetails({ order }: OrderDetailsProps) {
   const status = statusConfig[order.status as keyof typeof statusConfig];
   const { data: infinitePayCheckout, isLoading: loadingCheckout, refetch: refetchCheckout } = useCheckoutByOrderId(order.id);
   const [isVerifying, setIsVerifying] = useState(false);
+
+  // Função de Impressão (Cupom Fiscal / Térmica)
+  const handlePrint = () => {
+    const printWindow = window.open('', '', 'width=600,height=800');
+    if (!printWindow) return;
+
+    const content = `
+      <html>
+        <head>
+          <title>Pedido #${order.order_number}</title>
+          <style>
+            @page { margin: 0; }
+            body { 
+              font-family: 'Courier New', monospace; 
+              font-size: 12px; 
+              width: 80mm; 
+              margin: 0; 
+              padding: 10px;
+              color: #000;
+              line-height: 1.2;
+            }
+            .header { text-align: center; margin-bottom: 10px; border-bottom: 1px dashed #000; padding-bottom: 10px; }
+            .title { font-size: 16px; font-weight: bold; margin: 0; }
+            .subtitle { font-size: 14px; margin: 5px 0; }
+            .info { margin-bottom: 5px; }
+            .section-title { font-weight: bold; border-top: 1px dashed #000; margin-top: 10px; padding-top: 5px; }
+            .item-row { display: flex; justify-content: space-between; margin-top: 5px; }
+            .item-name { flex: 1; font-weight: bold; }
+            .item-price { white-space: nowrap; margin-left: 10px; }
+            .item-details { margin-left: 10px; font-size: 11px; color: #333; }
+            .total-section { border-top: 1px dashed #000; margin-top: 10px; padding-top: 5px; }
+            .total-row { display: flex; justify-content: space-between; font-weight: bold; font-size: 14px; margin-top: 5px; }
+            .footer { text-align: center; margin-top: 20px; font-size: 10px; border-top: 1px dashed #000; padding-top: 10px; }
+            .bold { font-weight: bold; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <p class="title">AÇAÍ NO GRAU</p>
+            <p class="subtitle">Pedido #${order.order_number}</p>
+            <div class="info">
+              ${format(new Date(order.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}<br/>
+              ${order.order_type === 'delivery' ? 'ENTREGA' : 'RETIRADA'}
+            </div>
+          </div>
+
+          <div class="customer">
+             <div class="bold">CLIENTE</div>
+             <div>${order.customer?.name || 'Cliente não identificado'}</div>
+             <div>${order.customer?.phone || ''}</div>
+             ${order.order_type === 'delivery' && order.delivery_address ? `
+               <div style="margin-top: 5px;">
+                 <div class="bold">ENDEREÇO DE ENTREGA:</div>
+                 <div>${order.delivery_address.street}, ${order.delivery_address.number}</div>
+                 <div>${order.delivery_address.neighborhood}</div>
+                 ${order.delivery_address.complement ? `<div>Comp: ${order.delivery_address.complement}</div>` : ''}
+                 <div>${order.delivery_address.city} - ${order.delivery_address.state}</div>
+               </div>
+             ` : ''}
+          </div>
+
+          <div class="items">
+            <div class="section-title">ITENS</div>
+            ${order.items?.map((item: any) => `
+              <div class="item-container">
+                <div class="item-row">
+                  <span class="item-name">${item.quantity}x ${item.product?.name}</span>
+                  <span class="item-price">R$ ${Number(item.subtotal).toFixed(2)}</span>
+                </div>
+                <div class="item-details">
+                   ${item.size?.name ? `<div>Tamanho: ${item.size.name}</div>` : ''}
+                   ${item.toppings?.map((t: any) => `<div>+ ${t.topping?.name}</div>`).join('') || ''}
+                   ${item.notes ? `<div>Obs: ${item.notes}</div>` : ''}
+                </div>
+              </div>
+            `).join('') || ''}
+          </div>
+
+          <div class="total-section">
+            <div class="item-row">
+               <span>Subtotal:</span>
+               <span>R$ ${Number(order.subtotal).toFixed(2)}</span>
+            </div>
+            ${order.delivery_fee > 0 ? `
+              <div class="item-row">
+                 <span>Taxa de Entrega:</span>
+                 <span>R$ ${Number(order.delivery_fee).toFixed(2)}</span>
+              </div>
+            ` : ''}
+            ${order.discount_amount > 0 ? `
+              <div class="item-row">
+                 <span>Desconto:</span>
+                 <span>- R$ ${Number(order.discount_amount).toFixed(2)}</span>
+              </div>
+            ` : ''}
+            <div class="total-row">
+               <span>TOTAL:</span>
+               <span>R$ ${Number(order.total_amount).toFixed(2)}</span>
+            </div>
+          </div>
+
+          <div class="payment" style="margin-top: 10px;">
+             <div>Forma de Pagto: <strong>${order.payment_method === 'credit_card' ? 'Cartão' : order.payment_method}</strong></div>
+             ${order.payment_method === 'money' ? `<div>Troco para: R$ [Valor não capturado]</div>` : ''}
+             <div>Status: ${order.payment_status === 'paid' ? 'PAGO' : 'PENDENTE'}</div>
+          </div>
+
+          ${order.customer_notes ? `
+            <div style="margin-top: 10px; border: 1px solid #000; padding: 5px;">
+               <div class="bold">OBSERVAÇÕES:</div>
+               <div>${order.customer_notes}</div>
+            </div>
+          ` : ''}
+
+          <div class="footer">
+             <p>Obrigado pela preferência!</p>
+             <p>Açaí no Grau Delivery</p>
+          </div>
+
+          <script>
+            window.onload = function() { window.print(); window.close(); }
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(content);
+    printWindow.document.close();
+  };
 
   const handleVerifyPayment = async () => {
     setIsVerifying(true);
@@ -99,7 +229,18 @@ export function OrderDetails({ order }: OrderDetailsProps) {
       <div>
         <div className="flex items-center justify-between mb-2">
           <h2 className="text-2xl font-bold">#{order.order_number}</h2>
-          <Badge className={status.color}>{status.label}</Badge>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handlePrint}
+              title="Imprimir Comprovante"
+              className="h-8 w-8"
+            >
+              <Printer className="w-4 h-4" />
+            </Button>
+            <Badge className={status.color}>{status.label}</Badge>
+          </div>
         </div>
         <p className="text-sm text-muted-foreground">
           {format(new Date(order.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
