@@ -80,6 +80,80 @@ export function useProduct(id: string) {
   });
 }
 
+export function useProductVideos(productId: string) {
+  return useQuery({
+    queryKey: ['product_videos', productId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('product_videos' as any) // Cast as any until types are generated
+        .select('*')
+        .eq('product_id', productId)
+        .eq('active', true)
+        .order('display_order', { ascending: true });
+
+      if (error) {
+        // Silent fail or log?
+        console.warn('Error fetching product videos:', error);
+        return [];
+      }
+      return data || [];
+    },
+    enabled: !!productId,
+  });
+}
+
+export function useCreateProductVideo() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (video: { product_id: string; video_url: string; title?: string; description?: string }) => {
+      const { data, error } = await supabase
+        .from('product_videos' as any)
+        .insert(video)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['product_videos', variables.product_id] });
+      toast({ title: 'Vídeo adicionado com sucesso!' });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Erro ao adicionar vídeo: ' + error.message,
+        variant: 'destructive'
+      });
+    },
+  });
+}
+
+export function useDeleteProductVideo() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, productId }: { id: string; productId: string }) => {
+      const { error } = await supabase
+        .from('product_videos' as any)
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['product_videos', variables.productId] });
+      toast({ title: 'Vídeo removido com sucesso!' });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Erro ao remover vídeo: ' + error.message,
+        variant: 'destructive'
+      });
+    },
+  });
+}
+
 export function useCreateProduct() {
   const queryClient = useQueryClient();
 

@@ -1,6 +1,6 @@
 // Service Worker para notificações em background (Web Push API)
-// Updated: 2026-02-04T11:35:00Z
-// Version: 4.1 - Clean video player update
+// Updated: 2026-02-04T13:25:00Z
+// Version: 4.2 - Stories feature update
 
 const NOTIFICATION_CHANNEL = 'new-order-notifications';
 
@@ -102,10 +102,10 @@ self.addEventListener('install', (event) => {
   self.skipWaiting(); // Force immediate activation
 });
 
-// Lista de caches válidos (v4.1)
+// Lista de caches válidos (v4.2)
 const VALID_CACHES = [
-  'html-cache-v4.1',
-  'assets-cache-v4.1',
+  'html-cache-v4.2',
+  'assets-cache-v4.2',
   'workbox-precache-v2-'
 ];
 

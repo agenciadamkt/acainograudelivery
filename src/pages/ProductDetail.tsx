@@ -6,13 +6,16 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { useProduct } from "@/hooks/useProducts";
+import { useProduct, useProductVideos } from "@/hooks/useProducts";
 import { useProductSizes } from "@/hooks/useProductSizes";
 import { useProductToppingCategories } from "@/hooks/useProductToppingCategories";
 import { useToppings } from "@/hooks/useToppings";
 import { useCart } from "@/contexts/CartContext";
 import { toast } from "sonner";
 import { FeedbackModal } from '@/components/common/FeedbackModal';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Story, StoryProgress, StoryControls, StorySlide, StoryOverlay } from "@/components/ui/story";
+import { DialogHeader } from "@/components/ui/dialog";
 
 const FormattedText = ({ text }: { text: string }) => {
   if (!text) return null;
@@ -92,8 +95,30 @@ const ProductDetail = () => {
 
   // Load data with safe hooks (hooks that don't crash on error)
   const { data: product, isLoading: loadingProduct } = useProduct(id!);
+  const { data: videoList } = useProductVideos(id!);
   const { data: sizes } = useProductSizes(id!);
   const { data: productToppingCategories } = useProductToppingCategories(id);
+
+  // Combine videos for stories
+  const stories = useMemo(() => {
+    const list = [];
+    if (videoList && videoList.length > 0) {
+      list.push(...videoList.map((v: any) => ({
+        url: v.video_url,
+        title: v.title || product?.name,
+        caption: v.description || 'Veja os detalhes deliciosos deste produto!'
+      })));
+    } else if ((product as any)?.video_url) {
+      list.push({
+        url: (product as any).video_url,
+        title: product?.name,
+        caption: 'Veja os detalhes deliciosos deste produto!'
+      });
+    }
+    return list;
+  }, [videoList, product]);
+
+  const hasStories = stories.length > 0;
 
   // Busca o store_id da categoria do produto para filtrar os toppings corretos
   const productStoreId = (product?.category as any)?.store_id || null;
@@ -107,8 +132,6 @@ const ProductDetail = () => {
   const [addModalTitle, setAddModalTitle] = useState<React.ReactNode>('');
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
 
-  // Get embed URL for product video
-  const videoEmbedUrl = (product as any)?.video_url ? getYouTubeEmbedUrl((product as any).video_url) : null;
 
 
   // Auto-select first size
@@ -326,13 +349,16 @@ const ProductDetail = () => {
           )}
         </div>
 
-        {/* YouTube Video Button */}
-        {videoEmbedUrl && (
+        {/* YouTube Video Button (Story Trigger) */}
+        {hasStories && (
           <button
             onClick={() => setIsVideoModalOpen(true)}
             className="w-full bg-gradient-to-r from-primary to-primary/80 text-white font-bold py-4 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all active:scale-[0.98] flex items-center justify-center gap-3"
           >
-            <Play className="w-5 h-5" fill="white" />
+            <div className="relative">
+              <div className="absolute -inset-1 rounded-full bg-white/30 animate-pulse"></div>
+              <Play className="w-5 h-5 relative z-10" fill="white" />
+            </div>
             <span className="text-sm uppercase tracking-wide">VEJA O PRODUTO</span>
           </button>
         )}
@@ -541,26 +567,84 @@ const ProductDetail = () => {
       </FeedbackModal>
 
       {/* Video Modal */}
+      {/* Stories Modal */}
       <Dialog open={isVideoModalOpen} onOpenChange={setIsVideoModalOpen}>
-        <DialogContent className="max-w-[95vw] w-full sm:max-w-[500px] p-0 bg-black border-0">
-          <DialogTitle className="sr-only">Vídeo do Produto</DialogTitle>
-          <button
-            onClick={() => setIsVideoModalOpen(false)}
-            className="absolute -top-10 right-0 z-50 w-10 h-10 flex items-center justify-center rounded-full bg-white/90 hover:bg-white text-black shadow-lg transition-all"
+        <DialogContent className="aspect-[9/16] w-full max-h-[90vh] sm:h-[800px] overflow-hidden p-0 bg-black border-0 sm:rounded-xl">
+          <DialogTitle className="sr-only">Stories do Produto</DialogTitle>
+
+          <Story
+            className="relative size-full"
+            duration={15000} // 15 seconds per story slide
+            mediaLength={stories.length}
           >
-            <X className="w-5 h-5" />
-          </button>
-          <div className="relative w-full bg-black" style={{ paddingBottom: '100%' }}>
-            {isVideoModalOpen && videoEmbedUrl && (
-              <iframe
-                src={videoEmbedUrl}
-                title="Vídeo do produto"
-                className="absolute top-0 left-0 w-full h-full"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
+            <DialogHeader className="absolute top-0 left-0 right-0 z-20 px-4 py-6 bg-gradient-to-b from-black/60 to-transparent">
+              <div className="flex items-center gap-3">
+                <Avatar className="size-10 border-2 border-primary">
+                  <AvatarImage src={product?.base_image_url || ''} alt={product?.name} />
+                  <AvatarFallback className="bg-primary text-primary-foreground font-bold">AG</AvatarFallback>
+                </Avatar>
+
+                <StoryProgress
+                  className="flex-1"
+                  progressWrapClass="h-1 bg-white/20"
+                  progressActiveClass="bg-primary"
+                />
+
+                <button
+                  onClick={() => setIsVideoModalOpen(false)}
+                  className="w-8 h-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md text-white transition-all"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </DialogHeader>
+
+            {stories.map((story, idx) => {
+              const embedUrl = getYouTubeEmbedUrl(story.url);
+              return (
+                <StorySlide
+                  key={idx}
+                  index={idx}
+                  className="absolute inset-0 size-full flex items-center justify-center bg-black"
+                >
+                  {embedUrl ? (
+                    <iframe
+                      src={embedUrl}
+                      title={story.title}
+                      className="w-full h-full pointer-events-none" // pointer-events-none to prevent stealing clicks if we want tap to advance, but iframe might need interaction? 
+                      // actually Stories usually tap sides to advance. The provided Story component handles navigation based on time?
+                      // Wait, the provided Story component has <StoryControls> but also handles auto-progress.
+                      // For iframe user interaction (unmute etc) we might need pointer-events-auto. 
+                      // But native clicks might conflict with Story navigation if it listens to clicks on container.
+                      // Looking at Story component: it doesn't seem to have tap-to-advance logic built-in on container, 
+                      // only Progress bar clicks and Control button. 
+                      // So iframe interaction is fine.
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  ) : (
+                    <div className="text-white">Vídeo indisponível</div>
+                  )}
+
+                  <div className="absolute bottom-0 left-0 right-0 z-20 p-6 pt-24 space-y-2 bg-gradient-to-t from-black/90 via-black/50 to-transparent">
+                    <h3 className="text-lg font-bold text-white leading-tight drop-shadow-md">
+                      {story.title}
+                    </h3>
+                    <p className="text-sm text-gray-200 line-clamp-2 drop-shadow-sm">{story.caption}</p>
+                  </div>
+                </StorySlide>
+              );
+            })}
+
+            {/* Control button floating bottom right or used in header? The demo put it in header. */}
+            <div className="absolute bottom-6 right-6 z-30">
+              <StoryControls
+                variant="ghost"
+                className="text-white hover:bg-white/20 rounded-full w-12 h-12 [&_svg]:w-6 [&_svg]:h-6"
               />
-            )}
-          </div>
+            </div>
+
+          </Story>
         </DialogContent>
       </Dialog>
     </div>

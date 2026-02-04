@@ -27,6 +27,7 @@ import { useUploadProductImage } from '@/hooks/useProducts';
 import { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ProductToppingsManager } from './ProductToppingsManager';
+import { ProductVideosManager } from './ProductVideosManager';
 
 const productSizeSchema = z.object({
   id: z.string().optional(),
@@ -142,6 +143,13 @@ export function ProductForm({
             disabled={!product?.id}
           >
             Complementos
+          </TabsTrigger>
+          <TabsTrigger
+            value="videos"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2"
+            disabled={!product?.id}
+          >
+            Vídeos (Stories)
           </TabsTrigger>
         </TabsList>
 
@@ -416,6 +424,16 @@ export function ProductForm({
             ) : (
               <div className="flex items-center justify-center h-48 text-muted-foreground">
                 Salve o produto primeiro para adicionar complementos.
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="videos" className="mt-0 h-full">
+            {product?.id ? (
+              <ProductVideosManager productId={product.id} />
+            ) : (
+              <div className="flex items-center justify-center h-48 text-muted-foreground">
+                Salve o produto primeiro para adicionar vídeos.
               </div>
             )}
           </TabsContent>
