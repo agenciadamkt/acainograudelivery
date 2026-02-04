@@ -1,5 +1,6 @@
 // Service Worker para notificações em background (Web Push API)
-// Updated: 2026-01-24T21:49:00Z
+// Updated: 2026-02-04T11:27:00Z
+// Version: 4.0 - Fix PWA infinite loop
 
 const NOTIFICATION_CHANNEL = 'new-order-notifications';
 
@@ -101,10 +102,10 @@ self.addEventListener('install', (event) => {
   self.skipWaiting(); // Force immediate activation
 });
 
-// Lista de caches válidos (v3)
+// Lista de caches válidos (v4)
 const VALID_CACHES = [
-  'html-cache-v3',
-  'assets-cache-v3',
+  'html-cache-v4',
+  'assets-cache-v4',
   'workbox-precache-v2-'
 ];
 
