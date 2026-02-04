@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ChevronLeft, Plus, Check, Loader2, Heart, Minus } from "lucide-react";
+import { ChevronLeft, Plus, Check, Loader2, Heart, Minus, Play, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useProduct } from "@/hooks/useProducts";
 import { useProductSizes } from "@/hooks/useProductSizes";
 import { useProductToppingCategories } from "@/hooks/useProductToppingCategories";
@@ -83,7 +84,7 @@ const ProductDetail = () => {
   const [notes, setNotes] = useState<string>('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [addModalTitle, setAddModalTitle] = useState<React.ReactNode>('');
-
+  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
 
   // Get embed URL for product video
   const videoEmbedUrl = (product as any)?.video_url ? getYouTubeEmbedUrl((product as any).video_url) : null;
@@ -304,20 +305,15 @@ const ProductDetail = () => {
           )}
         </div>
 
-        {/* YouTube Video - NEW SECTION */}
+        {/* YouTube Video Button */}
         {videoEmbedUrl && (
-          <div className="space-y-3">
-            <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Veja o produto</h2>
-            <div className="relative w-full rounded-xl overflow-hidden shadow-lg bg-black" style={{ paddingBottom: '56.25%' }}>
-              <iframe
-                src={videoEmbedUrl}
-                title="Vídeo do produto"
-                className="absolute top-0 left-0 w-full h-full"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            </div>
-          </div>
+          <button
+            onClick={() => setIsVideoModalOpen(true)}
+            className="w-full bg-gradient-to-r from-primary to-primary/80 text-white font-bold py-4 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all active:scale-[0.98] flex items-center justify-center gap-3"
+          >
+            <Play className="w-5 h-5" fill="white" />
+            <span className="text-sm uppercase tracking-wide">VEJA O PRODUTO</span>
+          </button>
         )}
 
         {/* Sizes */}
@@ -522,6 +518,30 @@ const ProductDetail = () => {
           </Button>
         </div>
       </FeedbackModal>
+
+      {/* Video Modal */}
+      <Dialog open={isVideoModalOpen} onOpenChange={setIsVideoModalOpen}>
+        <DialogContent className="max-w-[95vw] w-full sm:max-w-[500px] p-0 bg-black border-0">
+          <DialogTitle className="sr-only">Vídeo do Produto</DialogTitle>
+          <button
+            onClick={() => setIsVideoModalOpen(false)}
+            className="absolute -top-10 right-0 z-50 w-10 h-10 flex items-center justify-center rounded-full bg-white/90 hover:bg-white text-black shadow-lg transition-all"
+          >
+            <X className="w-5 h-5" />
+          </button>
+          <div className="relative w-full bg-black" style={{ paddingBottom: '100%' }}>
+            {isVideoModalOpen && videoEmbedUrl && (
+              <iframe
+                src={videoEmbedUrl}
+                title="Vídeo do produto"
+                className="absolute top-0 left-0 w-full h-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
