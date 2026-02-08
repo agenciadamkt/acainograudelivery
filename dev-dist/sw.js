@@ -80,7 +80,7 @@ define(['./workbox-f2cb1a81'], (function (workbox) { 'use strict';
    */
   workbox.precacheAndRoute([{
     "url": "index.html",
-    "revision": "0.8mn4mgjf658"
+    "revision": "0.rlftebpgun"
   }], {});
   workbox.cleanupOutdatedCaches();
   workbox.registerRoute(new workbox.NavigationRoute(workbox.createHandlerBoundToURL("index.html"), {
@@ -90,7 +90,7 @@ define(['./workbox-f2cb1a81'], (function (workbox) { 'use strict';
   workbox.registerRoute(({
     request
   }) => request.mode === "navigate", new workbox.NetworkFirst({
-    "cacheName": "html-cache-v3",
+    "cacheName": "html-cache-v4",
     "networkTimeoutSeconds": 3,
     plugins: [new workbox.ExpirationPlugin({
       maxEntries: 10,
@@ -100,7 +100,7 @@ define(['./workbox-f2cb1a81'], (function (workbox) { 'use strict';
     })]
   }), 'GET');
   workbox.registerRoute(/\.(?:js|css|png|jpg|jpeg|svg|gif|ico|woff2?|ttf)$/i, new workbox.CacheFirst({
-    "cacheName": "assets-cache-v3",
+    "cacheName": "assets-cache-v4",
     plugins: [new workbox.ExpirationPlugin({
       maxEntries: 100,
       maxAgeSeconds: 2592000

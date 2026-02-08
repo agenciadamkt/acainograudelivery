@@ -59,7 +59,7 @@ export default defineConfig(({ mode }) => ({
             urlPattern: ({ request }) => request.mode === 'navigate',
             handler: 'NetworkFirst',
             options: {
-              cacheName: 'html-cache-v3', // v3 to force cache invalidation
+              cacheName: 'html-cache-v4', // v4 to force cache invalidation
               networkTimeoutSeconds: 3,
               expiration: {
                 maxEntries: 10,
@@ -75,7 +75,7 @@ export default defineConfig(({ mode }) => ({
             urlPattern: /\.(?:js|css|png|jpg|jpeg|svg|gif|ico|woff2?|ttf)$/i,
             handler: 'CacheFirst',
             options: {
-              cacheName: 'assets-cache-v3', // v3 to force cache invalidation
+              cacheName: 'assets-cache-v4', // v4 to force cache invalidation
               expiration: {
                 maxEntries: 100,
                 maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useStore } from '@/contexts/StoreContext';
 
 export interface Customer {
     id: string;
@@ -13,13 +14,20 @@ export interface Customer {
 }
 
 export function useCustomers() {
-    return useQuery({
-        queryKey: ['customers-list'],
-        queryFn: async () => {
-            console.log('Buscando clientes...');
+    const { currentStore } = useStore();
 
-            // Tenta buscar da tabela 'customers' que parece ser a correta para o sistema
-            // Se não existir, o erro será capturado.
+    return useQuery({
+        // Adicionando currentStore?.id à queryKey para refazer a busca quando trocar a loja
+        queryKey: ['customers-list', currentStore?.id],
+        queryFn: async () => {
+            if (!currentStore?.id) {
+                console.warn('Nenhuma loja selecionada, retornando lista vazia');
+                return [];
+            }
+
+            console.log(`Buscando clientes para a loja ${currentStore.name} (${currentStore.id})...`);
+
+            // 1. Buscar clientes vinculados a esta loja
             const { data: customersData, error: customersError } = await supabase
                 .from('customers')
                 .select(`
@@ -29,20 +37,25 @@ export function useCustomers() {
                     created_at,
                     user_id
                 `)
+                .eq('store_id', currentStore.id) // FILTRO POR LOJA ADICIONADO AQUI
                 .order('created_at', { ascending: false });
 
             if (customersError) {
                 console.error('Erro ao buscar customers:', customersError);
-                // Se der erro (ex: tabela não existe), retornamos array vazio para não travar a tela
                 return [];
             }
 
-            console.log('Clientes encontrados:', customersData?.length);
+            console.log(`Clientes encontrados na loja atual: ${customersData?.length}`);
 
-            // Busca pedidos para calcular métricas
+            if (!customersData || customersData.length === 0) {
+                return [];
+            }
+
+            // 2. Busca pedidos APENAS desta loja para calcular métricas
             const { data: orders, error: ordersError } = await supabase
                 .from('orders')
-                .select('customer_id, total_amount, created_at');
+                .select('customer_id, total_amount, created_at')
+                .eq('store_id', currentStore.id); // FILTRO POR LOJA ADICIONADO AQUI TAMBÉM
 
             if (ordersError) {
                 console.error('Erro ao buscar orders:', ordersError);
@@ -75,6 +88,7 @@ export function useCustomers() {
                 if (!b.last_order_date) return -1;
                 return new Date(b.last_order_date).getTime() - new Date(a.last_order_date).getTime();
             });
-        }
+        },
+        enabled: !!currentStore?.id, // Só executa se tiver loja selecionada
     });
 }

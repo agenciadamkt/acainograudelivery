@@ -102,32 +102,10 @@ self.addEventListener('install', (event) => {
   self.skipWaiting(); // Force immediate activation
 });
 
-// Lista de caches válidos (v4.2.1)
-const VALID_CACHES = [
-  'html-cache-v4.2.1',
-  'assets-cache-v4.2.1',
-  'workbox-precache-v2-'
-];
-
-// Listener de ativação - limpa caches antigos
+// Listener de ativação
 self.addEventListener('activate', (event) => {
-  console.log('[SW] ✅ Service Worker ativado - limpando caches antigos...');
-  event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          // Se não é um cache válido atual, deletar
-          const isValid = VALID_CACHES.some(valid => cacheName.includes(valid) || cacheName.startsWith(valid));
-          if (!isValid) {
-            console.log('[SW] 🗑️ Deletando cache antigo:', cacheName);
-            return caches.delete(cacheName);
-          }
-          return null;
-        })
-      );
-    }).then(() => {
-      console.log('[SW] ✅ Limpeza de caches concluída');
-      return clients.claim();
-    })
-  );
+  console.log('[SW] ✅ Service Worker ativado');
+  // A limpeza de caches é gerenciada pelo Workbox (cleanupOutdatedCaches: true no vite.config.ts)
+  // Removeremos a limpeza manual agressiva para evitar conflitos com os caches do Workbox
+  event.waitUntil(clients.claim());
 });

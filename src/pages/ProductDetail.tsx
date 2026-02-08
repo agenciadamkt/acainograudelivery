@@ -81,7 +81,7 @@ const getYouTubeEmbedUrl = (url: string): string | null => {
     // playsinline=1: Play inline on mobile
     // loop=1: Loop the video
     // playlist=videoId: Required for loop to work
-    return `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&showinfo=0&iv_load_policy=3&disablekb=1&fs=0&playsinline=1&loop=1&playlist=${videoId}`;
+    return `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=0&controls=0&modestbranding=1&rel=0&showinfo=0&iv_load_policy=3&disablekb=1&fs=0&playsinline=1&loop=1&playlist=${videoId}`;
   } catch (e) {
     console.error('Error parsing YouTube URL:', e);
     return null;

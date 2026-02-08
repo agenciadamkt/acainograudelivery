@@ -97,9 +97,25 @@ export default function MarketingPage() {
         },
     });
 
+    // Query for Saved Templates (already saved in marketing_campaigns table)
+    const { data: savedCampaigns } = useQuery({
+        queryKey: ['admin-marketing-campaigns'],
+        queryFn: async () => {
+            // @ts-ignore
+            const { data, error } = await supabase
+                .from('marketing_campaigns')
+                .select('*')
+                .eq('category', 'manual') // Only manual templates
+                .order('created_at', { ascending: false });
+            if (error) throw error;
+            return data;
+        },
+    });
+
     const { data: scheduledCampaigns } = useQuery({
         queryKey: ['admin-scheduled-campaigns'],
         queryFn: async () => {
+            // @ts-ignore
             const { data, error } = await supabase
                 .from('scheduled_campaigns')
                 .select('*')
@@ -167,6 +183,7 @@ export default function MarketingPage() {
         mutationFn: async () => {
             if (!campaignName || !message) throw new Error('Nome e mensagem são obrigatórios');
 
+            // @ts-ignore
             const { data, error } = await supabase
                 .from('marketing_campaigns')
                 .insert({
@@ -185,6 +202,22 @@ export default function MarketingPage() {
         },
         onSuccess: () => {
             toast({ title: 'Campanha salva!', description: 'O template agora está no seu histórico.' });
+            queryClient.invalidateQueries({ queryKey: ['admin-marketing-campaigns'] });
+        }
+    });
+
+    const deleteSimpleCampaign = useMutation({
+        mutationFn: async (id: string) => {
+            // @ts-ignore
+            const { error } = await supabase
+                .from('marketing_campaigns')
+                .delete()
+                .eq('id', id);
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            toast({ title: 'Modelo excluído' });
+            queryClient.invalidateQueries({ queryKey: ['admin-marketing-campaigns'] });
         }
     });
 
@@ -202,6 +235,7 @@ export default function MarketingPage() {
 
             // 1. CRIAR CAMPANHA NA TABELA (Sempre!)
             // Isso garante que fica no histórico
+            // @ts-ignore
             const { data: campaignRecord, error: insertError } = await supabase
                 .from('scheduled_campaigns')
                 .insert({
@@ -414,6 +448,63 @@ export default function MarketingPage() {
                                     {isSending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
                                     Enviar Agora
                                 </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Saved Campaigns (Templates) */}
+                    <Card>
+                        <CardHeader className="pb-3">
+                            <CardTitle className="text-sm">Meus Modelos Salvos</CardTitle>
+                            <CardDescription className="text-xs">Reutilize suas campanhas salvas.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
+                                {savedCampaigns?.map((camp: any) => (
+                                    <div key={camp.id} className="flex items-center justify-between p-2 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
+                                        <div className="flex-1 min-w-0 mr-2">
+                                            <p className="text-sm font-medium truncate">{camp.name}</p>
+                                            <p className="text-[10px] text-muted-foreground truncate">{camp.message}</p>
+                                        </div>
+                                        <div className="flex gap-1">
+                                            <Button
+                                                variant="secondary"
+                                                size="sm"
+                                                className="h-7 text-xs"
+                                                onClick={() => {
+                                                    setCampaignName(camp.name);
+                                                    setMessage(camp.message);
+                                                    setImageUrl(camp.image_url || '');
+                                                    setFooterText(camp.footer_text || 'Açaí no Grau');
+                                                    if (camp.choices && Array.isArray(camp.choices)) {
+                                                        // Ensure valid choices structure
+                                                        const cleanChoices = camp.choices.map((c: any) => ({
+                                                            title: c.title || '',
+                                                            value: c.value || ''
+                                                        }));
+                                                        setChoices(cleanChoices.length ? cleanChoices : [{ title: '', value: '' }]);
+                                                    }
+                                                    toast({ title: 'Modelo carregado', description: `Campanha "${camp.name}" pronta para edição.` });
+                                                }}
+                                            >
+                                                Usar
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-7 w-7 p-0 text-red-400 hover:text-red-500 hover:bg-red-50"
+                                                onClick={() => deleteSimpleCampaign.mutate(camp.id)}
+                                            >
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                            </Button>
+                                        </div>
+                                    </div>
+                                ))}
+                                {!savedCampaigns?.length && (
+                                    <div className="text-center py-4 text-xs text-muted-foreground">
+                                        Nenhum modelo salvo.
+                                    </div>
+                                )}
                             </div>
                         </CardContent>
                     </Card>

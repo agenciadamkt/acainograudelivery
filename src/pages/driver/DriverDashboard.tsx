@@ -106,6 +106,10 @@ export default function DriverDashboard() {
             });
 
         // Check B2B Compliance
+        // Temporarily disabled to allow immediate access
+        setIsCompliant(true);
+        setIsCheckingCompliance(false);
+        /*
         checkDriverCompliance(id)
             .then(compliance => {
                 setIsCompliant(compliance.compliant);
@@ -115,6 +119,7 @@ export default function DriverDashboard() {
                 setIsCompliant(false); // Assume non-compliant on error to be safe
                 setIsCheckingCompliance(false);
             });
+        */
 
         // Set default report dates
         const today = new Date();

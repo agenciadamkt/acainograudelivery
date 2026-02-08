@@ -49,8 +49,11 @@ serve(async (req) => {
         if (testPhone && (payload.test_message || campaignData)) {
             console.log('[WhatsApp] 🧪 Modo teste/campanha detectado');
 
+            const cleanTestPhone = testPhone.replace(/\D/g, '');
+            const formattedTestPhone = cleanTestPhone.length <= 11 ? `55${cleanTestPhone}` : cleanTestPhone;
+
             let endpoint = 'send/text';
-            let body: any = { number: testPhone };
+            let body: any = { number: formattedTestPhone };
 
             if (campaignData) {
                 endpoint = 'send/menu';
