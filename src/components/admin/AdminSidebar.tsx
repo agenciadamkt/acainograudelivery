@@ -45,9 +45,18 @@ import logoCircular from '@/assets/logo-circular.png';
 // Menu organizado por seções
 const menuSections = [
   {
+    label: '🚀 Acesso Rápido Pedidos',
+    items: [
+      { title: 'Pedidos', url: '/admin/orders', icon: ShoppingBag },
+      { title: 'Nova Venda', url: '/admin/pdv/nova-venda', icon: ShoppingCart, highlight: true },
+      { title: 'Entregas', url: '/admin/delivery', icon: Truck },
+      { title: 'Food Analytics', url: '/admin/analytics', icon: BarChart3 },
+    ]
+  },
+  {
     label: '🏪 PDV (Frente de Caixa)',
     items: [
-      { title: 'Nova Venda', url: '/admin/pdv/nova-venda', icon: ShoppingCart, highlight: true },
+      { title: 'Nova Venda', url: '/admin/pdv/nova-venda', icon: ShoppingCart },
       { title: 'Mesas', url: '/admin/pdv/mesas', icon: Grid },
       { title: 'Caixa', url: '/admin/pdv/caixa', icon: Wallet },
       { title: 'Histórico', url: '/admin/pdv/historico', icon: History },
