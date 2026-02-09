@@ -1,19 +1,37 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 export interface Product {
   id: string;
+  user_id?: string;
   name: string;
-  description: string | null;
-  category_id: string;
-  base_image_url: string | null;
-  video_url: string | null;
+  code?: string;
+  description?: string | null;
+  base_image_url?: string | null;
+  category_id?: string;
+  category?: {
+    id: string;
+    name: string;
+    icon?: string | null;
+  } | null;
+  sale_price: number;
+  cost_price: number;
+  profit_margin: number;
+  sale_type: string; // 'unidade' | 'peso'
+  unit: string;
+  current_stock: number;
+  minimum_stock: number;
   active: boolean;
   display_order: number;
-  created_at: string;
-  updated_at: string;
+  created_at?: string;
+  updated_at?: string;
 }
+
+// Type for creating/updating products (uses category_id, not category object)
+export type ProductInput = Omit<Product, 'id' | 'created_at' | 'updated_at' | 'category'> & {
+  category_id: string;
+};
 
 export function useProducts(categoryId?: string, activeOnly = false) {
   return useQuery({
@@ -23,12 +41,12 @@ export function useProducts(categoryId?: string, activeOnly = false) {
         .from('products')
         .select(`
           *,
-          category:categories(id, name),
-          sizes:product_sizes(*)
+          category:categories(id, name, icon)
         `)
-        .order('display_order', { ascending: true });
+        .order('display_order', { ascending: true })
+        .order('name', { ascending: true });
 
-      if (categoryId) {
+      if (categoryId && categoryId !== 'all') {
         query = query.eq('category_id', categoryId);
       }
 
@@ -37,120 +55,30 @@ export function useProducts(categoryId?: string, activeOnly = false) {
       }
 
       const { data, error } = await query;
-      if (error) throw error;
-      return data;
+      if (error) {
+        console.error("Error fetching products:", error);
+        return [];
+      }
+      return data as Product[];
     },
   });
 }
 
-export function useProduct(id: string) {
+export function useProduct(id?: string) {
   return useQuery({
     queryKey: ['products', id],
     queryFn: async () => {
-      try {
-        const { data, error } = await supabase
-          .from('products')
-          .select(`
-            *,
-            category:categories(id, name, store_id),
-            sizes:product_sizes(*)
-          `)
-          .eq('id', id)
-          .single();
-
-        if (error) {
-          console.error("Error fetching product:", error);
-          // throw error; // Let react-query handle it
-          return null; // Or return null to avoid crash? Better to throw so isError is true
-        }
-
-        // Fetch sizes separately or assume they came?
-        // The original code included sizes:product_sizes(*).
-        // If product_sizes has strict RLS, this join might fail?
-        // Let's try to remove the join for debugging if this persists, but for now just logging.
-
-        return data;
-      } catch (err) {
-        console.error("Unexpected error in useProduct:", err);
-        // throw err; // Prevent crash, return null so we show "Product Not Found" state
-        return null;
-      }
-    },
-    enabled: !!id,
-  });
-}
-
-export function useProductVideos(productId: string) {
-  return useQuery({
-    queryKey: ['product_videos', productId],
-    queryFn: async () => {
+      if (!id) return null;
       const { data, error } = await supabase
-        .from('product_videos' as any) // Cast as any until types are generated
+        .from('products')
         .select('*')
-        .eq('product_id', productId)
-        .eq('active', true)
-        .order('display_order', { ascending: true });
-
-      if (error) {
-        // Silent fail or log?
-        console.warn('Error fetching product videos:', error);
-        return [];
-      }
-      return data || [];
-    },
-    enabled: !!productId,
-  });
-}
-
-export function useCreateProductVideo() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (video: { product_id: string; video_url: string; title?: string; description?: string }) => {
-      const { data, error } = await supabase
-        .from('product_videos' as any)
-        .insert(video)
-        .select()
+        .eq('id', id)
         .single();
 
       if (error) throw error;
-      return data;
+      return data as unknown as Product;
     },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['product_videos', variables.product_id] });
-      toast({ title: 'Vídeo adicionado com sucesso!' });
-    },
-    onError: (error) => {
-      toast({
-        title: 'Erro ao adicionar vídeo: ' + error.message,
-        variant: 'destructive'
-      });
-    },
-  });
-}
-
-export function useDeleteProductVideo() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ id, productId }: { id: string; productId: string }) => {
-      const { error } = await supabase
-        .from('product_videos' as any)
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-    },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['product_videos', variables.productId] });
-      toast({ title: 'Vídeo removido com sucesso!' });
-    },
-    onError: (error) => {
-      toast({
-        title: 'Erro ao remover vídeo: ' + error.message,
-        variant: 'destructive'
-      });
-    },
+    enabled: !!id,
   });
 }
 
@@ -158,10 +86,10 @@ export function useCreateProduct() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (product: Omit<Product, 'id' | 'created_at' | 'updated_at'>) => {
+    mutationFn: async (product: Record<string, any>) => {
       const { data, error } = await supabase
         .from('products')
-        .insert(product)
+        .insert(product as any)
         .select()
         .single();
 
@@ -170,14 +98,10 @@ export function useCreateProduct() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
-      toast({ title: 'Produto criado com sucesso!' });
+      toast.success('Produto criado com sucesso!');
     },
     onError: (error: Error) => {
-      toast({
-        title: 'Erro ao criar produto',
-        description: error.message,
-        variant: 'destructive'
-      });
+      toast.error(`Erro ao criar produto: ${error.message}`);
     },
   });
 }
@@ -186,25 +110,24 @@ export function useUpdateProduct() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, ...updates }: Partial<Product> & { id: string }) => {
+    mutationFn: async ({ id, ...updates }: { id: string } & Record<string, any>) => {
+      // Remove category object if present (only category_id should be sent)
+      const { category, ...cleanUpdates } = updates;
+
       const { error } = await supabase
         .from('products')
-        .update(updates)
+        .update(cleanUpdates)
         .eq('id', id);
 
       if (error) throw error;
-      return { id, ...updates };
+      return { id, ...cleanUpdates };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
-      toast({ title: 'Produto atualizado com sucesso!' });
+      toast.success('Produto atualizado com sucesso!');
     },
     onError: (error: Error) => {
-      toast({
-        title: 'Erro ao atualizar produto',
-        description: error.message,
-        variant: 'destructive'
-      });
+      toast.error(`Erro ao atualizar produto: ${error.message}`);
     },
   });
 }
@@ -223,14 +146,10 @@ export function useDeleteProduct() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
-      toast({ title: 'Produto excluído com sucesso!' });
+      toast.success('Produto excluído com sucesso!');
     },
     onError: (error: Error) => {
-      toast({
-        title: 'Erro ao excluir produto',
-        description: error.message,
-        variant: 'destructive'
-      });
+      toast.error(`Erro ao excluir produto: ${error.message}`);
     },
   });
 }
@@ -255,11 +174,89 @@ export function useUploadProductImage() {
       return publicUrl;
     },
     onError: (error: Error) => {
-      toast({
-        title: 'Erro ao fazer upload da imagem',
-        description: error.message,
-        variant: 'destructive'
-      });
+      toast.error(`Erro ao fazer upload da imagem: ${error.message}`);
     },
+  });
+}
+
+// Hook para buscar vídeos do produto
+export function useProductVideos(productId: string) {
+  const queryClient = useQueryClient();
+
+  return useQuery({
+    queryKey: ['product_videos', productId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('product_videos' as any)
+        .select('*')
+        .eq('product_id', productId)
+        .order('display_order', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching product videos:', error);
+        return [];
+      }
+      return data;
+    },
+    enabled: !!productId
+  });
+}
+
+// Hook para criar vídeo do produto
+export function useCreateProductVideo() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: {
+      product_id: string;
+      video_url: string;
+      title?: string;
+      description?: string
+    }) => {
+      const { data: newVideo, error } = await supabase
+        .from('product_videos' as any)
+        .insert({
+          product_id: data.product_id,
+          video_url: data.video_url,
+          title: data.title || null,
+          description: data.description || null
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return newVideo;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['product_videos', variables.product_id] });
+      toast.success('Vídeo adicionado com sucesso!');
+    },
+    onError: (error: Error) => {
+      toast.error(`Erro ao adicionar vídeo: ${error.message}`);
+    }
+  });
+}
+
+// Hook para deletar vídeo do produto
+export function useDeleteProductVideo() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, productId }: { id: string; productId: string }) => {
+      const { error } = await supabase
+        .from('product_videos' as any)
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      return { id, productId };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['product_videos', data.productId] });
+      toast.success('Vídeo removido com sucesso!');
+    },
+    onError: (error: Error) => {
+      toast.error(`Erro ao remover vídeo: ${error.message}`);
+    }
   });
 }

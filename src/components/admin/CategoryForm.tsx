@@ -8,6 +8,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -22,6 +23,7 @@ const categorySchema = z.object({
   image_url: z.string().optional().nullable(),
   active: z.boolean().default(true),
   display_order: z.number().default(0),
+  pdv_only: z.boolean().default(false),
 });
 
 type CategoryFormData = z.infer<typeof categorySchema>;
@@ -44,12 +46,13 @@ export function CategoryForm({
 
   const form = useForm<CategoryFormData>({
     resolver: zodResolver(categorySchema),
-    defaultValues: category || {
-      name: '',
-      icon: '',
-      image_url: '',
-      active: true,
-      display_order: 0,
+    defaultValues: {
+      name: category?.name || '',
+      icon: category?.icon || '',
+      image_url: category?.image_url || '',
+      active: category?.active ?? true,
+      display_order: category?.display_order || 0,
+      pdv_only: category?.pdv_only ?? false,
     },
   });
 
@@ -139,6 +142,28 @@ export function CategoryForm({
               </div>
               <FormControl>
                 <Switch checked={field.value} onCheckedChange={field.onChange} />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="pdv_only"
+          render={({ field }) => (
+            <FormItem className="flex items-center justify-between rounded-lg border p-4 border-orange-200 bg-orange-50">
+              <div className="space-y-0.5">
+                <FormLabel className="text-orange-700">Apenas PDV</FormLabel>
+                <FormDescription className="text-xs text-orange-600">
+                  Quando ativo, esta categoria só aparece no PDV (não no delivery)
+                </FormDescription>
+              </div>
+              <FormControl>
+                <Switch
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                  className="data-[state=checked]:bg-orange-500"
+                />
               </FormControl>
             </FormItem>
           )}

@@ -15,7 +15,14 @@ import {
   Store,
   Megaphone,
   BarChart3,
-  MessageSquare
+  MessageSquare,
+  ShoppingCart,
+  Grid,
+  Wallet,
+  History,
+  Barcode,
+  PieChart,
+  Leaf
 } from 'lucide-react';
 import {
   Sidebar,
@@ -38,12 +45,21 @@ import logoCircular from '@/assets/logo-circular.png';
 // Menu organizado por seções
 const menuSections = [
   {
+    label: '🏪 PDV (Frente de Caixa)',
+    items: [
+      { title: 'Nova Venda', url: '/admin/pdv/nova-venda', icon: ShoppingCart, highlight: true },
+      { title: 'Mesas', url: '/admin/pdv/mesas', icon: Grid },
+      { title: 'Caixa', url: '/admin/pdv/caixa', icon: Wallet },
+      { title: 'Histórico', url: '/admin/pdv/historico', icon: History },
+    ]
+  },
+  {
     label: '📊 Operação',
     items: [
       { title: 'Dashboard', url: '/admin/dashboard', icon: LayoutDashboard },
-      { title: 'Pedidos', url: '/admin/orders', icon: ShoppingBag, highlight: true },
+      { title: 'Pedidos', url: '/admin/orders', icon: ShoppingBag },
       { title: 'KDS Cozinha', url: '/admin/kds', icon: Monitor },
-      { title: 'Entregas', url: '/admin/delivery', icon: Truck, highlight: true },
+      { title: 'Entregas', url: '/admin/delivery', icon: Truck },
       { title: 'Áreas de Entrega', url: '/admin/delivery/areas', icon: Truck },
       { title: 'Estoque', url: '/admin/inventory', icon: Package },
     ]
@@ -54,6 +70,7 @@ const menuSections = [
       { title: 'Categorias', url: '/admin/menu/categories', icon: FolderTree },
       { title: 'Produtos', url: '/admin/menu/products', icon: PackageOpen },
       { title: 'Complementos', url: '/admin/menu/toppings', icon: Plus },
+      { title: 'Ingredientes', url: '/admin/menu/ingredients', icon: Leaf },
       { title: 'Promoções', url: '/admin/promotions', icon: Megaphone },
     ]
   },
@@ -63,6 +80,7 @@ const menuSections = [
       { title: 'Financeiro', url: '/admin/financial', icon: DollarSign },
       { title: 'Clientes (CRM)', url: '/admin/customers', icon: Users },
       { title: 'Avaliações NPS', url: '/admin/feedback', icon: MessageSquare, requireRole: 'manager' },
+      { title: 'Relatórios PDV', url: '/admin/pdv/relatorios', icon: PieChart, requireRole: 'manager' },
       { title: 'Food Analytics', url: '/admin/analytics', icon: BarChart3, requireRole: 'manager' },
     ]
   },
@@ -76,10 +94,12 @@ const menuSections = [
     label: '⚙️ Sistema',
     items: [
       { title: 'Franqueados', url: '/admin/franchisees', icon: Store, requireRole: 'franchisee_master' },
-      { title: 'Configurações', url: '/admin/settings', icon: Settings },
+      { title: 'Configurações PDV', url: '/admin/pdv/configuracoes', icon: Settings },
+      { title: 'Configurações Gerais', url: '/admin/settings', icon: Settings },
     ]
   },
 ];
+
 
 export function AdminSidebar() {
   const { state } = useSidebar();

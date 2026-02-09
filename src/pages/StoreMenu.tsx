@@ -30,7 +30,7 @@ const StoreMenu = () => {
   const [customerId, setCustomerId] = useState<string>();
 
   const { data: store, isLoading: loadingStore, error: storeError } = useStoreBySlug(slug);
-  const { data: categories, isLoading: loadingCategories } = useCategories(true, store?.id);
+  const { data: categories, isLoading: loadingCategories } = useCategories(true, store?.id, { excludePdvOnly: true });
   const { data: allProducts, isLoading: loadingProducts } = useProducts(selectedCategoryId, true);
   const { data: favorites } = useFavorites(customerId);
   const toggleFavorite = useToggleFavorite();
@@ -81,27 +81,38 @@ const StoreMenu = () => {
   }, [storeProducts, searchQuery]);
 
   const getPriceInfo = (product: any) => {
-    if (!product.sizes || product.sizes.length === 0) {
-      return { currentPrice: '0.00', originalPrice: null, discount: null };
+    // Se tiver tamanhos, pega o menor preço dos tamanhos
+    if (product.sizes && product.sizes.length > 0) {
+      const sizesWithPrices = product.sizes.map((s: any) => ({
+        current: s.promotional_price ?? s.price,
+        original: s.promotional_price ? s.price : null,
+      }));
+
+      const minPriceSize = sizesWithPrices.reduce((min: any, s: any) =>
+        s.current < min.current ? s : min
+        , sizesWithPrices[0]);
+
+      const discount = minPriceSize.original
+        ? Math.round((1 - minPriceSize.current / minPriceSize.original) * 100)
+        : null;
+
+      return {
+        currentPrice: minPriceSize.current.toFixed(2),
+        originalPrice: minPriceSize.original?.toFixed(2) || null,
+        discount,
+      };
     }
 
-    // Encontrar o tamanho com menor preço (considerando preço promocional se existir)
-    const sizesWithPrices = product.sizes.map((s: any) => ({
-      current: s.promotional_price ?? s.price,
-      original: s.promotional_price ? s.price : null,
-    }));
-
-    const minPriceSize = sizesWithPrices.reduce((min: any, s: any) =>
-      s.current < min.current ? s : min
-      , sizesWithPrices[0]);
-
-    const discount = minPriceSize.original
-      ? Math.round((1 - minPriceSize.current / minPriceSize.original) * 100)
+    // Se não tiver tamanhos, usa o preço do produto base
+    const current = product.promotional_price ?? product.sale_price ?? 0;
+    const original = product.promotional_price ? product.sale_price : null;
+    const discount = original
+      ? Math.round((1 - current / original) * 100)
       : null;
 
     return {
-      currentPrice: minPriceSize.current.toFixed(2),
-      originalPrice: minPriceSize.original?.toFixed(2) || null,
+      currentPrice: current.toFixed(2),
+      originalPrice: original?.toFixed(2) || null,
       discount,
     };
   };

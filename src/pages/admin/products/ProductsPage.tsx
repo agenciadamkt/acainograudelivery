@@ -51,46 +51,18 @@ export default function ProductsPage() {
   const [editingProduct, setEditingProduct] = useState<any>();
   const [deletingProduct, setDeletingProduct] = useState<any>();
 
+
   const handleCreate = async (data: any) => {
-    const { sizes, ...productData } = data;
-    const product = await createProduct.mutateAsync(productData);
-    
-    // Criar tamanhos
-    for (const size of sizes) {
-      await createSize.mutateAsync({
-        ...size,
-        product_id: product.id,
-      });
-    }
-    
+    await createProduct.mutateAsync(data);
     setIsDialogOpen(false);
   };
 
   const handleUpdate = async (data: any) => {
     if (editingProduct) {
-      const { sizes, ...productData } = data;
-      await updateProduct.mutateAsync({ 
-        id: editingProduct.id, 
-        ...productData,
-        active: data.active
+      await updateProduct.mutateAsync({
+        id: editingProduct.id,
+        ...data,
       });
-      
-      // Atualizar tamanhos existentes
-      for (const size of sizes) {
-        if (size.id) {
-          await updateSize.mutateAsync({
-            id: size.id,
-            product_id: editingProduct.id,
-            ...size,
-          });
-        } else {
-          await createSize.mutateAsync({
-            ...size,
-            product_id: editingProduct.id,
-          });
-        }
-      }
-      
       setEditingProduct(undefined);
       setIsDialogOpen(false);
     }
@@ -131,14 +103,25 @@ export default function ProductsPage() {
       render: (product: any) => product.category?.name || '-',
     },
     {
-      key: 'sizes',
-      label: 'Tamanhos',
-      render: (product: any) => (
-        <span className="text-sm text-muted-foreground">
-          {product.sizes?.length || 0} tamanhos
-        </span>
-      ),
+      key: 'sale_price',
+      label: 'Preço Venda',
+      render: (product: any) => `R$ ${product.sale_price?.toFixed(2) || '0.00'}`
     },
+    {
+      key: 'cost_price',
+      label: 'Preço Custo',
+      render: (product: any) => `R$ ${product.cost_price?.toFixed(2) || '0.00'}`
+    },
+    {
+      key: 'current_stock',
+      label: 'Estoque',
+      render: (product: any) => (
+        <span className={product.current_stock <= product.minimum_stock ? "text-red-500 font-bold" : ""}>
+          {product.current_stock} {product.unit}
+        </span>
+      )
+    },
+
     {
       key: 'active',
       label: 'Status',

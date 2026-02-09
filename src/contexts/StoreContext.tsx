@@ -32,6 +32,7 @@ interface StoreContextType {
   switchStore: (storeId: string) => void;
   refreshStores: () => Promise<void>;
   canManageStore: (storeId: string) => boolean;
+  toggleStoreStatus: (isOpen: boolean) => Promise<void>;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -108,6 +109,27 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return store?.franchisee_user_id === user?.id;
   };
 
+  const toggleStoreStatus = async (isOpen: boolean) => {
+    if (!currentStore) return;
+
+    try {
+      const { error } = await supabase
+        .from('stores')
+        .update({ status: isOpen ? 'open' : 'closed' })
+        .eq('id', currentStore.id);
+
+      if (error) throw error;
+
+      setCurrentStore(prev => prev ? { ...prev, status: isOpen ? 'open' : 'closed' } : null);
+      setStores(prev => prev.map(s => s.id === currentStore.id ? { ...s, status: isOpen ? 'open' : 'closed' } : s));
+
+      toast.success(isOpen ? 'Loja aberta com sucesso!' : 'Loja fechada com sucesso!');
+    } catch (error) {
+      console.error('Error toggling store status:', error);
+      toast.error('Erro ao atualizar status da loja');
+    }
+  };
+
   return (
     <StoreContext.Provider
       value={{
@@ -117,6 +139,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         switchStore,
         refreshStores,
         canManageStore,
+        toggleStoreStatus,
       }}
     >
       {children}

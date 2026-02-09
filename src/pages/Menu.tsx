@@ -24,7 +24,7 @@ const Menu = () => {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | undefined>();
   const [customerId, setCustomerId] = useState<string>();
 
-  const { data: categories, isLoading: loadingCategories } = useCategories(true, currentStore?.id);
+  const { data: categories, isLoading: loadingCategories } = useCategories(true, currentStore?.id, { excludePdvOnly: true });
   const { data: products, isLoading: loadingProducts } = useProducts(selectedCategoryId, true);
   const { data: favorites } = useFavorites(customerId);
   const toggleFavorite = useToggleFavorite();
@@ -40,8 +40,8 @@ const Menu = () => {
     }
   }, [user]);
 
-  const favoriteIds = useMemo(() => 
-    favorites?.map(f => f.product_id) || [], 
+  const favoriteIds = useMemo(() =>
+    favorites?.map(f => f.product_id) || [],
     [favorites]
   );
 
@@ -50,14 +50,16 @@ const Menu = () => {
     return products.filter(product => {
       const matchesSearch = searchQuery
         ? product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          product.description?.toLowerCase().includes(searchQuery.toLowerCase())
+        product.description?.toLowerCase().includes(searchQuery.toLowerCase())
         : true;
       return matchesSearch;
     });
   }, [products, searchQuery]);
 
   const getMinPrice = (product: any) => {
-    if (!product.sizes || product.sizes.length === 0) return '0.00';
+    if (!product.sizes || product.sizes.length === 0) {
+      return (product.promotional_price || product.sale_price || 0).toFixed(2);
+    }
     const minPrice = Math.min(...product.sizes.map((s: any) => s.price));
     return minPrice.toFixed(2);
   };
@@ -115,16 +117,15 @@ const Menu = () => {
           ) : (
             <div className="grid grid-cols-4 gap-3">
               {categories?.map((category) => (
-                <div 
-                  key={category.id} 
+                <div
+                  key={category.id}
                   className="text-center cursor-pointer"
                   onClick={() => setSelectedCategoryId(
                     selectedCategoryId === category.id ? undefined : category.id
                   )}
                 >
-                  <div className={`bg-card rounded-2xl p-3 mb-2 shadow-card aspect-square flex items-center justify-center transition-all ${
-                    selectedCategoryId === category.id ? 'ring-2 ring-primary' : ''
-                  }`}>
+                  <div className={`bg-card rounded-2xl p-3 mb-2 shadow-card aspect-square flex items-center justify-center transition-all ${selectedCategoryId === category.id ? 'ring-2 ring-primary' : ''
+                    }`}>
                     <span className="text-4xl">{category.icon || '🍓'}</span>
                   </div>
                   <p className="text-xs leading-tight">{category.name}</p>
@@ -140,8 +141,8 @@ const Menu = () => {
               {selectedCategoryId ? 'Produtos' : 'Mais pedidos'}
             </h2>
             {selectedCategoryId && (
-              <Button 
-                variant="link" 
+              <Button
+                variant="link"
                 className="text-primary"
                 onClick={() => setSelectedCategoryId(undefined)}
               >
@@ -160,12 +161,12 @@ const Menu = () => {
             <div className="grid grid-cols-2 gap-4">
               {filteredProducts.map((product) => {
                 const isFavorite = favoriteIds.includes(product.id);
-                const isNew = product.created_at && 
+                const isNew = product.created_at &&
                   new Date(product.created_at) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-                
+
                 return (
-                  <Card 
-                    key={product.id} 
+                  <Card
+                    key={product.id}
                     className="bg-card rounded-2xl overflow-hidden shadow-card cursor-pointer transition-transform hover:scale-105"
                     onClick={() => navigate(`/product/${product.id}`)}
                   >
@@ -176,8 +177,8 @@ const Menu = () => {
                     )}
                     <div className="relative aspect-square bg-gradient-to-b from-primary/10 to-transparent flex items-center justify-center">
                       {product.base_image_url ? (
-                        <img 
-                          src={product.base_image_url} 
+                        <img
+                          src={product.base_image_url}
                           alt={product.name}
                           className="w-full h-full object-cover"
                         />
@@ -197,8 +198,8 @@ const Menu = () => {
                           toggleFavorite.mutate({ customerId, productId: product.id });
                         }}
                       >
-                        <Heart 
-                          className={`w-5 h-5 ${isFavorite ? 'fill-primary text-primary' : 'text-primary'}`} 
+                        <Heart
+                          className={`w-5 h-5 ${isFavorite ? 'fill-primary text-primary' : 'text-primary'}`}
                         />
                       </Button>
                     </div>
@@ -215,8 +216,8 @@ const Menu = () => {
                             A partir de R$ {getMinPrice(product)}
                           </div>
                         </div>
-                        <Button 
-                          size="icon" 
+                        <Button
+                          size="icon"
                           className="rounded-full bg-primary hover:bg-primary/90 h-8 w-8"
                           onClick={(e) => {
                             e.stopPropagation();
@@ -234,8 +235,8 @@ const Menu = () => {
           ) : (
             <div className="col-span-2 text-center py-12">
               <p className="text-muted-foreground">
-                {searchQuery 
-                  ? 'Nenhum produto encontrado' 
+                {searchQuery
+                  ? 'Nenhum produto encontrado'
                   : 'Nenhum produto cadastrado'}
               </p>
             </div>

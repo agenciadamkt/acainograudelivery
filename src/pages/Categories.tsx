@@ -10,7 +10,7 @@ export default function Categories() {
     const navigate = useNavigate();
     const { slug } = useParams<{ slug: string }>();
     const { data: store, isLoading: loadingStore } = useStoreBySlug(slug as string);
-    const { data: categories, isLoading: loadingCategories } = useCategories(true, store?.id);
+    const { data: categories, isLoading: loadingCategories } = useCategories(true, store?.id, { excludePdvOnly: true });
 
     if (loadingStore || loadingCategories) {
         return (

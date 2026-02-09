@@ -25,30 +25,67 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line
 } from 'recharts';
-import { format } from 'date-fns';
+import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Progress } from '@/components/ui/progress';
 
+
 const COLORS = ['#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#3b82f6'];
 
-type Period = 'today' | 'week' | 'month';
+type Period = 'today' | 'week' | 'month' | 'yesterday';
 
 export default function Dashboard() {
   const { user } = useAuth();
   const { currentStore } = useStore();
   const [realTime, setRealTime] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(new Date());
+  const [period, setPeriod] = useState<Period>('today');
+  const [dateRange, setDateRange] = useState({
+    from: startOfDay(new Date()).toISOString(),
+    to: endOfDay(new Date()).toISOString()
+  });
 
-  const { data: stats, isLoading, refetch } = useDashboardStats();
+  const updateDateRange = (value: string) => {
+    const now = new Date();
+    let from = startOfDay(now);
+    let to = endOfDay(now);
+
+    switch (value) {
+      case 'today':
+        from = startOfDay(now);
+        to = endOfDay(now);
+        break;
+      case 'yesterday':
+        const yesterday = subDays(now, 1);
+        from = startOfDay(yesterday);
+        to = endOfDay(yesterday);
+        break;
+      case 'week':
+        from = startOfWeek(now, { locale: ptBR });
+        to = endOfWeek(now, { locale: ptBR });
+        break;
+      case 'month':
+        from = startOfMonth(now);
+        to = endOfMonth(now);
+        break;
+    }
+
+    setPeriod(value as Period);
+    setDateRange({ from: from.toISOString(), to: to.toISOString() });
+  };
+
+  const { data: stats, isLoading, refetch } = useDashboardStats(dateRange.from, dateRange.to);
 
   useEffect(() => {
     if (realTime) {
       const interval = setInterval(() => {
         setLastUpdate(new Date());
+        // Refetch silently
+        refetch();
       }, 20000);
       return () => clearInterval(interval);
     }
-  }, [realTime]);
+  }, [realTime, refetch]);
 
   if (isLoading) {
     return (
@@ -99,7 +136,7 @@ export default function Dashboard() {
             Atualizar
           </Button>
 
-          <Select defaultValue="today">
+          <Select value={period} onValueChange={updateDateRange}>
             <SelectTrigger className="w-[120px] rounded-full">
               <CalendarIcon className="h-4 w-4 mr-2" />
               <SelectValue placeholder="Período" />
@@ -151,7 +188,7 @@ export default function Dashboard() {
         <MetricCard
           label="Faturamento Total"
           value={`R$ ${stats.cards.faturamentoTotal.toFixed(2)}`}
-          subValue="- 100.0% vs anterior"
+          subValue={`${stats.cards.comparacaoFaturamento > 0 ? '+' : ''}${stats.cards.comparacaoFaturamento.toFixed(1)}% vs anterior`}
           icon={<DollarSign className="h-6 w-6" />}
           iconColor="bg-orange-100 text-orange-500"
           type="financial"
@@ -159,21 +196,21 @@ export default function Dashboard() {
         <MetricCard
           label="Pedidos"
           value={stats.cards.totalOrders}
-          subValue="- 100.0%"
+          subValue={`${stats.cards.comparacaoPedidos > 0 ? '+' : ''}${stats.cards.comparacaoPedidos.toFixed(1)}%`}
           icon={<ShoppingBag className="h-6 w-6 text-blue-500" />}
           iconColor="bg-blue-100"
         />
         <MetricCard
           label="Ticket Médio"
           value={`R$ ${stats.cards.ticketMedio.toFixed(2)}`}
-          subValue="- 100.0%"
+          subValue={`${stats.cards.comparacaoTicket > 0 ? '+' : ''}${stats.cards.comparacaoTicket.toFixed(1)}%`}
           icon={<div className="h-6 w-6 rounded-full border-2 border-green-500 flex items-center justify-center"><div className="w-2 h-2 rounded-full bg-green-500" /></div>}
           iconColor="bg-green-100"
         />
         <MetricCard
           label="Tempo Médio Mesa"
           value={stats.cards.tempoMedioMesa}
-          subValue="0 mesas fechadas"
+          subValue={`${stats.footer.mesasFechadas} mesas fechadas`}
           icon={<Timer className="h-6 w-6 text-purple-500" />}
           iconColor="bg-purple-100"
         />

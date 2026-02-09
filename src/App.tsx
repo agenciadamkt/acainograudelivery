@@ -61,6 +61,14 @@ import FoodAnalyticsPage from "./pages/admin/FoodAnalyticsPage";
 import FeedbackPage from "./pages/admin/feedback/FeedbackPage";
 import GeocodingUtility from "./pages/admin/GeocodingUtility";
 import PromotionsPage from "./pages/admin/promotions/PromotionsPage";
+import Ingredientes from "./pages/admin/ingredientes/Ingredientes";
+
+import NovaVenda from "./pages/admin/pdv/NovaVenda";
+import Mesas from "./pages/admin/pdv/Mesas";
+import Caixa from "./pages/admin/pdv/Caixa";
+import Historico from "./pages/admin/pdv/Historico";
+import Configuracoes from "./pages/admin/pdv/Configuracoes";
+import Relatorios from "./pages/admin/pdv/Relatorios";
 
 import { ThemeProvider } from "next-themes";
 
@@ -255,6 +263,16 @@ const App = () => (
                         }
                       />
                       <Route
+                        path="/admin/menu/ingredients"
+                        element={
+                          <PrivateRoute requiredRole="manager">
+                            <AdminLayout>
+                              <Ingredientes />
+                            </AdminLayout>
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
                         path="/admin/settings"
                         element={
                           <PrivateRoute requiredRole="manager">
@@ -262,6 +280,70 @@ const App = () => (
                           </PrivateRoute>
                         }
                       />
+
+                      {/* PDV Module */}
+                      <Route
+                        path="/admin/pdv/nova-venda"
+                        element={
+                          <PrivateRoute requiredRole="staff">
+                            <AdminLayout>
+                              <NovaVenda />
+                            </AdminLayout>
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/pdv/mesas"
+                        element={
+                          <PrivateRoute requiredRole="staff">
+                            <AdminLayout>
+                              <Mesas />
+                            </AdminLayout>
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/pdv/caixa"
+                        element={
+                          <PrivateRoute requiredRole="staff">
+                            <AdminLayout>
+                              <Caixa />
+                            </AdminLayout>
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/pdv/historico"
+                        element={
+                          <PrivateRoute requiredRole="staff">
+                            <AdminLayout>
+                              <Historico />
+                            </AdminLayout>
+                          </PrivateRoute>
+                        }
+                      />
+
+                      <Route
+                        path="/admin/pdv/configuracoes"
+                        element={
+                          <PrivateRoute requiredRole="manager">
+                            <AdminLayout>
+                              <Configuracoes />
+                            </AdminLayout>
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/pdv/relatorios"
+                        element={
+                          <PrivateRoute requiredRole="manager">
+                            <AdminLayout>
+                              <Relatorios />
+                            </AdminLayout>
+                          </PrivateRoute>
+                        }
+                      />
+
                       <Route
                         path="/admin/geocoding"
                         element={

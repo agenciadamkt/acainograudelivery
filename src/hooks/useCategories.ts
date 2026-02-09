@@ -11,16 +11,24 @@ export interface Category {
   active: boolean;
   display_order: number;
   store_id: string | null;
+  pdv_only?: boolean; // When true, category only appears in PDV
   created_at: string;
   updated_at: string;
 }
 
-export function useCategories(activeOnly = false, storeId?: string) {
+interface UseCategoriesOptions {
+  activeOnly?: boolean;
+  storeId?: string;
+  excludePdvOnly?: boolean; // For delivery app - excludes PDV-only categories
+}
+
+export function useCategories(activeOnly = false, storeId?: string, options?: { excludePdvOnly?: boolean }) {
   const { currentStore } = useStore();
   const effectiveStoreId = storeId || currentStore?.id;
+  const excludePdvOnly = options?.excludePdvOnly ?? false;
 
   return useQuery({
-    queryKey: ['categories', effectiveStoreId, activeOnly],
+    queryKey: ['categories', effectiveStoreId, activeOnly, excludePdvOnly],
     queryFn: async () => {
       let query = supabase
         .from('categories')
@@ -35,8 +43,16 @@ export function useCategories(activeOnly = false, storeId?: string) {
         query = query.eq('active', true);
       }
 
+      // Exclude PDV-only categories for delivery app
+      if (excludePdvOnly) {
+        query = query.or('pdv_only.is.null,pdv_only.eq.false');
+      }
+
       const { data, error } = await query;
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching categories:", error);
+        return [];
+      }
       return data as Category[];
     },
     // Remover enabled para permitir buscar todas as categorias quando não há loja específica
