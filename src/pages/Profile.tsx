@@ -10,10 +10,15 @@ import { useCart } from '@/contexts/CartContext';
 import { useCustomerProfile, useUpdateCustomerProfile } from '@/hooks/useCustomerProfile';
 import { AddressManagement } from '@/components/customer/AddressManagement';
 import { useFavorites } from '@/hooks/useFavorites';
-import { User, MapPin, Heart, Clock, LogOut } from 'lucide-react';
+import { User, MapPin, Heart, Clock, LogOut, CalendarIcon } from 'lucide-react';
 import BottomNavigation from '@/components/BottomNavigation';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
 const Profile = () => {
   const { user, signOut } = useAuth();
@@ -27,7 +32,7 @@ const Profile = () => {
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [birthDate, setBirthDate] = useState('');
+  const [birthDate, setBirthDate] = useState<Date | undefined>();
 
   useEffect(() => {
     if (user) {
@@ -71,14 +76,19 @@ const Profile = () => {
     if (profile) {
       setName(profile.name || '');
       setPhone(profile.phone || '');
-      setBirthDate(profile.birth_date || '');
+
+      if (profile.birth_date) {
+        // Parse date reliably (YYYY-MM-DD -> Date)
+        const [year, month, day] = profile.birth_date.split('-').map(Number);
+        setBirthDate(new Date(year, month - 1, day));
+      }
     }
   }, [profile]);
 
   if (!user) {
-    return ( // ... (mantido igual, mas o diff cuidará da posição)
+    return (
       <div className="min-h-screen bg-background pb-20">
-        <div className="p-6">
+        <div className="p-6 pt-12">
           <h1 className="text-3xl font-bold mb-8">Perfil</h1>
           <Card className="p-8 text-center">
             <User className="w-20 h-20 mx-auto mb-4 text-muted-foreground" />
@@ -98,17 +108,19 @@ const Profile = () => {
     }
 
     try {
+      const formattedDate = birthDate ? format(birthDate, 'yyyy-MM-dd') : null;
+
       await updateProfile.mutateAsync({
         customerId,
         data: {
           name,
           phone,
-          birth_date: birthDate ? birthDate : null, // Ensure proper null handling
+          birth_date: formattedDate as any, // Cast to any to avoid TS mismatch if interface expects string
         },
       });
-      toast.success("Dados atualizados com sucesso!");
+      // toast is handled in the mutation hook (onSuccess)
     } catch (error) {
-      toast.error("Erro ao atualizar dados.");
+      // error is handled in the mutation hook (onError)
     }
   };
 
@@ -119,9 +131,9 @@ const Profile = () => {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      {/* Header com safe-area para PWA */}
-      <div className="sticky top-0 z-10 bg-background" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
-        <div className="p-6 pb-0">
+      {/* Header com safe-area para PWA - Ajustado para iPhone 15+ */}
+      <div className="sticky top-0 z-10 bg-background" style={{ paddingTop: 'max(env(safe-area-inset-top), 20px)' }}>
+        <div className="p-6 pb-0 pt-4">
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-3xl font-bold">Meu Perfil</h1>
             <Button variant="outline" size="sm" onClick={handleLogout}>
@@ -171,11 +183,32 @@ const Profile = () => {
                 </div>
                 <div>
                   <Label>Data de Nascimento</Label>
-                  <Input
-                    type="date"
-                    value={birthDate}
-                    onChange={(e) => setBirthDate(e.target.value)}
-                  />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant={"outline"}
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !birthDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {birthDate ? format(birthDate, "dd/MM/yyyy", { locale: ptBR }) : <span>Selecione uma data</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={birthDate}
+                        onSelect={setBirthDate}
+                        initialFocus
+                        locale={ptBR}
+                        captionLayout="dropdown-buttons"
+                        fromYear={1900}
+                        toYear={new Date().getFullYear()}
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 <Button onClick={handleSave} disabled={updateProfile.isPending}>
                   Salvar Alterações

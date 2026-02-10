@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -8,6 +8,7 @@ import locationBg from "@/assets/location-bg.jpg";
 import { useActiveStates } from "@/hooks/useActiveStates";
 import { toast } from "sonner";
 import { MapPin, Search } from "lucide-react";
+import { useStore } from "@/contexts/StoreContext";
 
 /**
  * Mapeamento de siglas para nomes completos (para exibição)
@@ -26,6 +27,17 @@ const LocationState = () => {
   const navigate = useNavigate();
   const [selectedState, setSelectedState] = useState("");
   const { data: states = [], isLoading, error } = useActiveStates();
+  const { currentStore } = useStore();
+
+  // Redirect if store is already selected
+  useEffect(() => {
+    // Only redirect if currentStore exists and has a slug
+    // We check for slug to ensure it's a valid loaded store
+    if (currentStore?.slug) {
+      console.log("Redirecting to saved store:", currentStore.name);
+      navigate(`/delivery/${currentStore.slug}`);
+    }
+  }, [currentStore, navigate]);
 
   const handleContinue = () => {
     if (!selectedState) {
