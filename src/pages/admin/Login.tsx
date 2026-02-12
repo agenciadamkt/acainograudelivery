@@ -4,8 +4,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import logoAcai from '@/assets/logo-acai.png';
+import logoAcai from '@/assets/logo-acai.png'; // Fallback logo
+import loginBg from '@/assets/login-bg.jpg';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -23,32 +23,45 @@ export default function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
+
     const { error } = await signIn(email, password);
-    
+
     if (!error) {
       navigate('/admin/dashboard');
     }
-    
+
     setIsLoading(false);
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-gradient-to-br from-primary/10 via-background to-primary/5">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-4 text-center">
-          <div className="flex justify-center">
-            <img src={logoAcai} alt="PedeGrau" className="h-16" />
+    <div className="min-h-screen grid md:grid-cols-2">
+      {/* Left Side - Form */}
+      <div className="flex flex-col justify-center items-center p-8 md:p-12 lg:p-16 bg-[#F5F5F7] animate-in slide-in-from-left-4 duration-500">
+        <div className="w-full max-w-md space-y-8">
+
+          {/* Logo */}
+          <div className="flex justify-start">
+            {/* NOTE: If you have the specific logo from design, replace 'logoAcai' with the new path */}
+            <img src={logoAcai} alt="Açaí no Grau" className="h-20 w-auto object-contain" />
           </div>
-          <CardTitle className="text-2xl font-bold">Admin Login</CardTitle>
-          <CardDescription>
-            Entre com suas credenciais para acessar o painel administrativo
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+
+          {/* Headlines */}
+          <div className="space-y-4">
+            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 leading-tight">
+              Bora colocar o faturamento<br />
+              no grau? 🔥
+            </h1>
+            <p className="text-gray-600 text-lg leading-relaxed">
+              Se tem pedido, a gente organiza.<br />
+              Se tem meta, a gente bate.<br />
+              Entra aí que o movimento não espera.
+            </p>
+          </div>
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" className="text-gray-700 font-medium">Email</Label>
               <Input
                 id="email"
                 type="email"
@@ -57,10 +70,12 @@ export default function Login() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 disabled={isLoading}
+                className="bg-white border-gray-200 h-12 rounded-xl focus:ring-2 focus:ring-[#8D42DD]/20 focus:border-[#8D42DD]"
               />
             </div>
+
             <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
+              <Label htmlFor="password" className="text-gray-700 font-medium">Senha</Label>
               <Input
                 id="password"
                 type="password"
@@ -69,25 +84,54 @@ export default function Login() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 disabled={isLoading}
+                className="bg-white border-gray-200 h-12 rounded-xl focus:ring-2 focus:ring-[#8D42DD]/20 focus:border-[#8D42DD]"
               />
             </div>
-            <Button 
-              type="submit" 
-              className="w-full" 
+
+            <div className="flex justify-end">
+              <Link
+                to="/admin/reset-password"
+                className="text-sm font-medium text-[#666666] hover:text-[#8D42DD] transition-colors"
+              >
+                Recuperar senha?
+              </Link>
+            </div>
+
+            <Button
+              type="submit"
               disabled={isLoading}
+              className="w-full h-12 bg-[#6E56CF] hover:bg-[#5a43b5] active:scale-[0.98] transition-all rounded-xl text-lg font-medium shadow-md hover:shadow-lg"
             >
               {isLoading ? 'Entrando...' : 'Entrar'}
             </Button>
           </form>
-          
-          <div className="mt-4 text-center text-sm">
-            <span className="text-muted-foreground">Primeiro acesso? </span>
-            <Link to="/admin/signup" className="text-primary hover:underline font-medium">
+
+          {/* Footer */}
+          <div className="text-center text-gray-600 font-medium">
+            Primeiro acesso? {' '}
+            <Link to="/admin/signup" className="text-[#6E56CF] hover:underline font-bold">
               Criar conta
             </Link>
           </div>
-        </CardContent>
-      </Card>
+
+        </div>
+      </div>
+
+      {/* Right Side - Image */}
+      <div className="hidden md:block relative bg-gray-900 overflow-hidden">
+        {/* Overlay gradient for text readability if needed, though design doesn't show text on image */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent z-10" />
+
+        <img
+          src={loginBg}
+          alt="Açaí Cup Background"
+          className="absolute inset-0 w-full h-full object-cover animate-in fade-in duration-1000 zoom-in-105"
+          style={{
+            objectPosition: 'center',
+            filter: 'brightness(0.9)'
+          }}
+        />
+      </div>
     </div>
   );
 }

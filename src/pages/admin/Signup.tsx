@@ -4,8 +4,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import logoAcai from '@/assets/logo-acai.png';
+import signupBg from '@/assets/signup-bg.jpg';
 import { z } from 'zod';
 import { toast } from 'sonner';
 
@@ -36,42 +36,58 @@ export default function Signup() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const validation = signupSchema.safeParse({ fullName, email, password, confirmPassword });
-    
-    if (!validation.success) {
-      const firstError = validation.error.errors[0];
-      toast.error(firstError.message);
+
+    // Manual validation via Zod before sending to auth
+    const result = signupSchema.safeParse({
+      fullName,
+      email,
+      password,
+      confirmPassword
+    });
+
+    if (!result.success) {
+      toast.error(result.error.errors[0].message);
       return;
     }
-    
+
     setIsLoading(true);
-    
+
     const { error } = await signUp(email, password, fullName);
-    
+
     if (!error) {
+      //   toast.success("Conta criada com sucesso!");
       navigate('/admin/dashboard');
     }
-    
+
     setIsLoading(false);
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-gradient-to-br from-primary/10 via-background to-primary/5">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-4 text-center">
-          <div className="flex justify-center">
-            <img src={logoAcai} alt="PedeGrau" className="h-16" />
+    <div className="min-h-screen grid md:grid-cols-2">
+      {/* Left Side - Form */}
+      <div className="flex flex-col justify-center items-center p-8 md:p-12 lg:p-16 bg-[#F5F5F7] animate-in slide-in-from-left-4 duration-500">
+        <div className="w-full max-w-md space-y-8">
+
+          {/* Logo */}
+          <div className="flex justify-start">
+            <img src={logoAcai} alt="Açaí no Grau" className="h-20 w-auto object-contain" />
           </div>
-          <CardTitle className="text-2xl font-bold">Criar Conta Admin</CardTitle>
-          <CardDescription>
-            Preencha os dados para criar sua conta de administrador
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+
+          {/* Headlines */}
+          <div className="space-y-4">
+            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 leading-tight">
+              Comece a faturar<br />
+              agora mesmo! 🚀
+            </h1>
+            <p className="text-gray-600 text-lg leading-relaxed">
+              Crie sua conta administrativa e tenha controle total sobre suas vendas e entregas.
+            </p>
+          </div>
+
+          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="fullName">Nome Completo</Label>
+              <Label htmlFor="fullName" className="text-gray-700 font-medium">Nome Completo</Label>
               <Input
                 id="fullName"
                 type="text"
@@ -80,10 +96,12 @@ export default function Signup() {
                 onChange={(e) => setFullName(e.target.value)}
                 required
                 disabled={isLoading}
+                className="bg-white border-gray-200 h-11 rounded-xl focus:ring-2 focus:ring-[#8D42DD]/20 focus:border-[#8D42DD]"
               />
             </div>
+
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" className="text-gray-700 font-medium">Email</Label>
               <Input
                 id="email"
                 type="email"
@@ -92,10 +110,12 @@ export default function Signup() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 disabled={isLoading}
+                className="bg-white border-gray-200 h-11 rounded-xl focus:ring-2 focus:ring-[#8D42DD]/20 focus:border-[#8D42DD]"
               />
             </div>
+
             <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
+              <Label htmlFor="password" className="text-gray-700 font-medium">Senha</Label>
               <Input
                 id="password"
                 type="password"
@@ -104,10 +124,12 @@ export default function Signup() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 disabled={isLoading}
+                className="bg-white border-gray-200 h-11 rounded-xl focus:ring-2 focus:ring-[#8D42DD]/20 focus:border-[#8D42DD]"
               />
             </div>
+
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirmar Senha</Label>
+              <Label htmlFor="confirmPassword" className="text-gray-700 font-medium">Confirmar Senha</Label>
               <Input
                 id="confirmPassword"
                 type="password"
@@ -116,25 +138,44 @@ export default function Signup() {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
                 disabled={isLoading}
+                className="bg-white border-gray-200 h-11 rounded-xl focus:ring-2 focus:ring-[#8D42DD]/20 focus:border-[#8D42DD]"
               />
             </div>
-            <Button 
-              type="submit" 
-              className="w-full" 
+
+            <Button
+              type="submit"
               disabled={isLoading}
+              className="w-full h-12 mt-2 bg-[#6E56CF] hover:bg-[#5a43b5] active:scale-[0.98] transition-all rounded-xl text-lg font-medium shadow-md hover:shadow-lg"
             >
-              {isLoading ? 'Criando conta...' : 'Criar Conta'}
+              {isLoading ? 'Criando conta...' : 'Criar Conta Grátis'}
             </Button>
           </form>
-          
-          <div className="mt-4 text-center text-sm">
-            <span className="text-muted-foreground">Já possui uma conta? </span>
-            <Link to="/admin/login" className="text-primary hover:underline font-medium">
-              Fazer login
+
+          {/* Footer */}
+          <div className="text-center text-gray-600 font-medium">
+            Já tem uma conta? {' '}
+            <Link to="/admin/login" className="text-[#6E56CF] hover:underline font-bold">
+              Fazer Login
             </Link>
           </div>
-        </CardContent>
-      </Card>
+
+        </div>
+      </div>
+
+      {/* Right Side - Image */}
+      <div className="hidden md:block relative bg-gray-900 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent z-10" />
+
+        <img
+          src={signupBg}
+          alt="Açaí Cup Background"
+          className="absolute inset-0 w-full h-full object-cover animate-in fade-in duration-1000 zoom-in-105"
+          style={{
+            objectPosition: 'center',
+            filter: 'brightness(0.9)'
+          }}
+        />
+      </div>
     </div>
   );
 }

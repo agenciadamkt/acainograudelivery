@@ -15,6 +15,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   register: (email: string, password: string, name: string, phone: string) => Promise<{ error: any }>;
+  resetPassword: (email: string) => Promise<{ error: any }>;
   hasRole: (role: UserRole) => boolean;
 }
 
@@ -167,6 +168,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const resetPassword = async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/admin/update-password`,
+    });
+    return { error };
+  };
+
   const hasRole = (role: UserRole): boolean => {
     if (!userRole || userRole.length === 0) {
       return false;
@@ -281,6 +289,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn,
       signOut,
       register,
+      resetPassword,
       hasRole
     }}>
       {children}

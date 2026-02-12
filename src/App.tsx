@@ -38,6 +38,7 @@ import InfinitePaySuccess from "./pages/InfinitePaySuccess";
 
 // Admin pages
 import Login from "./pages/admin/Login";
+import ResetPassword from "./pages/admin/ResetPassword";
 import Signup from "./pages/admin/Signup";
 import DriverLogin from "./pages/driver/DriverLogin";
 import DriverDashboard from "./pages/driver/DriverDashboard";
@@ -117,6 +118,7 @@ const App = () => (
                       {/* Admin auth routes */}
                       <Route path="/admin" element={<Navigate to="/admin/login" replace />} />
                       <Route path="/admin/login" element={<Login />} />
+                      <Route path="/admin/reset-password" element={<ResetPassword />} />
                       <Route path="/admin/signup" element={<Signup />} />
                       <Route path="/franchise-request" element={<FranchiseRequest />} />
 
