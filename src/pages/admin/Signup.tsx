@@ -30,7 +30,7 @@ export default function Signup() {
 
   useEffect(() => {
     if (user) {
-      navigate('/admin/dashboard');
+      navigate('/admin/hub');
     }
   }, [user, navigate]);
 
@@ -56,7 +56,7 @@ export default function Signup() {
 
     if (!error) {
       //   toast.success("Conta criada com sucesso!");
-      navigate('/admin/dashboard');
+      navigate('/admin/hub');
     }
 
     setIsLoading(false);

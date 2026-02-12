@@ -1,5 +1,6 @@
 // Service Worker para notificações em background (Web Push API)
-// Updated: 2026-01-24T21:49:00Z
+// Updated: 2026-02-04T13:40:00Z
+// Version: 4.2.1 - Autoplay fix
 
 const NOTIFICATION_CHANNEL = 'new-order-notifications';
 
@@ -101,32 +102,10 @@ self.addEventListener('install', (event) => {
   self.skipWaiting(); // Force immediate activation
 });
 
-// Lista de caches válidos (v3)
-const VALID_CACHES = [
-  'html-cache-v3',
-  'assets-cache-v3',
-  'workbox-precache-v2-'
-];
-
-// Listener de ativação - limpa caches antigos
+// Listener de ativação
 self.addEventListener('activate', (event) => {
-  console.log('[SW] ✅ Service Worker ativado - limpando caches antigos...');
-  event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          // Se não é um cache válido atual, deletar
-          const isValid = VALID_CACHES.some(valid => cacheName.includes(valid) || cacheName.startsWith(valid));
-          if (!isValid) {
-            console.log('[SW] 🗑️ Deletando cache antigo:', cacheName);
-            return caches.delete(cacheName);
-          }
-          return null;
-        })
-      );
-    }).then(() => {
-      console.log('[SW] ✅ Limpeza de caches concluída');
-      return clients.claim();
-    })
-  );
+  console.log('[SW] ✅ Service Worker ativado');
+  // A limpeza de caches é gerenciada pelo Workbox (cleanupOutdatedCaches: true no vite.config.ts)
+  // Removeremos a limpeza manual agressiva para evitar conflitos com os caches do Workbox
+  event.waitUntil(clients.claim());
 });

@@ -71,6 +71,13 @@ import Historico from "./pages/admin/pdv/Historico";
 import Configuracoes from "./pages/admin/pdv/Configuracoes";
 import Relatorios from "./pages/admin/pdv/Relatorios";
 
+// GrauOS pages
+import GrauOSHub from "./pages/admin/GrauOSHub";
+import UniversidadePage from "./pages/admin/universidade/UniversidadePage";
+import PerformancePage from "./pages/admin/performance/PerformancePage";
+import AssistentePage from "./pages/admin/assistente/AssistentePage";
+import ComunidadePage from "./pages/admin/comunidade/ComunidadePage";
+
 import { ThemeProvider } from "next-themes";
 
 const queryClient = new QueryClient();
@@ -125,6 +132,48 @@ const App = () => (
                       {/* Driver Module */}
                       <Route path="/driver/login" element={<DriverLogin />} />
                       <Route path="/driver/dashboard" element={<DriverDashboard />} />
+
+                      {/* GrauOS Hub & Modules */}
+                      <Route
+                        path="/admin/hub"
+                        element={
+                          <PrivateRoute requiredRole="staff">
+                            <GrauOSHub />
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/universidade"
+                        element={
+                          <PrivateRoute requiredRole="staff">
+                            <UniversidadePage />
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/performance"
+                        element={
+                          <PrivateRoute requiredRole="staff">
+                            <PerformancePage />
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/assistente"
+                        element={
+                          <PrivateRoute requiredRole="staff">
+                            <AssistentePage />
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/comunidade"
+                        element={
+                          <PrivateRoute requiredRole="staff">
+                            <ComunidadePage />
+                          </PrivateRoute>
+                        }
+                      />
 
                       {/* Franchise management */}
                       <Route path="/admin/franchisees" element={
