@@ -74,6 +74,8 @@ import Relatorios from "./pages/admin/pdv/Relatorios";
 // GrauOS pages
 import GrauOSHub from "./pages/admin/GrauOSHub";
 import UniversidadePage from "./pages/admin/universidade/UniversidadePage";
+import TrailDetailPage from "./pages/admin/universidade/TrailDetailPage";
+import UniversidadeAdminPage from "./pages/admin/universidade/UniversidadeAdminPage";
 import PerformancePage from "./pages/admin/performance/PerformancePage";
 import AssistentePage from "./pages/admin/assistente/AssistentePage";
 import ComunidadePage from "./pages/admin/comunidade/ComunidadePage";
@@ -147,6 +149,24 @@ const App = () => (
                         element={
                           <PrivateRoute requiredRole="staff">
                             <UniversidadePage />
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/universidade/admin"
+                        element={
+                          <PrivateRoute requiredRole="manager">
+                            <AdminLayout>
+                              <UniversidadeAdminPage />
+                            </AdminLayout>
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/universidade/:trailId"
+                        element={
+                          <PrivateRoute requiredRole="staff">
+                            <TrailDetailPage />
                           </PrivateRoute>
                         }
                       />

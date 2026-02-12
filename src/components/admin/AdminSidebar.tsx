@@ -22,7 +22,8 @@ import {
   History,
   Barcode,
   PieChart,
-  Leaf
+  Leaf,
+  GraduationCap
 } from 'lucide-react';
 import {
   Sidebar,
@@ -91,6 +92,7 @@ const menuSections = [
       { title: 'Avaliações NPS', url: '/admin/feedback', icon: MessageSquare, requireRole: 'manager' },
       { title: 'Relatórios PDV', url: '/admin/pdv/relatorios', icon: PieChart, requireRole: 'manager' },
       { title: 'Food Analytics', url: '/admin/analytics', icon: BarChart3, requireRole: 'manager' },
+      { title: 'Universidade', url: '/admin/universidade/admin', icon: GraduationCap, requireRole: 'manager' },
     ]
   },
   {
