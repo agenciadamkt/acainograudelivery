@@ -23,6 +23,8 @@ interface Store {
   mercadopago_public_key: string | null;
   mercadopago_access_token: string | null;
   business_hours: any;
+  zip_code: string | null;
+  neighborhood: string | null;
 }
 
 interface StoreContextType {

@@ -100,6 +100,10 @@ export function StoreSettingsTab() {
             name: formData.get('name') as string,
             phone: formData.get('phone') as string,
             address: formData.get('address') as string,
+            zip_code: formData.get('zip_code') as string,
+            neighborhood: formData.get('neighborhood') as string,
+            city: formData.get('city') as string,
+            state: formData.get('state') as string,
             delivery_time: formData.get('delivery_time') as string,
             min_order_value: parseFloat(formData.get('min_order_value') as string) || 0,
             delivery_fee: parseFloat(formData.get('delivery_fee') as string) || 0,
@@ -258,10 +262,60 @@ export function StoreSettingsTab() {
                                 <Label htmlFor="phone">Telefone / WhatsApp</Label>
                                 <Input id="phone" name="phone" defaultValue={currentStore.phone || ''} />
                             </div>
-                            <div className="space-y-2 md:col-span-2">
-                                <Label htmlFor="address">Endereço Completo</Label>
-                                <Input id="address" name="address" defaultValue={currentStore.address || ''} />
+
+                            <div className="col-span-1 md:col-span-2 border-t pt-4 mt-2">
+                                <h3 className="text-sm font-medium mb-4">Endereço e Localização</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="zip_code">CEP</Label>
+                                        <div className="flex gap-2">
+                                            <Input
+                                                id="zip_code"
+                                                name="zip_code"
+                                                defaultValue={currentStore.zip_code || ''}
+                                                placeholder="00000-000"
+                                                maxLength={9}
+                                                onChange={(e) => {
+                                                    const value = e.target.value.replace(/\D/g, '');
+                                                    if (value.length === 8) {
+                                                        fetch(`https://viacep.com.br/ws/${value}/json/`)
+                                                            .then(res => res.json())
+                                                            .then(data => {
+                                                                if (!data.erro) {
+                                                                    const form = e.target.form;
+                                                                    if (form) {
+                                                                        (form.elements.namedItem('address') as HTMLInputElement).value = data.logradouro;
+                                                                        (form.elements.namedItem('neighborhood') as HTMLInputElement).value = data.bairro;
+                                                                        (form.elements.namedItem('city') as HTMLInputElement).value = data.localidade;
+                                                                        (form.elements.namedItem('state') as HTMLInputElement).value = data.uf;
+                                                                        toast.success('Endereço encontrado!');
+                                                                    }
+                                                                }
+                                                            });
+                                                    }
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="state">Estado (UF)</Label>
+                                        <Input id="state" name="state" defaultValue={currentStore.state || ''} maxLength={2} placeholder="UF" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="city">Cidade</Label>
+                                        <Input id="city" name="city" defaultValue={currentStore.city || ''} />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="neighborhood">Bairro</Label>
+                                        <Input id="neighborhood" name="neighborhood" defaultValue={currentStore.neighborhood || ''} />
+                                    </div>
+                                    <div className="space-y-2 md:col-span-2">
+                                        <Label htmlFor="address">Endereço (Logradouro, Número, Complemento)</Label>
+                                        <Input id="address" name="address" defaultValue={currentStore.address || ''} />
+                                    </div>
+                                </div>
                             </div>
+
                             <div className="space-y-2">
                                 <Label htmlFor="delivery_time">Tempo Estimado (ex: 40-60)</Label>
                                 <Input id="delivery_time" name="delivery_time" defaultValue={currentStore.delivery_time || ''} placeholder="40-60" />

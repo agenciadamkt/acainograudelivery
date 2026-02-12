@@ -19,11 +19,13 @@ import { useOrders } from '@/hooks/useOrders';
 import { useDeliveryAreas } from '@/hooks/useDeliveryAreas';
 import { useStore } from '@/contexts/StoreContext';
 import { toast } from 'sonner';
+import { useStores } from '@/hooks/useStores';
 
 export default function DeliveryPage() {
   const [driverDialogOpen, setDriverDialogOpen] = useState(false);
   const [editingDriver, setEditingDriver] = useState<any>(null);
   const { currentStore } = useStore();
+  const { data: stores } = useStores();
 
   const { data: drivers } = useDeliveryDrivers();
   const { deliveryAreas: areas } = useDeliveryAreas(currentStore?.id);
@@ -54,14 +56,23 @@ export default function DeliveryPage() {
   const activeDeliveriesCount = orders.filter(o => o.status === 'out_for_delivery').length;
 
   const handleCreateDriver = async (data: any) => {
-    await createDriver.mutateAsync(data);
+    const { allowed_store_ids, is_global, ...driverData } = data;
+    await createDriver.mutateAsync({
+      driver: { ...driverData, is_global },
+      allowed_store_ids
+    });
     setDriverDialogOpen(false);
     setEditingDriver(null);
   };
 
   const handleUpdateDriver = async (data: any) => {
     if (editingDriver) {
-      await updateDriver.mutateAsync({ id: editingDriver.id, ...data });
+      const { allowed_store_ids, is_global, ...driverData } = data;
+      await updateDriver.mutateAsync({
+        id: editingDriver.id,
+        updates: { ...driverData, is_global },
+        allowed_store_ids
+      });
       setDriverDialogOpen(false);
       setEditingDriver(null);
     }
@@ -186,13 +197,21 @@ export default function DeliveryPage() {
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {drivers.map((driver) => {
                 const statusBadge = getStatusBadge(driver.status);
+                const isGlobal = driver.is_global;
+                const isExternal = driver.store_id && currentStore?.id && driver.store_id !== currentStore.id;
+                const ownerStore = stores?.find(s => s.id === driver.store_id);
+
                 return (
                   <Card key={driver.id} className="hover:shadow-lg transition-shadow">
                     <CardHeader>
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <CardTitle className="text-lg">{driver.name}</CardTitle>
-                          <div className="flex items-center gap-2 mt-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <CardTitle className="text-lg">{driver.name}</CardTitle>
+                            {isGlobal && <Badge variant="secondary" className="bg-purple-100 text-purple-800 hover:bg-purple-200">Global</Badge>}
+                            {isExternal && <Badge variant="outline" className="text-xs">De: {ownerStore?.name || 'Outra Loja'}</Badge>}
+                          </div>
+                          <div className="flex items-center gap-2">
                             <Phone className="h-3 w-3 text-muted-foreground" />
                             <span className="text-sm text-muted-foreground">{driver.phone}</span>
                           </div>
@@ -303,11 +322,12 @@ export default function DeliveryPage() {
 
       {/* Diálogo de Entregador */}
       <Dialog open={driverDialogOpen} onOpenChange={setDriverDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingDriver ? 'Editar Entregador' : 'Novo Entregador'}</DialogTitle>
           </DialogHeader>
           <DriverForm
+            key={editingDriver?.id || 'new'}
             driver={editingDriver}
             onSubmit={editingDriver ? handleUpdateDriver : handleCreateDriver}
             onCancel={() => {

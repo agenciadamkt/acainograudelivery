@@ -350,7 +350,7 @@ const TrackingMap = ({ orders, drivers, areas }: TrackingMapProps) => {
     }, [orders, drivers, areas, createOrderIcon, isMapReady]);
 
     return (
-        <div className="h-full w-full relative">
+        <div className="h-full w-full relative z-0">
             <div ref={mapContainerRef} className="h-full w-full rounded-lg shadow-inner border" />
             {!isMapReady && (
                 <div className="absolute inset-0 bg-muted animate-pulse rounded-lg flex items-center justify-center">
