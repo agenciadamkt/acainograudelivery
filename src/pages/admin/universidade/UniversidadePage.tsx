@@ -8,7 +8,7 @@ import {
     CheckCircle2, BookOpen, GraduationCap, TrendingUp, Plus, ThumbsUp,
     ChevronDown, Volume2, VolumeX, Loader2
 } from 'lucide-react';
-import logoCircular from '@/assets/logo-circular.png';
+import logoWhite from '@/assets/logo-white.png';
 import heroBg from '@/assets/hero-universidade.png';
 import { useTrails, Trail } from '@/hooks/useUniversity';
 import { Button } from '@/components/ui/button';
@@ -356,7 +356,7 @@ export default function UniversidadePage() {
             {/* ════ Navbar ════ */}
             <nav className={`fixed top-0 w-full z-50 transition-colors duration-500 px-4 md:px-12 h-16 flex items-center justify-between ${scrolled ? 'bg-[#141414]' : 'bg-gradient-to-b from-black/80 to-transparent'}`}>
                 <div className="flex items-center gap-8">
-                    <img src={logoCircular} alt="Logo" className="h-8 md:h-10 w-auto cursor-pointer" onClick={() => navigate('/hub')} />
+                    <img src={logoWhite} alt="Logo" className="h-8 md:h-10 w-auto cursor-pointer object-contain" onClick={() => navigate('/hub')} />
                     <ul className="hidden md:flex items-center gap-5 text-sm font-medium text-white/80">
                         <li className="text-white font-bold cursor-pointer">Início</li>
                         <li className="hover:text-white/60 transition-colors cursor-pointer">Séries</li>
@@ -395,7 +395,7 @@ export default function UniversidadePage() {
                     {/* Hero Content */}
                     <div className="absolute inset-0 flex flex-col justify-center px-4 md:px-12 pt-12 md:pt-0 max-w-2xl space-y-4 md:space-y-6">
                         <div className="flex items-center gap-2 mb-2 animate-in fade-in slide-in-from-left-4 duration-700">
-                            <img src={logoCircular} className="w-6 h-6 md:w-8 md:h-8" />
+                            <img src={logoWhite} className="w-6 h-6 md:w-8 md:h-8 object-contain" />
                             <span className="text-xs md:text-sm font-bold tracking-[4px] uppercase text-white/70">Original Açaí no Grau</span>
                         </div>
 
