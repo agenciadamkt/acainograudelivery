@@ -338,7 +338,7 @@ export default function UniversidadePage() {
                     <div className="absolute inset-0">
                         {/* Fallback to image if no video */}
                         <img
-                            src={heroBg}
+                            src={heroTrail.thumbnail || heroBg} // Dynamic Hero Image
                             alt="Hero Background"
                             className="w-full h-full object-cover opacity-60"
                         />
