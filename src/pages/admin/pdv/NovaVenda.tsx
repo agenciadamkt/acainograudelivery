@@ -1,9 +1,9 @@
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, ShoppingCart, CreditCard, Trash, Plus, Minus, Check, ChevronRight } from 'lucide-react';
+import { Search, ShoppingCart, CreditCard, Trash, Plus, Minus, Check, ChevronRight, Maximize, Minimize } from 'lucide-react';
 import { useProducts } from '@/hooks/useProducts';
 import { usePdvOrders } from '@/hooks/pdv/usePdvOrders';
 import { usePdvSettings } from '@/hooks/pdv/usePdvSettings';
@@ -59,6 +59,27 @@ export default function NovaVenda() {
     // Weight input modal state
     const [isWeightModalOpen, setIsWeightModalOpen] = useState(false);
     const [selectedProductForWeight, setSelectedProductForWeight] = useState<any>(null);
+
+    // Fullscreen Logic
+    const [isFullscreen, setIsFullscreen] = useState(false);
+
+    const toggleFullscreen = () => {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen();
+            setIsFullscreen(true);
+        } else {
+            document.exitFullscreen();
+            setIsFullscreen(false);
+        }
+    };
+
+    useEffect(() => {
+        const handleFullscreenChange = () => {
+            setIsFullscreen(!!document.fullscreenElement);
+        };
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    }, []);
 
     // Filter products by search term and category
     const filteredProducts = products?.filter(p => {
@@ -260,13 +281,18 @@ export default function NovaVenda() {
     };
 
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-100px)]">
+        <div className={`grid grid-cols-1 lg:grid-cols-3 gap-6 ${isFullscreen ? 'h-screen p-6 bg-background fixed inset-0 z-50 overflow-hidden' : 'h-[calc(100vh-100px)]'}`}>
             {/* Product Selection Area */}
             <div className="lg:col-span-2 flex flex-col gap-4">
                 <Card className="flex-1 flex flex-col shadow-md border-0 bg-white/50 dark:bg-zinc-900/50 backdrop-blur-sm">
                     <CardHeader className="pb-2">
                         <CardTitle className="flex justify-between items-center">
-                            <span>Catálogo de Produtos</span>
+                            <div className="flex items-center gap-2">
+                                <span>Catálogo de Produtos</span>
+                                <Button variant="ghost" size="icon" onClick={toggleFullscreen} title={isFullscreen ? "Sair da Tela Cheia" : "Tela Cheia"}>
+                                    {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+                                </Button>
+                            </div>
                             <span className="text-sm font-normal text-muted-foreground">{filteredProducts.length} itens encontrados</span>
                         </CardTitle>
                         <div className="flex gap-2">
