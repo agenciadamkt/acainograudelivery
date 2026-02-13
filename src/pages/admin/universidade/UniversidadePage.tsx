@@ -148,6 +148,13 @@ function TrailCard({ trail, large = false }: { trail: Trail; large?: boolean }) 
                     </div>
                 )}
 
+                {/* Required Badge */}
+                {trail.required && (
+                    <div className="absolute top-0 left-0 bg-[#e50914] text-white text-[8px] font-bold px-2 py-1 rounded-br shadow-sm z-20 tracking-wider">
+                        OBRIGATÓRIO
+                    </div>
+                )}
+
                 {/* Title Overlay (only if not hovered) */}
                 {!hovered && (
                     <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/90 via-black/60 to-transparent">
