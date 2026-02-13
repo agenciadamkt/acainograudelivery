@@ -97,6 +97,11 @@ export function WeightInputModal({
                             inputMode="decimal"
                             value={weight}
                             onChange={(e) => handleWeightChange(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    handleConfirm();
+                                }
+                            }}
                             placeholder="Ex: 0.500"
                             className="h-12 text-center text-lg font-medium"
                             autoFocus
