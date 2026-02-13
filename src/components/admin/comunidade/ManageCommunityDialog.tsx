@@ -5,10 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Loader2, Plus } from 'lucide-react';
+
+import { Trash2, Pencil } from 'lucide-react';
 
 export function ManageCommunityDialog() {
     const [open, setOpen] = useState(false);
@@ -16,13 +18,32 @@ export function ManageCommunityDialog() {
 
     // Post state
     const [postContent, setPostContent] = useState('');
-    const [postType, setPostType] = useState('announcement');
+    const [postType, setPostType] = useState('');
 
     // Challenge state
     const [challengeTitle, setChallengeTitle] = useState('');
     const [challengeDesc, setChallengeDesc] = useState('');
     const [challengeReward, setChallengeReward] = useState('100');
     const [challengeEndDate, setChallengeEndDate] = useState('');
+
+    // Post Type state
+    const [newTypeLabel, setNewTypeLabel] = useState('');
+    const [newTypeValue, setNewTypeValue] = useState('');
+    const [newTypeColor, setNewTypeColor] = useState('blue');
+    const [newTypeIcon, setNewTypeIcon] = useState('📢');
+
+    // Fetch Post Types
+    const { data: postTypes } = useQuery({
+        queryKey: ['community_post_types'],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from('community_post_types' as any)
+                .select('*')
+                .order('label');
+            if (error) throw error;
+            return data as any[];
+        }
+    });
 
     // Create Post Mutation
     const createPost = useMutation({
@@ -43,6 +64,44 @@ export function ManageCommunityDialog() {
             queryClient.invalidateQueries({ queryKey: ['community_posts'] });
         },
         onError: (error) => toast.error('Erro ao criar post: ' + error.message)
+    });
+
+    // Create Post Type Mutation
+    const createType = useMutation({
+        mutationFn: async () => {
+            const { error } = await supabase
+                .from('community_post_types' as any)
+                .insert({
+                    label: newTypeLabel,
+                    value: newTypeValue,
+                    color: newTypeColor,
+                    icon: newTypeIcon
+                });
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            toast.success('Tipo criado com sucesso!');
+            setNewTypeLabel('');
+            setNewTypeValue('');
+            queryClient.invalidateQueries({ queryKey: ['community_post_types'] });
+        },
+        onError: (error) => toast.error('Erro ao criar tipo: ' + error.message)
+    });
+
+    // Delete Post Type Mutation
+    const deleteType = useMutation({
+        mutationFn: async (id: string) => {
+            const { error } = await supabase
+                .from('community_post_types' as any)
+                .delete()
+                .eq('id', id);
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            toast.success('Tipo excluído com sucesso!');
+            queryClient.invalidateQueries({ queryKey: ['community_post_types'] });
+        },
+        onError: (error) => toast.error('Erro ao excluir tipo: ' + error.message)
     });
 
     // Create Challenge Mutation
@@ -84,9 +143,10 @@ export function ManageCommunityDialog() {
                 </DialogHeader>
 
                 <Tabs defaultValue="post" className="w-full">
-                    <TabsList className="grid w-full grid-cols-2 bg-white/5">
+                    <TabsList className="grid w-full grid-cols-3 bg-white/5">
                         <TabsTrigger value="post">Novo Post</TabsTrigger>
                         <TabsTrigger value="challenge">Novo Desafio</TabsTrigger>
+                        <TabsTrigger value="types">Tipos de Post</TabsTrigger>
                     </TabsList>
 
                     {/* NEW POST TAB */}
@@ -95,12 +155,14 @@ export function ManageCommunityDialog() {
                             <label className="text-sm font-medium">Tipo de Post</label>
                             <Select value={postType} onValueChange={setPostType}>
                                 <SelectTrigger className="bg-white/5 border-white/10 text-white">
-                                    <SelectValue />
+                                    <SelectValue placeholder="Selecione um tipo" />
                                 </SelectTrigger>
                                 <SelectContent className="bg-slate-800 border-white/10 text-white">
-                                    <SelectItem value="announcement">📢 Anúncio Oficial</SelectItem>
-                                    <SelectItem value="case">📊 Case de Sucesso</SelectItem>
-                                    <SelectItem value="tip">💡 Dica Operacional</SelectItem>
+                                    {postTypes?.map((t: any) => (
+                                        <SelectItem key={t.id} value={t.value}>
+                                            {t.icon} {t.label}
+                                        </SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                         </div>
@@ -176,6 +238,88 @@ export function ManageCommunityDialog() {
                             {createChallenge.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Criar Desafio
                         </Button>
+                    </TabsContent>
+
+                    {/* MANAGE TYPES TAB */}
+                    <TabsContent value="types" className="space-y-4 pt-4">
+                        <div className="p-4 rounded-lg bg-white/5 border border-white/10 space-y-4">
+                            <h4 className="text-sm font-semibold">Adicionar Novo Tipo</h4>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <label className="text-xs font-medium">Nome (Label)</label>
+                                    <Input
+                                        placeholder="Ex: Aviso Importante"
+                                        className="bg-white/5 border-white/10 text-white h-8 text-xs"
+                                        value={newTypeLabel}
+                                        onChange={e => setNewTypeLabel(e.target.value)}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-medium">Valor (Slug)</label>
+                                    <Input
+                                        placeholder="Ex: aviso_importante"
+                                        className="bg-white/5 border-white/10 text-white h-8 text-xs"
+                                        value={newTypeValue}
+                                        onChange={e => setNewTypeValue(e.target.value)}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-medium">Cor</label>
+                                    <Select value={newTypeColor} onValueChange={setNewTypeColor}>
+                                        <SelectTrigger className="bg-white/5 border-white/10 text-white h-8 text-xs">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent className="bg-slate-800 border-white/10 text-white">
+                                            <SelectItem value="blue">Azul</SelectItem>
+                                            <SelectItem value="green">Verde</SelectItem>
+                                            <SelectItem value="yellow">Amarelo</SelectItem>
+                                            <SelectItem value="red">Vermelho</SelectItem>
+                                            <SelectItem value="purple">Roxo</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-medium">Ícone (Emoji)</label>
+                                    <Input
+                                        placeholder="Ex: ⚠️"
+                                        className="bg-white/5 border-white/10 text-white h-8 text-xs"
+                                        value={newTypeIcon}
+                                        onChange={e => setNewTypeIcon(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+                            <Button
+                                className="w-full bg-blue-600 hover:bg-blue-700 h-8 text-xs"
+                                onClick={() => createType.mutate()}
+                                disabled={createType.isPending || !newTypeLabel || !newTypeValue}
+                            >
+                                {createType.isPending && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
+                                Adicionar Tipo
+                            </Button>
+                        </div>
+
+                        <div className="space-y-2">
+                            <h4 className="text-sm font-semibold">Tipos Existentes</h4>
+                            {postTypes?.map((t: any) => (
+                                <div key={t.id} className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/10">
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-lg">{t.icon}</span>
+                                        <div>
+                                            <p className="text-sm font-medium text-white">{t.label}</p>
+                                            <p className="text-xs text-white/40">{t.value}</p>
+                                        </div>
+                                    </div>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-white/40 hover:text-red-400 hover:bg-red-400/10"
+                                        onClick={() => deleteType.mutate(t.id)}
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            ))}
+                        </div>
                     </TabsContent>
                 </Tabs>
             </DialogContent>

@@ -17,15 +17,17 @@ import {
     Share2,
     TrendingUp,
     Shield,
-    Zap
+    Zap,
+    Trash2
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ManageCommunityDialog } from '@/components/admin/comunidade/ManageCommunityDialog';
+import { toast } from 'sonner';
 
 interface RankingItem {
     store_id: string;
@@ -110,7 +112,40 @@ export default function ComunidadePage() {
         }
     });
 
-    const userPoints = 2350;
+    // Fetch Post Types
+    const { data: postTypes } = useQuery({
+        queryKey: ['community_post_types'],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from('community_post_types' as any)
+                .select('*');
+            if (error) throw error;
+            return data as any[];
+        }
+    });
+
+    const queryClient = useQueryClient();
+
+    // Delete Post Mutation
+    const deletePost = useMutation({
+        mutationFn: async (id: string) => {
+            const { error } = await supabase
+                .from('community_posts' as any)
+                .delete()
+                .eq('id', id);
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            toast.success('Post excluído!');
+            queryClient.invalidateQueries({ queryKey: ['community_posts'] });
+        },
+        onError: (error) => toast.error('Erro ao excluir post: ' + error.message)
+    });
+
+    // Calculate real user points from ranking
+    const currentUserRanking = rankingData?.find(r => r.is_current_user);
+    const userPoints = currentUserRanking ? Math.round(currentUserRanking.score) : 0;
+
     const currentLevel = levels.find(l => userPoints >= l.min && userPoints <= l.max) || levels[0];
     const nextLevel = levels[levels.indexOf(currentLevel) + 1];
     const progressToNext = nextLevel ? ((userPoints - currentLevel.min) / (nextLevel.min - currentLevel.min)) * 100 : 100;
@@ -195,18 +230,39 @@ export default function ComunidadePage() {
                                             <div className="flex items-center gap-2">
                                                 <span className="text-sm font-semibold text-white">Usuário</span>
                                                 {/* <Badge className="bg-white/5 text-white/50 text-[10px] border-0">{post.level}</Badge> */}
-                                                {post.type === 'announcement' && (
-                                                    <Badge className="bg-blue-500/20 text-blue-300 text-[10px] border-0">📢 Anúncio</Badge>
-                                                )}
-                                                {post.type === 'case' && (
-                                                    <Badge className="bg-green-500/20 text-green-300 text-[10px] border-0">📊 Case</Badge>
-                                                )}
-                                                {post.type === 'tip' && (
-                                                    <Badge className="bg-yellow-500/20 text-yellow-300 text-[10px] border-0">💡 Dica</Badge>
-                                                )}
+                                                {(() => {
+                                                    const typeData = postTypes?.find((t: any) => t.value === post.type);
+                                                    if (typeData) {
+                                                        const colorMap: Record<string, string> = {
+                                                            blue: 'bg-blue-500/20 text-blue-300',
+                                                            green: 'bg-green-500/20 text-green-300',
+                                                            yellow: 'bg-yellow-500/20 text-yellow-300',
+                                                            red: 'bg-red-500/20 text-red-300',
+                                                            purple: 'bg-purple-500/20 text-purple-300',
+                                                        };
+                                                        const colorClass = colorMap[typeData.color] || 'bg-gray-500/20 text-gray-300';
+
+                                                        return (
+                                                            <Badge className={`${colorClass} text-[10px] border-0`}>
+                                                                {typeData.icon} {typeData.label}
+                                                            </Badge>
+                                                        );
+                                                    }
+                                                    // Fallback for old posts or missing types
+                                                    return <Badge className="bg-gray-500/20 text-gray-300 text-[10px] border-0">{post.type}</Badge>;
+                                                })()}
                                             </div>
                                             <p className="text-[11px] text-white/30">{timeAgo}</p>
                                         </div>
+
+                                        {/* Delete Button (Admin) */}
+                                        <button
+                                            onClick={() => deletePost.mutate(post.id)}
+                                            className="text-white/20 hover:text-red-400 p-1 transition-colors"
+                                            title="Excluir post"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </button>
                                     </div>
 
                                     {/* Post content */}
