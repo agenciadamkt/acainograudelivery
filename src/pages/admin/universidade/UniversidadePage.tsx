@@ -517,7 +517,10 @@ export default function UniversidadePage() {
                                         >
                                             <Play className="mr-2 h-5 w-5 fill-black" /> Assistir
                                         </Button>
-                                        <Button variant="outline" className="border-gray-500 text-white hover:bg-[#2a2a2a] hover:text-white">
+                                        <Button
+                                            variant="ghost"
+                                            className="bg-white/10 border border-white/30 text-white hover:bg-white/20 hover:text-white hover:border-white transition-colors"
+                                        >
                                             <Plus className="mr-2 h-5 w-5" /> Minha Lista
                                         </Button>
                                     </div>
