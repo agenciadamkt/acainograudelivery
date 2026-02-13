@@ -88,7 +88,59 @@ export default function UniversidadeAdminPage() {
     // ─── Material / Link add state ───
     const [newMaterial, setNewMaterial] = useState({ name: '', url: '', type: 'pdf', size: '' });
     const [isUploadingMaterial, setIsUploadingMaterial] = useState(false);
-    const [newLink, setNewLink] = useState({ title: '', url: '', description: '' });
+    const [isMigrating, setIsMigrating] = useState(false);
+
+    /* ══ MIGRATION UTILITY ══ */
+    const handleMigrateAssets = async () => {
+        if (!confirm('Isso fará o upload das imagens locais (/assets/...) para o Supabase Storage. Continuar?')) return;
+        setIsMigrating(true);
+        try {
+            const localTrails = trails?.filter(t => t.thumbnail && t.thumbnail.startsWith('/assets/')) || [];
+            let updatedCount = 0;
+
+            for (const trail of localTrails) {
+                try {
+                    // 1. Fetch the local asset
+                    const response = await fetch(trail.thumbnail!);
+                    if (!response.ok) throw new Error(`Failed to fetch ${trail.thumbnail}`);
+                    const blob = await response.blob();
+
+                    // 2. Upload to Supabase Storage
+                    const fileName = trail.thumbnail!.split('/').pop()!;
+                    const filePath = `thumbnails/${Date.now()}-${fileName}`;
+
+                    const { error: uploadError } = await supabase.storage
+                        .from('university-thumbnails')
+                        .upload(filePath, blob, { contentType: blob.type });
+
+                    if (uploadError) throw uploadError;
+
+                    // 3. Get Public URL
+                    const { data } = supabase.storage
+                        .from('university-thumbnails')
+                        .getPublicUrl(filePath);
+
+                    if (data?.publicUrl) {
+                        // 4. Update Trail Record
+                        await updateTrail.mutateAsync({
+                            id: trail.id,
+                            thumbnail: data.publicUrl
+                        });
+                        updatedCount++;
+                    }
+                } catch (err) {
+                    console.error(`Failed to migrate ${trail.title}:`, err);
+                }
+            }
+            alert(`Migração concluída! ${updatedCount} trilhas atualizadas.`);
+        } catch (error) {
+            console.error('Migration failed:', error);
+            alert('Erro na migração. Verifique o console.');
+        } finally {
+            setIsMigrating(false);
+        }
+    };
+
     const [replyText, setReplyText] = useState<Record<string, string>>({});
 
     /* ══ TRAIL CRUD ══ */
@@ -276,9 +328,17 @@ export default function UniversidadeAdminPage() {
                         <h1 className="text-3xl font-bold">Universidade — Admin</h1>
                         <p className="text-muted-foreground">Gerencie trilhas, aulas e conteúdo de treinamento</p>
                     </div>
-                    <Button onClick={() => openTrailDialog()}>
-                        <Plus className="h-4 w-4 mr-2" />Nova Trilha
-                    </Button>
+                    <div className="flex gap-2">
+                        {trails?.some(t => t.thumbnail?.startsWith('/assets/')) && (
+                            <Button variant="outline" onClick={handleMigrateAssets} disabled={isMigrating}>
+                                {isMigrating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
+                                {isMigrating ? 'Migrar Imagens Locais' : 'Migrar Imagens Locais'}
+                            </Button>
+                        )}
+                        <Button onClick={() => openTrailDialog()}>
+                            <Plus className="h-4 w-4 mr-2" />Nova Trilha
+                        </Button>
+                    </div>
                 </div>
 
                 {/* Filter */}
@@ -338,7 +398,6 @@ export default function UniversidadeAdminPage() {
                                             <button
                                                 onClick={() => setTrailForm(p => ({ ...p, thumbnail: '' }))}
                                                 className="absolute top-0 right-0 bg-black/50 hover:bg-red-500 text-white p-0.5 rounded-bl"
-                                                title="Remover imagem"
                                             >
                                                 <X className="h-3 w-3" />
                                             </button>
