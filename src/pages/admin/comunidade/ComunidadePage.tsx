@@ -23,6 +23,9 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { formatDistanceToNow } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { ManageCommunityDialog } from '@/components/admin/comunidade/ManageCommunityDialog';
 
 interface RankingItem {
     store_id: string;
@@ -35,6 +38,30 @@ interface RankingItem {
     is_current_user: boolean;
 }
 
+interface Post {
+    id: string;
+    content: string;
+    type: 'case' | 'announcement' | 'tip';
+    created_at: string;
+    likes_count: number;
+    comments_count: number;
+    user_id: string;
+    // Relations to be fetched or mocked for now
+    user?: {
+        email: string;
+    }
+}
+
+interface Challenge {
+    id: string;
+    title: string;
+    description: string;
+    reward_points: number;
+    icon: string;
+    end_date: string;
+    active: boolean;
+}
+
 // Level system
 const levels = [
     { name: 'Bronze', min: 0, max: 999, color: 'from-amber-700 to-amber-500', textColor: 'text-amber-500', icon: Shield },
@@ -43,73 +70,43 @@ const levels = [
     { name: 'Elite', min: 10000, max: Infinity, color: 'from-purple-600 to-indigo-400', textColor: 'text-purple-400', icon: Zap },
 ];
 
-// Mock challenges
-const challenges = [
-    { id: '1', title: 'Mestre do Upselling', description: 'Atinja ticket médio de R$ 50 por 7 dias consecutivos', reward: 500, daysLeft: 12, progress: 45, icon: '🎯' },
-    { id: '2', title: 'Velocidade Máxima', description: 'Mantenha tempo médio de preparo abaixo de 4min por 5 dias', reward: 300, daysLeft: 8, progress: 60, icon: '⚡' },
-    { id: '3', title: 'Acadêmico Estrela', description: 'Complete 3 trilhas da Universidade neste mês', reward: 400, daysLeft: 18, progress: 33, icon: '🎓' },
-    { id: '4', title: 'NPS Perfeito', description: 'Consiga 10 avaliações 5 estrelas em uma semana', reward: 250, daysLeft: 5, progress: 70, icon: '⭐' },
-];
-
-// Mock feed
-const feedPosts = [
-    {
-        id: '1',
-        author: 'Unidade Alphaville',
-        avatar: '🏆',
-        level: 'Ouro',
-        content: 'Case: Aumentamos nosso faturamento em 40% após implementar a estratégia de combos premium no delivery. Compartilhando os resultados! 📈',
-        likes: 47,
-        comments: 12,
-        time: '3h atrás',
-        type: 'case' as const,
-    },
-    {
-        id: '2',
-        author: 'Sede Franquia',
-        avatar: '🏢',
-        level: 'Elite',
-        content: '🚀 Nova trilha disponível na Universidade: "Marketing para Carnaval 2026". Aproveitem as estratégias sazonais! Unidades que completarem ganham +200 pontos.',
-        likes: 89,
-        comments: 23,
-        time: '6h atrás',
-        type: 'announcement' as const,
-    },
-    {
-        id: '3',
-        author: 'Unidade Vila Mariana',
-        avatar: '💡',
-        level: 'Prata',
-        content: 'Dica: Começamos a usar bandejas organizadoras para os toppings e nosso tempo de montagem caiu de 5min para 3min30s. Vale testar! 🍇',
-        likes: 34,
-        comments: 8,
-        time: '1d atrás',
-        type: 'tip' as const,
-    },
-    {
-        id: '4',
-        author: 'Unidade Moema',
-        avatar: '🎉',
-        level: 'Ouro',
-        content: 'Primeiro mês com CMV abaixo de 30%! 🎊 A dica é: ficha técnica atualizada + controle de porções com utensílios padronizados.',
-        likes: 62,
-        comments: 15,
-        time: '2d atrás',
-        type: 'case' as const,
-    },
-];
+// Mock data removed. Interfaces defined above.
 
 // Top ranking (mock removed, fetched via RPC)
 
 export default function ComunidadePage() {
     const [activeTab, setActiveTab] = useState<'feed' | 'desafios' | 'ranking'>('feed');
 
-    const { data: rankingData, isLoading } = useQuery({
+    const { data: rankingData, isLoading: loadingRanking } = useQuery({
         queryKey: ['network-ranking'],
         queryFn: async () => {
             const { data, error } = await supabase.rpc('get_network_ranking' as any);
             if (error) throw error;
             return data as unknown as RankingItem[];
+        }
+    });
+
+    const { data: posts, isLoading: loadingPosts } = useQuery({
+        queryKey: ['community_posts'],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from('community_posts' as any)
+                .select('*')
+                .order('created_at', { ascending: false });
+            if (error) throw error;
+            return data as unknown as Post[];
+        }
+    });
+
+    const { data: challenges, isLoading: loadingChallenges } = useQuery({
+        queryKey: ['gamification_challenges'],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from('gamification_challenges' as any)
+                .select('*')
+                .order('end_date', { ascending: true });
+            if (error) throw error;
+            return data as unknown as Challenge[];
         }
     });
 
@@ -176,78 +173,94 @@ export default function ComunidadePage() {
                 {/* Tab Content */}
                 {activeTab === 'feed' && (
                     <div className="space-y-4">
-                        {feedPosts.map(post => (
-                            <div key={post.id} className="p-5 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-white/[0.1] transition-all">
-                                {/* Post header */}
-                                <div className="flex items-center gap-3 mb-3">
-                                    <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-lg">
-                                        {post.avatar}
-                                    </div>
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-sm font-semibold text-white">{post.author}</span>
-                                            <Badge className="bg-white/5 text-white/50 text-[10px] border-0">{post.level}</Badge>
-                                            {post.type === 'announcement' && (
-                                                <Badge className="bg-blue-500/20 text-blue-300 text-[10px] border-0">📢 Anúncio</Badge>
-                                            )}
-                                            {post.type === 'case' && (
-                                                <Badge className="bg-green-500/20 text-green-300 text-[10px] border-0">📊 Case</Badge>
-                                            )}
-                                            {post.type === 'tip' && (
-                                                <Badge className="bg-yellow-500/20 text-yellow-300 text-[10px] border-0">💡 Dica</Badge>
-                                            )}
+                        {loadingPosts ? (
+                            <div className="text-center py-8 text-white/40">Carregando feed...</div>
+                        ) : posts?.length === 0 ? (
+                            <div className="text-center py-8 text-white/40">Nenhum post ainda. Seja o primeiro!</div>
+                        ) : posts?.map(post => {
+                            const timeAgo = formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: ptBR });
+                            return (
+                                <div key={post.id} className="p-5 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-white/[0.1] transition-all">
+                                    {/* Post header */}
+                                    <div className="flex items-center gap-3 mb-3">
+                                        <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-lg">
+                                            👤
                                         </div>
-                                        <p className="text-[11px] text-white/30">{post.time}</p>
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-sm font-semibold text-white">Usuário</span>
+                                                {/* <Badge className="bg-white/5 text-white/50 text-[10px] border-0">{post.level}</Badge> */}
+                                                {post.type === 'announcement' && (
+                                                    <Badge className="bg-blue-500/20 text-blue-300 text-[10px] border-0">📢 Anúncio</Badge>
+                                                )}
+                                                {post.type === 'case' && (
+                                                    <Badge className="bg-green-500/20 text-green-300 text-[10px] border-0">📊 Case</Badge>
+                                                )}
+                                                {post.type === 'tip' && (
+                                                    <Badge className="bg-yellow-500/20 text-yellow-300 text-[10px] border-0">💡 Dica</Badge>
+                                                )}
+                                            </div>
+                                            <p className="text-[11px] text-white/30">{timeAgo}</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Post content */}
+                                    <p className="text-sm text-white/70 leading-relaxed mb-4 whitespace-pre-wrap">{post.content}</p>
+
+                                    {/* Post actions */}
+                                    <div className="flex items-center gap-4">
+                                        <button className="flex items-center gap-1.5 text-xs text-white/40 hover:text-pink-400 transition-colors">
+                                            <Heart className="h-4 w-4" /> {post.likes_count || 0}
+                                        </button>
+                                        <button className="flex items-center gap-1.5 text-xs text-white/40 hover:text-blue-400 transition-colors">
+                                            <MessageCircle className="h-4 w-4" /> {post.comments_count || 0}
+                                        </button>
+                                        <button className="flex items-center gap-1.5 text-xs text-white/40 hover:text-green-400 transition-colors">
+                                            <Share2 className="h-4 w-4" /> Compartilhar
+                                        </button>
                                     </div>
                                 </div>
-
-                                {/* Post content */}
-                                <p className="text-sm text-white/70 leading-relaxed mb-4">{post.content}</p>
-
-                                {/* Post actions */}
-                                <div className="flex items-center gap-4">
-                                    <button className="flex items-center gap-1.5 text-xs text-white/40 hover:text-pink-400 transition-colors">
-                                        <Heart className="h-4 w-4" /> {post.likes}
-                                    </button>
-                                    <button className="flex items-center gap-1.5 text-xs text-white/40 hover:text-blue-400 transition-colors">
-                                        <MessageCircle className="h-4 w-4" /> {post.comments}
-                                    </button>
-                                    <button className="flex items-center gap-1.5 text-xs text-white/40 hover:text-green-400 transition-colors">
-                                        <Share2 className="h-4 w-4" /> Compartilhar
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
+                            )
+                        })}
                     </div>
                 )}
 
                 {activeTab === 'desafios' && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {challenges.map(ch => (
-                            <div key={ch.id} className="p-5 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-white/[0.1] transition-all">
-                                <div className="flex items-start gap-3 mb-3">
-                                    <span className="text-2xl">{ch.icon}</span>
-                                    <div className="flex-1">
-                                        <h4 className="text-sm font-bold text-white mb-0.5">{ch.title}</h4>
-                                        <p className="text-xs text-white/40 leading-relaxed">{ch.description}</p>
-                                    </div>
-                                </div>
+                        {loadingChallenges ? (
+                            <div className="text-center py-8 text-white/40 col-span-2">Carregando desafios...</div>
+                        ) : challenges?.length === 0 ? (
+                            <div className="text-center py-8 text-white/40 col-span-2">Nenhum desafio ativo.</div>
+                        ) : challenges?.map(ch => {
+                            const daysLeft = Math.ceil((new Date(ch.end_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                            const mockProgress = 0; // TODO: Implement challenge progress tracking
 
-                                <div className="flex items-center justify-between text-xs text-white/40 mb-2">
-                                    <div className="flex items-center gap-1">
-                                        <Gift className="h-3 w-3 text-yellow-400" />
-                                        <span className="text-yellow-400 font-medium">+{ch.reward} pts</span>
+                            return (
+                                <div key={ch.id} className="p-5 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-white/[0.1] transition-all">
+                                    <div className="flex items-start gap-3 mb-3">
+                                        <span className="text-2xl">{ch.icon}</span>
+                                        <div className="flex-1">
+                                            <h4 className="text-sm font-bold text-white mb-0.5">{ch.title}</h4>
+                                            <p className="text-xs text-white/40 leading-relaxed">{ch.description}</p>
+                                        </div>
                                     </div>
-                                    <div className="flex items-center gap-1">
-                                        <Clock className="h-3 w-3" />
-                                        <span>{ch.daysLeft} dias restantes</span>
-                                    </div>
-                                </div>
 
-                                <Progress value={ch.progress} className="h-1.5 bg-white/5" />
-                                <p className="text-[10px] text-white/30 mt-1">{ch.progress}% concluído</p>
-                            </div>
-                        ))}
+                                    <div className="flex items-center justify-between text-xs text-white/40 mb-2">
+                                        <div className="flex items-center gap-1">
+                                            <Gift className="h-3 w-3 text-yellow-400" />
+                                            <span className="text-yellow-400 font-medium">+{ch.reward_points} pts</span>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                            <Clock className="h-3 w-3" />
+                                            <span>{daysLeft > 0 ? `${daysLeft} dias restantes` : 'Encerrado'}</span>
+                                        </div>
+                                    </div>
+
+                                    <Progress value={mockProgress} className="h-1.5 bg-white/5" />
+                                    <p className="text-[10px] text-white/30 mt-1">{mockProgress}% concluído</p>
+                                </div>
+                            )
+                        })}
                     </div>
                 )}
 
@@ -259,7 +272,7 @@ export default function ComunidadePage() {
                         </h3>
 
                         <div className="space-y-2">
-                            {isLoading ? (
+                            {loadingRanking ? (
                                 <div className="text-center py-8 text-white/40">Carregando ranking...</div>
                             ) : rankingData?.map(r => (
                                 <div
