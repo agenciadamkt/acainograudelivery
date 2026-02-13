@@ -309,7 +309,7 @@ export default function UniversidadePage() {
     const [previewTrail, setPreviewTrail] = useState<Trail | null>(null);
 
     // Navigation & Interaction State
-    const [activeTab, setActiveTab] = useState<'inicio' | 'series' | 'filmes' | 'minha-lista'>('inicio');
+    const [activeTab, setActiveTab] = useState<'inicio' | 'trilhas' | 'aulas' | 'minha-lista'>('inicio');
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [myList, setMyList] = useState<string[]>(() => {
@@ -380,8 +380,8 @@ export default function UniversidadePage() {
         if (searchQuery && !t.title.toLowerCase().includes(searchQuery.toLowerCase())) return false;
 
         // Tab Filter
-        if (activeTab === 'series') return (t.lessons_count || 0) > 1; // Simplify Series as multi-lesson
-        if (activeTab === 'filmes') return (t.lessons_count || 0) <= 1; // Simplify Movies as single-lesson
+        if (activeTab === 'trilhas') return (t.lessons_count || 0) > 1; // Simplify Series as multi-lesson
+        if (activeTab === 'aulas') return (t.lessons_count || 0) <= 1; // Simplify Movies as single-lesson
         if (activeTab === 'minha-lista') return myList.includes(t.id);
 
         return true;
@@ -415,16 +415,16 @@ export default function UniversidadePage() {
                             Início
                         </li>
                         <li
-                            onClick={() => setActiveTab('series')}
-                            className={`cursor-pointer transition-colors ${activeTab === 'series' ? 'text-white font-bold' : 'hover:text-white/60'}`}
+                            onClick={() => setActiveTab('trilhas')}
+                            className={`cursor-pointer transition-colors ${activeTab === 'trilhas' ? 'text-white font-bold' : 'hover:text-white/60'}`}
                         >
-                            Séries
+                            Trilhas
                         </li>
                         <li
-                            onClick={() => setActiveTab('filmes')}
-                            className={`cursor-pointer transition-colors ${activeTab === 'filmes' ? 'text-white font-bold' : 'hover:text-white/60'}`}
+                            onClick={() => setActiveTab('aulas')}
+                            className={`cursor-pointer transition-colors ${activeTab === 'aulas' ? 'text-white font-bold' : 'hover:text-white/60'}`}
                         >
-                            Filmes
+                            Aulas
                         </li>
                         <li
                             onClick={() => setActiveTab('minha-lista')}
@@ -623,7 +623,7 @@ export default function UniversidadePage() {
                         <h2 className="text-2xl font-semibold mb-6">
                             {searchQuery ? `Resultados para "${searchQuery}"` :
                                 activeTab === 'minha-lista' ? 'Minha Lista' :
-                                    activeTab === 'series' ? 'Séries' : 'Filmes'}
+                                    activeTab === 'trilhas' ? 'Trilhas' : 'Aulas'}
                         </h2>
                         {availableTrails.length === 0 ? (
                             <div className="text-center text-gray-500 py-12">Nenhum conteúdo encontrado.</div>
