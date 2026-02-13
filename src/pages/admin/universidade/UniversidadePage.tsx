@@ -13,7 +13,17 @@ import heroBg from '@/assets/hero-universidade.png';
 import { useTrails, Trail } from '@/hooks/useUniversity';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { X } from 'lucide-react';
+import { X, LogOut, User as UserIcon, Settings, HelpCircle, Bell as BellIcon, Search as SearchIcon } from 'lucide-react';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { toast } from 'sonner';
 
 /* ══════════════════════════════════════════════════
    SCROLLABLE ROW — carrossel horizontal Netflix
@@ -298,6 +308,33 @@ export default function UniversidadePage() {
     const [scrolled, setScrolled] = useState(false);
     const [previewTrail, setPreviewTrail] = useState<Trail | null>(null);
 
+    // Navigation & Interaction State
+    const [activeTab, setActiveTab] = useState<'inicio' | 'series' | 'filmes' | 'minha-lista'>('inicio');
+    const [isSearchOpen, setIsSearchOpen] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [myList, setMyList] = useState<string[]>(() => {
+        const saved = localStorage.getItem('university_favorites');
+        return saved ? JSON.parse(saved) : [];
+    });
+    const { signOut } = useAuth();
+
+    // Toggle Favorite
+    const toggleMyList = (trailId: string) => {
+        setMyList(prev => {
+            const newList = prev.includes(trailId)
+                ? prev.filter(id => id !== trailId)
+                : [...prev, trailId];
+            localStorage.setItem('university_favorites', JSON.stringify(newList));
+
+            if (prev.includes(trailId)) {
+                toast.success("Removido da Minha Lista");
+            } else {
+                toast.success("Adicionado à Minha Lista");
+            }
+            return newList;
+        });
+    };
+
     // Fetch trails from Supabase
     const { data: trails, isLoading, error } = useTrails();
 
@@ -337,8 +374,21 @@ export default function UniversidadePage() {
         );
     }
 
-    const availableTrails = trails || [];
-    const heroTrail = heroTrails[heroIndex] || availableTrails[0];
+    // Filter Logic
+    const availableTrails = (trails || []).filter(t => {
+        // Search Filter
+        if (searchQuery && !t.title.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+
+        // Tab Filter
+        if (activeTab === 'series') return (t.lessons_count || 0) > 1; // Simplify Series as multi-lesson
+        if (activeTab === 'filmes') return (t.lessons_count || 0) <= 1; // Simplify Movies as single-lesson
+        if (activeTab === 'minha-lista') return myList.includes(t.id);
+
+        return true;
+    });
+
+    // Randomize Hero only if no specific filter is active (or maybe always, but let's keep it consistent)
+    const heroTrail = activeTab === 'inicio' && !searchQuery ? (heroTrails[heroIndex] || availableTrails[0]) : null;
 
     // Categorize trails for rows
     const onboardingTrails = availableTrails.filter(t => t.category === 'onboarding');
@@ -356,24 +406,129 @@ export default function UniversidadePage() {
             {/* ════ Navbar ════ */}
             <nav className={`fixed top-0 w-full z-50 transition-colors duration-500 px-4 md:px-12 h-16 flex items-center justify-between ${scrolled ? 'bg-[#141414]' : 'bg-gradient-to-b from-black/80 to-transparent'}`}>
                 <div className="flex items-center gap-8">
-                    <img src={logoWhite} alt="Logo" className="h-8 md:h-10 w-auto cursor-pointer object-contain" onClick={() => navigate('/hub')} />
+                    <img src={logoWhite} alt="Logo" className="h-8 md:h-10 w-auto cursor-pointer object-contain" onClick={() => { setActiveTab('inicio'); navigate('/hub'); }} />
                     <ul className="hidden md:flex items-center gap-5 text-sm font-medium text-white/80">
-                        <li className="text-white font-bold cursor-pointer">Início</li>
-                        <li className="hover:text-white/60 transition-colors cursor-pointer">Séries</li>
-                        <li className="hover:text-white/60 transition-colors cursor-pointer">Filmes</li>
-                        <li className="hover:text-white/60 transition-colors cursor-pointer">Minha Lista</li>
+                        <li
+                            onClick={() => setActiveTab('inicio')}
+                            className={`cursor-pointer transition-colors ${activeTab === 'inicio' ? 'text-white font-bold' : 'hover:text-white/60'}`}
+                        >
+                            Início
+                        </li>
+                        <li
+                            onClick={() => setActiveTab('series')}
+                            className={`cursor-pointer transition-colors ${activeTab === 'series' ? 'text-white font-bold' : 'hover:text-white/60'}`}
+                        >
+                            Séries
+                        </li>
+                        <li
+                            onClick={() => setActiveTab('filmes')}
+                            className={`cursor-pointer transition-colors ${activeTab === 'filmes' ? 'text-white font-bold' : 'hover:text-white/60'}`}
+                        >
+                            Filmes
+                        </li>
+                        <li
+                            onClick={() => setActiveTab('minha-lista')}
+                            className={`cursor-pointer transition-colors ${activeTab === 'minha-lista' ? 'text-white font-bold' : 'hover:text-white/60'}`}
+                        >
+                            Minha Lista
+                        </li>
                     </ul>
                 </div>
 
                 <div className="flex items-center gap-5 text-white/90">
-                    <Search className="w-5 h-5 cursor-pointer hover:text-white" />
-                    <Bell className="w-5 h-5 cursor-pointer hover:text-white" />
-                    <div className="flex items-center gap-2 cursor-pointer group">
-                        <div className="w-8 h-8 rounded bg-blue-600 flex items-center justify-center text-xs font-bold">
-                            {user?.email?.[0]?.toUpperCase() || 'U'}
-                        </div>
-                        <ChevronDown className="w-4 h-4 group-hover:rotate-180 transition-transform duration-300" />
+                    {/* Search */}
+                    <div className={`flex items-center transition-all duration-300 ${isSearchOpen ? 'bg-black/80 border border-white/20 px-2 py-1 rounded' : ''}`}>
+                        <SearchIcon
+                            className={`w-5 h-5 cursor-pointer hover:text-white ${isSearchOpen ? 'mr-2' : ''}`}
+                            onClick={() => {
+                                setIsSearchOpen(!isSearchOpen);
+                                if (!isSearchOpen) setTimeout(() => document.getElementById('search-input')?.focus(), 100);
+                            }}
+                        />
+                        <input
+                            id="search-input"
+                            type="text"
+                            placeholder="Títulos, gente, gêneros"
+                            className={`bg-transparent border-none outline-none text-sm text-white transition-all duration-300 ${isSearchOpen ? 'w-40 md:w-60 opacity-100' : 'w-0 opacity-0'}`}
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onBlur={() => !searchQuery && setIsSearchOpen(false)}
+                        />
                     </div>
+
+                    {/* Notifications */}
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <div className="relative cursor-pointer">
+                                <BellIcon className="w-5 h-5 hover:text-white" />
+                                <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-600 rounded-full" />
+                            </div>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-80 bg-[#141414] border-gray-800 text-white">
+                            <DropdownMenuLabel>Notificações</DropdownMenuLabel>
+                            <DropdownMenuSeparator className="bg-gray-700" />
+                            <div className="max-h-[300px] overflow-y-auto p-2 space-y-2">
+                                <div className="flex gap-3 items-start p-2 hover:bg-white/5 rounded transition-colors">
+                                    <div className="w-12 h-8 bg-gray-700 rounded overflow-hidden flex-shrink-0">
+                                        <img src="https://images.unsplash.com/photo-1556740738-b6a63e27c4df" className="w-full h-full object-cover" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-xs text-gray-400 mb-1">Novidade</p>
+                                        <p className="text-sm font-medium leading-tight">Nova trilha de Gestão Financeira disponível.</p>
+                                        <p className="text-[10px] text-gray-500 mt-1">há 2 horas</p>
+                                    </div>
+                                </div>
+                                <div className="flex gap-3 items-start p-2 hover:bg-white/5 rounded transition-colors">
+                                    <div className="w-12 h-8 bg-gray-700 rounded overflow-hidden flex-shrink-0">
+                                        <img src="https://images.unsplash.com/photo-1517048676732-d65bc937f952" className="w-full h-full object-cover" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-xs text-gray-400 mb-1">Recomendado</p>
+                                        <p className="text-sm font-medium leading-tight">Confira as atualizações no módulo de Operações.</p>
+                                        <p className="text-[10px] text-gray-500 mt-1">ontem</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    {/* Profile */}
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <div className="flex items-center gap-2 cursor-pointer group">
+                                <div className="w-8 h-8 rounded bg-blue-600 flex items-center justify-center text-xs font-bold">
+                                    {user?.email?.[0]?.toUpperCase() || 'U'}
+                                </div>
+                                <ChevronDown className="w-4 h-4 group-hover:rotate-180 transition-transform duration-300" />
+                            </div>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="bg-[#141414] border-gray-800 text-white w-56">
+                            <DropdownMenuLabel className="font-normal">
+                                <div className="flex flex-col space-y-1">
+                                    <p className="text-sm font-medium leading-none">{user?.user_metadata?.full_name || 'Usuário'}</p>
+                                    <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
+                                </div>
+                            </DropdownMenuLabel>
+                            <DropdownMenuSeparator className="bg-gray-700" />
+                            <DropdownMenuItem className="cursor-pointer focus:bg-white/10 focus:text-white" onClick={() => navigate('/admin/profile')}>
+                                <UserIcon className="mr-2 h-4 w-4" />
+                                <span>Minha Conta</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="cursor-pointer focus:bg-white/10 focus:text-white" onClick={() => navigate('/hub')}>
+                                <Settings className="mr-2 h-4 w-4" />
+                                <span>Configurações</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="cursor-pointer focus:bg-white/10 focus:text-white">
+                                <HelpCircle className="mr-2 h-4 w-4" />
+                                <span>Ajuda</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator className="bg-gray-700" />
+                            <DropdownMenuItem className="cursor-pointer focus:bg-white/10 focus:text-white text-red-500" onClick={signOut}>
+                                <LogOut className="mr-2 h-4 w-4" />
+                                <span>Sair da conta</span>
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
             </nav>
 
@@ -462,66 +617,93 @@ export default function UniversidadePage() {
             {/* ════ Content Rows ════ */}
             <div className="relative z-10 -mt-32 md:-mt-48 pb-20 space-y-8 md:space-y-12">
 
-                {/* 1. Onboarding */}
-                {onboardingTrails.length > 0 && (
-                    <div className="animate-in fade-in-0 slide-in-from-bottom-8 duration-700 delay-300">
-                        <h2 className="text-lg md:text-xl font-bold text-white mb-3 px-4 md:px-12 hover:text-[#e50914] cursor-pointer transition-colors inline-flex items-center gap-2 group">
-                            Onboarding Inicial <ChevronRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity text-[#e50914]" />
+                {/* Search/Filter Results View (if active) */}
+                {(searchQuery || activeTab !== 'inicio') ? (
+                    <div className="px-4 md:px-12 pt-32 min-h-[50vh]">
+                        <h2 className="text-2xl font-semibold mb-6">
+                            {searchQuery ? `Resultados para "${searchQuery}"` :
+                                activeTab === 'minha-lista' ? 'Minha Lista' :
+                                    activeTab === 'series' ? 'Séries' : 'Filmes'}
                         </h2>
-                        <ScrollableRow>
-                            {onboardingTrails.map(trail => (
-                                <TrailCard key={trail.id} trail={trail} onClick={setPreviewTrail} />
-                            ))}
-                        </ScrollableRow>
+                        {availableTrails.length === 0 ? (
+                            <div className="text-center text-gray-500 py-12">Nenhum conteúdo encontrado.</div>
+                        ) : (
+                            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                                {availableTrails.map(trail => (
+                                    <div key={trail.id} className="aspect-video relative group cursor-pointer" onClick={() => setPreviewTrail(trail)}>
+                                        <img src={trail.thumbnail || '/placeholder.png'} className="w-full h-full object-cover rounded-md" />
+                                        <div className="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/90 to-transparent">
+                                            <p className="text-xs font-bold">{trail.title}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
-                )}
+                ) : (
+                    <>
+                        {/* 1. Onboarding */}
+                        {onboardingTrails.length > 0 && (
+                            <div className="animate-in fade-in-0 slide-in-from-bottom-8 duration-700 delay-300">
+                                <h2 className="text-lg md:text-xl font-bold text-white mb-3 px-4 md:px-12 hover:text-[#e50914] cursor-pointer transition-colors inline-flex items-center gap-2 group">
+                                    Onboarding Inicial <ChevronRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity text-[#e50914]" />
+                                </h2>
+                                <ScrollableRow>
+                                    {onboardingTrails.map(trail => (
+                                        <TrailCard key={trail.id} trail={trail} onClick={setPreviewTrail} />
+                                    ))}
+                                </ScrollableRow>
+                            </div>
+                        )}
 
-                {/* 2. Top 10 */}
-                {top10Trails.length > 0 && (
-                    <div className="animate-in fade-in-0 slide-in-from-bottom-8 duration-700 delay-500">
-                        <h2 className="text-lg md:text-xl font-bold text-white mb-3 px-4 md:px-12">Top 10 no Brasil hoje</h2>
-                        <ScrollableRow>
-                            {top10Trails.map((trail, idx) => (
-                                <Top10Card key={trail.id} trail={trail} rank={idx + 1} onClick={setPreviewTrail} />
-                            ))}
-                        </ScrollableRow>
-                    </div>
-                )}
+                        {/* 2. Top 10 */}
+                        {top10Trails.length > 0 && (
+                            <div className="animate-in fade-in-0 slide-in-from-bottom-8 duration-700 delay-500">
+                                <h2 className="text-lg md:text-xl font-bold text-white mb-3 px-4 md:px-12">Top 10 no Brasil hoje</h2>
+                                <ScrollableRow>
+                                    {top10Trails.map((trail, idx) => (
+                                        <Top10Card key={trail.id} trail={trail} rank={idx + 1} onClick={setPreviewTrail} />
+                                    ))}
+                                </ScrollableRow>
+                            </div>
+                        )}
 
-                {/* 3. Operação */}
-                {operationTrails.length > 0 && (
-                    <div className="animate-in fade-in-0 slide-in-from-bottom-8 duration-700 delay-700">
-                        <h2 className="text-lg md:text-xl font-bold text-white mb-3 px-4 md:px-12">Excelência Operacional</h2>
-                        <ScrollableRow>
-                            {operationTrails.map(trail => (
-                                <TrailCard key={trail.id} trail={trail} onClick={setPreviewTrail} />
-                            ))}
-                        </ScrollableRow>
-                    </div>
-                )}
+                        {/* 3. Operação */}
+                        {operationTrails.length > 0 && (
+                            <div className="animate-in fade-in-0 slide-in-from-bottom-8 duration-700 delay-700">
+                                <h2 className="text-lg md:text-xl font-bold text-white mb-3 px-4 md:px-12">Excelência Operacional</h2>
+                                <ScrollableRow>
+                                    {operationTrails.map(trail => (
+                                        <TrailCard key={trail.id} trail={trail} onClick={setPreviewTrail} />
+                                    ))}
+                                </ScrollableRow>
+                            </div>
+                        )}
 
-                {/* 4. Marketing & Vendas */}
-                {marketingTrails.length > 0 && (
-                    <div className="animate-in fade-in-0 slide-in-from-bottom-8 duration-700">
-                        <h2 className="text-lg md:text-xl font-bold text-white mb-3 px-4 md:px-12">Marketing & Vendas</h2>
-                        <ScrollableRow>
-                            {marketingTrails.map(trail => (
-                                <TrailCard key={trail.id} trail={trail} onClick={setPreviewTrail} />
-                            ))}
-                        </ScrollableRow>
-                    </div>
-                )}
+                        {/* 4. Marketing & Vendas */}
+                        {marketingTrails.length > 0 && (
+                            <div className="animate-in fade-in-0 slide-in-from-bottom-8 duration-700">
+                                <h2 className="text-lg md:text-xl font-bold text-white mb-3 px-4 md:px-12">Marketing & Vendas</h2>
+                                <ScrollableRow>
+                                    {marketingTrails.map(trail => (
+                                        <TrailCard key={trail.id} trail={trail} onClick={setPreviewTrail} />
+                                    ))}
+                                </ScrollableRow>
+                            </div>
+                        )}
 
-                {/* 5. Todas as Trilhas (Fallback row) */}
-                {availableTrails.length > 0 && (
-                    <div className="animate-in fade-in-0 slide-in-from-bottom-8 duration-700">
-                        <h2 className="text-lg md:text-xl font-bold text-white mb-3 px-4 md:px-12">Catálogo Completo</h2>
-                        <ScrollableRow>
-                            {availableTrails.map(trail => (
-                                <TrailCard key={trail.id} trail={trail} onClick={setPreviewTrail} />
-                            ))}
-                        </ScrollableRow>
-                    </div>
+                        {/* 5. Todas as Trilhas (Fallback row) */}
+                        {availableTrails.length > 0 && (
+                            <div className="animate-in fade-in-0 slide-in-from-bottom-8 duration-700">
+                                <h2 className="text-lg md:text-xl font-bold text-white mb-3 px-4 md:px-12">Catálogo Completo</h2>
+                                <ScrollableRow>
+                                    {availableTrails.map(trail => (
+                                        <TrailCard key={trail.id} trail={trail} onClick={setPreviewTrail} />
+                                    ))}
+                                </ScrollableRow>
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
 
@@ -559,10 +741,14 @@ export default function UniversidadePage() {
                                             <Play className="mr-2 h-5 w-5 fill-black" /> Assistir
                                         </Button>
                                         <Button
-                                            variant="ghost"
-                                            className="bg-white/10 border border-white/30 text-white hover:bg-white/20 hover:text-white hover:border-white transition-colors"
+                                            className={`font-semibold border ${myList.includes(previewTrail.id) ? 'bg-white/20 border-white text-white' : 'bg-transparent border-white/40 text-white/70 hover:bg-white/10'}`}
+                                            onClick={() => toggleMyList(previewTrail.id)}
                                         >
-                                            <Plus className="mr-2 h-5 w-5" /> Minha Lista
+                                            {myList.includes(previewTrail.id) ? (
+                                                <><CheckCircle2 className="mr-2 h-5 w-5" /> Na Minha Lista</>
+                                            ) : (
+                                                <><Plus className="mr-2 h-5 w-5" /> Minha Lista</>
+                                            )}
                                         </Button>
                                     </div>
                                 </div>
