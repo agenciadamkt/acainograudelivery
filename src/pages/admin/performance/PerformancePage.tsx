@@ -20,8 +20,22 @@ import {
     LineChart, Line, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
     Legend
 } from 'recharts';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+
+interface RankingItem {
+    store_id: string;
+    store_name: string;
+    store_city: string;
+    revenue: number;
+    lessons_completed: number;
+    score: number;
+    rank_pos: number;
+    is_current_user: boolean;
+}
 
 // Mock data
+// Mock data (kept for charts)
 const kpis = [
     { label: 'Faturamento', value: 'R$ 87.350', target: 'R$ 100.000', percent: 87, trend: 12, icon: DollarSign, color: 'text-green-400', bgColor: 'bg-green-500/10' },
     { label: 'Ticket Médio', value: 'R$ 42,80', target: 'R$ 45,00', percent: 95, trend: 5, icon: ShoppingBag, color: 'text-blue-400', bgColor: 'bg-blue-500/10' },
@@ -45,16 +59,6 @@ const radarData = [
     { subject: 'NPS', A: 97, B: 82, fullMark: 100 },
     { subject: 'Treinamentos', A: 60, B: 65, fullMark: 100 },
     { subject: 'Delivery', A: 85, B: 70, fullMark: 100 },
-];
-
-const ranking = [
-    { pos: 1, name: 'Unidade Alphaville', points: 9800, trend: 'up' as const, isYou: false },
-    { pos: 2, name: 'Unidade Vila Mariana', points: 9200, trend: 'up' as const, isYou: false },
-    { pos: 3, name: 'Sua Unidade', points: 8750, trend: 'up' as const, isYou: true },
-    { pos: 4, name: 'Unidade Moema', points: 8400, trend: 'down' as const, isYou: false },
-    { pos: 5, name: 'Unidade Pinheiros', points: 8100, trend: 'same' as const, isYou: false },
-    { pos: 6, name: 'Unidade Itaim', points: 7800, trend: 'down' as const, isYou: false },
-    { pos: 7, name: 'Unidade Perdizes', points: 7500, trend: 'up' as const, isYou: false },
 ];
 
 function KPICard({ kpi }: { kpi: typeof kpis[0] }) {
@@ -91,6 +95,16 @@ function KPICard({ kpi }: { kpi: typeof kpis[0] }) {
 }
 
 export default function PerformancePage() {
+    const { data: rankingData, isLoading } = useQuery({
+        queryKey: ['network-ranking'],
+        queryFn: async () => {
+            const { data, error } = await supabase.rpc('get_network_ranking' as any);
+            if (error) throw error;
+            return data as unknown as RankingItem[];
+        }
+    });
+
+    const myRank = rankingData?.find(r => r.is_current_user);
     return (
         <GrauOSLayout>
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -167,38 +181,43 @@ export default function PerformancePage() {
                             <p className="text-xs text-white/40">Baseado em pontuação de desempenho + treinamentos</p>
                         </div>
                         <div className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                            <span className="text-xs font-semibold text-emerald-400">Sua posição: #3</span>
+                            <div className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                                <span className="text-xs font-semibold text-emerald-400">
+                                    {isLoading ? '...' : myRank ? `Sua posição: #${myRank.rank_pos}` : 'N/A'}
+                                </span>
+                            </div>
                         </div>
                     </div>
 
                     <div className="space-y-2">
-                        {ranking.map(r => (
+                        {isLoading ? (
+                            <div className="text-center py-8 text-white/40">Carregando ranking...</div>
+                        ) : rankingData?.map(r => (
                             <div
-                                key={r.pos}
-                                className={`flex items-center justify-between p-3.5 rounded-xl transition-all ${r.isYou
-                                        ? 'bg-emerald-500/10 border border-emerald-500/20'
-                                        : 'bg-white/[0.01] border border-white/[0.04] hover:bg-white/[0.03]'
+                                key={r.store_id}
+                                className={`flex items-center justify-between p-3.5 rounded-xl transition-all ${r.is_current_user
+                                    ? 'bg-emerald-500/10 border border-emerald-500/20'
+                                    : 'bg-white/[0.01] border border-white/[0.04] hover:bg-white/[0.03]'
                                     }`}
                             >
                                 <div className="flex items-center gap-4">
-                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${r.pos === 1 ? 'bg-yellow-500/20 text-yellow-400' :
-                                            r.pos === 2 ? 'bg-gray-400/20 text-gray-300' :
-                                                r.pos === 3 ? 'bg-amber-600/20 text-amber-500' :
-                                                    'bg-white/5 text-white/40'
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${r.rank_pos === 1 ? 'bg-yellow-500/20 text-yellow-400' :
+                                        r.rank_pos === 2 ? 'bg-gray-400/20 text-gray-300' :
+                                            r.rank_pos === 3 ? 'bg-amber-600/20 text-amber-500' :
+                                                'bg-white/5 text-white/40'
                                         }`}>
-                                        {r.pos <= 3 ? ['🥇', '🥈', '🥉'][r.pos - 1] : r.pos}
+                                        {r.rank_pos <= 3 ? ['🥇', '🥈', '🥉'][r.rank_pos - 1] : r.rank_pos}
                                     </div>
                                     <div>
-                                        <span className={`text-sm font-medium ${r.isYou ? 'text-emerald-300' : 'text-white/80'}`}>
-                                            {r.name} {r.isYou && '⭐'}
+                                        <span className={`text-sm font-medium ${r.is_current_user ? 'text-emerald-300' : 'text-white/80'}`}>
+                                            {r.store_name} {r.is_current_user && '⭐'}
                                         </span>
-                                        <p className="text-[11px] text-white/30">{r.points.toLocaleString()} pontos</p>
+                                        <p className="text-[11px] text-white/30">{Number(r.score).toLocaleString()} pontos</p>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-1">
-                                    {r.trend === 'up' && <ArrowUp className="h-3.5 w-3.5 text-green-400" />}
-                                    {r.trend === 'down' && <ArrowDown className="h-3.5 w-3.5 text-red-400" />}
-                                    {r.trend === 'same' && <Minus className="h-3.5 w-3.5 text-white/30" />}
+                                    {/* Using mock trend for now as we don't have historical data yet */}
+                                    <Minus className="h-3.5 w-3.5 text-white/30" />
                                 </div>
                             </div>
                         ))}
