@@ -12,6 +12,8 @@ import logoCircular from '@/assets/logo-circular.png';
 import heroBg from '@/assets/hero-universidade.png';
 import { useTrails, Trail } from '@/hooks/useUniversity';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { X } from 'lucide-react';
 
 /* ══════════════════════════════════════════════════
    SCROLLABLE ROW — carrossel horizontal Netflix
@@ -85,7 +87,10 @@ function ScrollableRow({ children, className = '' }: { children: React.ReactNode
 /* ══════════════════════════════════════════════════
    CARD COMPONENT
    ══════════════════════════════════════════════════ */
-function TrailCard({ trail, large = false }: { trail: Trail; large?: boolean }) {
+/* ══════════════════════════════════════════════════
+   CARD COMPONENT
+   ══════════════════════════════════════════════════ */
+function TrailCard({ trail, large = false, onClick }: { trail: Trail; large?: boolean; onClick?: (trail: Trail) => void }) {
     const navigate = useNavigate();
     const [hovered, setHovered] = useState(false);
     const timeoutRef = useRef<NodeJS.Timeout>();
@@ -104,6 +109,15 @@ function TrailCard({ trail, large = false }: { trail: Trail; large?: boolean }) 
         setHovered(false);
     };
 
+    const handleClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (onClick) {
+            onClick(trail);
+        } else {
+            navigate(`/admin/universidade/${trail.id}`);
+        }
+    };
+
     // Calculate progress (mock for now if undefined)
     const progress = 0; // trail.progress || 0;
     const lessonsCount = trail.lessons_count || 0;
@@ -112,7 +126,7 @@ function TrailCard({ trail, large = false }: { trail: Trail; large?: boolean }) 
 
     return (
         <div
-            onClick={() => navigate(`/admin/universidade/${trail.id}`)}
+            onClick={handleClick}
             className="relative flex-shrink-0 cursor-pointer group/card snap-start"
             style={{
                 width: large ? 'clamp(140px, 13vw, 210px)' : 'clamp(140px, 16.5vw, 260px)',
@@ -186,10 +200,13 @@ function TrailCard({ trail, large = false }: { trail: Trail; large?: boolean }) 
                             >
                                 <Play className="h-4 w-4 text-black fill-black ml-0.5" />
                             </button>
-                            <button className="w-8 h-8 rounded-full border-2 border-gray-400 flex items-center justify-center hover:border-white hover:bg-white/10 transition-colors text-white">
-                                <Plus className="h-4 w-4" />
-                            </button>
-                            <button className="w-8 h-8 rounded-full border-2 border-gray-400 flex items-center justify-center hover:border-white hover:bg-white/10 transition-colors text-white ml-auto">
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (onClick) onClick(trail);
+                                }}
+                                className="w-8 h-8 rounded-full border-2 border-gray-400 flex items-center justify-center hover:border-white hover:bg-white/10 transition-colors text-white ml-auto"
+                            >
                                 <ChevronDown className="h-4 w-4" />
                             </button>
                         </div>
@@ -200,7 +217,7 @@ function TrailCard({ trail, large = false }: { trail: Trail; large?: boolean }) 
                             <div className="flex items-center gap-2 text-[10px] font-semibold text-white/70">
                                 <span className="text-green-400">98% relevante</span>
                                 <span className="border border-white/40 px-1 rounded text-[9px] uppercase">{trail.level}</span>
-                                <span>{duration}</span>
+                                <span className="text-xs text-white/50">{duration}</span>
                             </div>
                         </div>
 
@@ -217,13 +234,22 @@ function TrailCard({ trail, large = false }: { trail: Trail; large?: boolean }) 
     );
 }
 
-function Top10Card({ trail, rank }: { trail: Trail; rank: number }) {
+function Top10Card({ trail, rank, onClick }: { trail: Trail; rank: number; onClick?: (trail: Trail) => void }) {
     const navigate = useNavigate();
     const [hovered, setHovered] = useState(false);
 
+    const handleClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (onClick) {
+            onClick(trail);
+        } else {
+            navigate(`/admin/universidade/${trail.id}`);
+        }
+    };
+
     return (
         <div
-            onClick={() => navigate(`/admin/universidade/${trail.id}`)}
+            onClick={handleClick}
             className="relative flex-shrink-0 flex items-end cursor-pointer snap-start"
             style={{
                 width: 'clamp(160px, 12vw, 200px)',
@@ -270,6 +296,7 @@ export default function UniversidadePage() {
     const navigate = useNavigate();
     const [isMuted, setIsMuted] = useState(true);
     const [scrolled, setScrolled] = useState(false);
+    const [previewTrail, setPreviewTrail] = useState<Trail | null>(null);
 
     // Fetch trails from Supabase
     const { data: trails, isLoading, error } = useTrails();
@@ -401,7 +428,9 @@ export default function UniversidadePage() {
                             Onboarding Inicial <ChevronRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity text-[#e50914]" />
                         </h2>
                         <ScrollableRow>
-                            {onboardingTrails.map(trail => <TrailCard key={trail.id} trail={trail} />)}
+                            {onboardingTrails.map(trail => (
+                                <TrailCard key={trail.id} trail={trail} onClick={setPreviewTrail} />
+                            ))}
                         </ScrollableRow>
                     </div>
                 )}
@@ -411,7 +440,9 @@ export default function UniversidadePage() {
                     <div className="animate-in fade-in-0 slide-in-from-bottom-8 duration-700 delay-500">
                         <h2 className="text-lg md:text-xl font-bold text-white mb-3 px-4 md:px-12">Top 10 no Brasil hoje</h2>
                         <ScrollableRow>
-                            {top10Trails.map((trail, idx) => <Top10Card key={trail.id} trail={trail} rank={idx + 1} />)}
+                            {top10Trails.map((trail, idx) => (
+                                <Top10Card key={trail.id} trail={trail} rank={idx + 1} onClick={setPreviewTrail} />
+                            ))}
                         </ScrollableRow>
                     </div>
                 )}
@@ -421,7 +452,9 @@ export default function UniversidadePage() {
                     <div className="animate-in fade-in-0 slide-in-from-bottom-8 duration-700 delay-700">
                         <h2 className="text-lg md:text-xl font-bold text-white mb-3 px-4 md:px-12">Excelência Operacional</h2>
                         <ScrollableRow>
-                            {operationTrails.map(trail => <TrailCard key={trail.id} trail={trail} />)}
+                            {operationTrails.map(trail => (
+                                <TrailCard key={trail.id} trail={trail} onClick={setPreviewTrail} />
+                            ))}
                         </ScrollableRow>
                     </div>
                 )}
@@ -431,7 +464,9 @@ export default function UniversidadePage() {
                     <div className="animate-in fade-in-0 slide-in-from-bottom-8 duration-700">
                         <h2 className="text-lg md:text-xl font-bold text-white mb-3 px-4 md:px-12">Marketing & Vendas</h2>
                         <ScrollableRow>
-                            {marketingTrails.map(trail => <TrailCard key={trail.id} trail={trail} />)}
+                            {marketingTrails.map(trail => (
+                                <TrailCard key={trail.id} trail={trail} onClick={setPreviewTrail} />
+                            ))}
                         </ScrollableRow>
                     </div>
                 )}
@@ -441,11 +476,83 @@ export default function UniversidadePage() {
                     <div className="animate-in fade-in-0 slide-in-from-bottom-8 duration-700">
                         <h2 className="text-lg md:text-xl font-bold text-white mb-3 px-4 md:px-12">Catálogo Completo</h2>
                         <ScrollableRow>
-                            {availableTrails.map(trail => <TrailCard key={trail.id} trail={trail} />)}
+                            {availableTrails.map(trail => (
+                                <TrailCard key={trail.id} trail={trail} onClick={setPreviewTrail} />
+                            ))}
                         </ScrollableRow>
                     </div>
                 )}
             </div>
+
+            {/* PREVIEW DIALOG (NETFLIX STYLE) */}
+            <Dialog open={!!previewTrail} onOpenChange={() => setPreviewTrail(null)}>
+                <DialogContent className="max-w-4xl p-0 bg-[#181818] border-[#2a2a2a] text-white overflow-hidden rounded-lg">
+                    {previewTrail && (
+                        <div className="relative">
+                            {/* Header Image */}
+                            <div className="relative aspect-video w-full">
+                                <img
+                                    src={previewTrail.thumbnail}
+                                    alt={previewTrail.title}
+                                    className="w-full h-full object-cover"
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-t from-[#181818] via-transparent to-transparent" />
+
+                                {/* Close Button */}
+                                <button
+                                    onClick={() => setPreviewTrail(null)}
+                                    className="absolute top-4 right-4 w-10 h-10 rounded-full bg-[#181818] flex items-center justify-center hover:bg-[#2a2a2a] transition-colors z-50"
+                                >
+                                    <X className="h-6 w-6 text-white" />
+                                </button>
+
+                                {/* Title & Actions Overlay */}
+                                <div className="absolute bottom-8 left-8 right-8">
+                                    <h2 className="text-4xl md:text-5xl font-bold mb-4 drop-shadow-lg">{previewTrail.title}</h2>
+
+                                    <div className="flex items-center gap-4">
+                                        <Button
+                                            onClick={() => navigate(`/admin/universidade/${previewTrail.id}`)}
+                                            className="bg-white text-black hover:bg-white/90 font-bold px-8 text-lg"
+                                        >
+                                            <Play className="mr-2 h-5 w-5 fill-black" /> Assistir
+                                        </Button>
+                                        <Button variant="outline" className="border-gray-500 text-white hover:bg-[#2a2a2a] hover:text-white">
+                                            <Plus className="mr-2 h-5 w-5" /> Minha Lista
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Details Section */}
+                            <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-8 p-8">
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-3 text-sm font-semibold">
+                                        <span className="text-green-400">98% relevante</span>
+                                        <span className="border border-white/40 px-1 rounded text-xs uppercase">{previewTrail.level}</span>
+                                        <span className="text-white/60">{previewTrail.lessons_count || 0} aulas</span>
+                                    </div>
+
+                                    <p className="text-lg leading-relaxed text-white/90">
+                                        {previewTrail.description || "Sem descrição disponível."}
+                                    </p>
+                                </div>
+
+                                <div className="space-y-4 text-sm text-white/60">
+                                    <div>
+                                        <span className="text-white/40">Gênero:</span> {previewTrail.category}
+                                    </div>
+                                    <div>
+                                        <span className="text-white/40">Idioma:</span> Português
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
+
+
 
             {/* Footer */}
             <footer className="px-4 md:px-12 py-10 max-w-5xl mx-auto text-white/40 text-sm">
