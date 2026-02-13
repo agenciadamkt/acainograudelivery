@@ -14,11 +14,14 @@ import {
     Flame,
     Gift,
     ThumbsUp,
+    Zap,
+    Trash2,
+    Heart,
+    MessageCircle as MessageIcon,
+    Send,
     Share2,
     TrendingUp,
-    Shield,
-    Zap,
-    Trash2
+    Shield
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -28,6 +31,17 @@ import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ManageCommunityDialog } from '@/components/admin/comunidade/ManageCommunityDialog';
 import { toast } from 'sonner';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog"
+import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { useState } from 'react';
 
 interface RankingItem {
     store_id: string;
@@ -78,7 +92,25 @@ const levels = [
 
 export default function ComunidadePage() {
     const [activeTab, setActiveTab] = useState<'feed' | 'desafios' | 'ranking'>('feed');
+    const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+    const [commentText, setCommentText] = useState('');
+    const [isAdmin, setIsAdmin] = useState(false);
+    const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
 
+    const queryClient = useQueryClient();
+
+    // Check if user is admin
+    useQuery({
+        queryKey: ['check-admin'],
+        queryFn: async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user?.email) {
+                setCurrentUserEmail(user.email);
+                setIsAdmin(user.email === 'agenciadamkt@gmail.com');
+            }
+            return user;
+        }
+    });
     const { data: rankingData, isLoading: loadingRanking } = useQuery({
         queryKey: ['network-ranking'],
         queryFn: async () => {
@@ -140,6 +172,81 @@ export default function ComunidadePage() {
             queryClient.invalidateQueries({ queryKey: ['community_posts'] });
         },
         onError: (error) => toast.error('Erro ao excluir post: ' + error.message)
+    });
+
+    // Like Mutation
+    const toggleLike = useMutation({
+        mutationFn: async (postId: string) => {
+            const user = (await supabase.auth.getUser()).data.user;
+            if (!user) throw new Error('User not found');
+
+            // Check if already liked
+            const { data: existingLike } = await supabase
+                .from('community_likes' as any)
+                .select('*')
+                .eq('user_id', user.id)
+                .eq('post_id', postId)
+                .single();
+
+            if (existingLike) {
+                await supabase
+                    .from('community_likes' as any)
+                    .delete()
+                    .eq('user_id', user.id)
+                    .eq('post_id', postId);
+            } else {
+                await supabase
+                    .from('community_likes' as any)
+                    .insert({ user_id: user.id, post_id: postId });
+            }
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['community_posts'] });
+            queryClient.invalidateQueries({ queryKey: ['community_likes'] });
+        },
+        onError: () => toast.error('Erro ao curtir post')
+    });
+
+    // Add Comment Mutation
+    const addComment = useMutation({
+        mutationFn: async () => {
+            if (!selectedPostId || !commentText.trim()) return;
+            const user = (await supabase.auth.getUser()).data.user;
+
+            const { error } = await supabase
+                .from('community_comments' as any)
+                .insert({
+                    post_id: selectedPostId,
+                    user_id: user?.id,
+                    content: commentText,
+                    status: 'pending' // Moderation
+                });
+
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            toast.success('Comentário enviado para aprovação!');
+            setCommentText('');
+            setSelectedPostId(null);
+        },
+        onError: () => toast.error('Erro ao enviar comentário')
+    });
+
+    // Fetch Comments for selected post
+    const { data: comments } = useQuery({
+        queryKey: ['community_comments', selectedPostId],
+        enabled: !!selectedPostId,
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from('community_comments' as any)
+                .select('*, user_id') // Join with user_id to maybe fetch name/avatar later if needed
+                .eq('post_id', selectedPostId)
+                .eq('status', 'approved') // Only show approved
+                .order('created_at', { ascending: true });
+
+            if (error) throw error;
+            return data as any[];
+        }
     });
 
     // Calculate real user points from ranking
@@ -206,8 +313,8 @@ export default function ComunidadePage() {
                             );
                         })}
                     </div>
-                    {/* Management Button */}
-                    <ManageCommunityDialog />
+                    {/* Management Button (Admin Only) */}
+                    {isAdmin && <ManageCommunityDialog />}
                 </div>
 
                 {/* Tab Content */}
@@ -255,14 +362,16 @@ export default function ComunidadePage() {
                                             <p className="text-[11px] text-white/30">{timeAgo}</p>
                                         </div>
 
-                                        {/* Delete Button (Admin) */}
-                                        <button
-                                            onClick={() => deletePost.mutate(post.id)}
-                                            className="text-white/20 hover:text-red-400 p-1 transition-colors"
-                                            title="Excluir post"
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </button>
+                                        {/* Delete Button (Admin Only) */}
+                                        {isAdmin && (
+                                            <button
+                                                onClick={() => deletePost.mutate(post.id)}
+                                                className="text-white/20 hover:text-red-400 p-1 transition-colors"
+                                                title="Excluir post"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </button>
+                                        )}
                                     </div>
 
                                     {/* Post content */}
@@ -270,12 +379,61 @@ export default function ComunidadePage() {
 
                                     {/* Post actions */}
                                     <div className="flex items-center gap-4">
-                                        <button className="flex items-center gap-1.5 text-xs text-white/40 hover:text-pink-400 transition-colors">
+                                        <button
+                                            onClick={() => toggleLike.mutate(post.id)}
+                                            className="flex items-center gap-1.5 text-xs text-white/40 hover:text-pink-400 transition-colors"
+                                        >
                                             <Heart className="h-4 w-4" /> {post.likes_count || 0}
                                         </button>
-                                        <button className="flex items-center gap-1.5 text-xs text-white/40 hover:text-blue-400 transition-colors">
-                                            <MessageCircle className="h-4 w-4" /> {post.comments_count || 0}
-                                        </button>
+
+                                        <Dialog>
+                                            <DialogTrigger asChild>
+                                                <button
+                                                    className="flex items-center gap-1.5 text-xs text-white/40 hover:text-blue-400 transition-colors"
+                                                    onClick={() => setSelectedPostId(post.id)}
+                                                >
+                                                    <MessageIcon className="h-4 w-4" /> {post.comments_count || 0}
+                                                </button>
+                                            </DialogTrigger>
+                                            <DialogContent className="bg-slate-900 border-white/10 text-white sm:max-w-md">
+                                                <DialogHeader>
+                                                    <DialogTitle>Comentários</DialogTitle>
+                                                </DialogHeader>
+
+                                                <ScrollArea className="h-[300px] w-full rounded-md border border-white/5 p-4">
+                                                    {comments?.length === 0 ? (
+                                                        <p className="text-sm text-white/40 text-center py-8">Nenhum comentário aprovado ainda.</p>
+                                                    ) : (
+                                                        <div className="space-y-4">
+                                                            {comments?.map((comment: any) => (
+                                                                <div key={comment.id} className="bg-white/5 p-3 rounded-lg">
+                                                                    <p className="text-xs text-white/30 mb-1">Usuário</p>
+                                                                    <p className="text-sm text-white">{comment.content}</p>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </ScrollArea>
+
+                                                <div className="flex items-center gap-2 mt-2">
+                                                    <Textarea
+                                                        placeholder="Escreva um comentário (sujeito a moderação)..."
+                                                        className="bg-white/5 border-white/10 text-white min-h-[40px] resize-none"
+                                                        value={commentText}
+                                                        onChange={e => setCommentText(e.target.value)}
+                                                    />
+                                                    <Button
+                                                        size="icon"
+                                                        className="bg-pink-600 hover:bg-pink-700"
+                                                        onClick={() => addComment.mutate()}
+                                                        disabled={addComment.isPending || !commentText.trim()}
+                                                    >
+                                                        <Send className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            </DialogContent>
+                                        </Dialog>
+
                                         <button className="flex items-center gap-1.5 text-xs text-white/40 hover:text-green-400 transition-colors">
                                             <Share2 className="h-4 w-4" /> Compartilhar
                                         </button>

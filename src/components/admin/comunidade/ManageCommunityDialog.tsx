@@ -10,7 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Loader2, Plus } from 'lucide-react';
 
-import { Trash2, Pencil } from 'lucide-react';
+import { Trash2, Pencil, Check, X, MessageSquare, AlertCircle } from 'lucide-react';
 
 export function ManageCommunityDialog() {
     const [open, setOpen] = useState(false);
@@ -43,6 +43,37 @@ export function ManageCommunityDialog() {
             if (error) throw error;
             return data as any[];
         }
+    });
+
+    // Fetch Pending Comments
+    const { data: pendingComments } = useQuery({
+        queryKey: ['pending_comments'],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from('community_comments' as any)
+                .select('*, user:user_id(email)')
+                .eq('status', 'pending')
+                .order('created_at', { ascending: false });
+            if (error) throw error;
+            return data as any[];
+        }
+    });
+
+    // Moderate Comment Mutation
+    const moderateComment = useMutation({
+        mutationFn: async ({ id, status }: { id: string, status: 'approved' | 'rejected' }) => {
+            const { error } = await supabase
+                .from('community_comments' as any)
+                .update({ status })
+                .eq('id', id);
+            if (error) throw error;
+        },
+        onSuccess: (_, variables) => {
+            toast.success(variables.status === 'approved' ? 'Comentário aprovado!' : 'Comentário rejeitado!');
+            queryClient.invalidateQueries({ queryKey: ['pending_comments'] });
+            queryClient.invalidateQueries({ queryKey: ['community_posts'] }); // Update counts if needed
+        },
+        onError: () => toast.error('Erro ao moderar comentário')
     });
 
     // Create Post Mutation
@@ -146,7 +177,13 @@ export function ManageCommunityDialog() {
                     <TabsList className="grid w-full grid-cols-3 bg-white/5">
                         <TabsTrigger value="post">Novo Post</TabsTrigger>
                         <TabsTrigger value="challenge">Novo Desafio</TabsTrigger>
-                        <TabsTrigger value="types">Tipos de Post</TabsTrigger>
+                        <TabsTrigger value="types">Tipos</TabsTrigger>
+                        <TabsTrigger value="moderation" className="relative">
+                            Moderação
+                            {pendingComments && pendingComments.length > 0 && (
+                                <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+                            )}
+                        </TabsTrigger>
                     </TabsList>
 
                     {/* NEW POST TAB */}
@@ -240,7 +277,50 @@ export function ManageCommunityDialog() {
                         </Button>
                     </TabsContent>
 
-                    {/* MANAGE TYPES TAB */}
+                    {/* MODERATION TAB */}
+                    <TabsContent value="moderation" className="space-y-4 pt-4">
+                        <div className="space-y-4">
+                            {pendingComments?.length === 0 ? (
+                                <div className="text-center py-8 text-white/40">
+                                    <Check className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                                    <p>Tudo limpo! Nenhum comentário pendente.</p>
+                                </div>
+                            ) : (
+                                pendingComments?.map((comment: any) => (
+                                    <div key={comment.id} className="p-4 rounded-lg bg-white/5 border border-white/10 space-y-3">
+                                        <div className="flex items-start justify-between">
+                                            <div>
+                                                <p className="text-xs text-white/40 mb-1">
+                                                    {comment.user?.email || 'Usuário'} • {new Date(comment.created_at).toLocaleDateString()}
+                                                </p>
+                                                <p className="text-sm text-white">{comment.content}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex justify-end gap-2">
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="h-8 border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+                                                onClick={() => moderateComment.mutate({ id: comment.id, status: 'rejected' })}
+                                                disabled={moderateComment.isPending}
+                                            >
+                                                <X className="h-4 w-4 mr-1" /> Rejeitar
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                className="h-8 bg-green-600 hover:bg-green-700 text-white"
+                                                onClick={() => moderateComment.mutate({ id: comment.id, status: 'approved' })}
+                                                disabled={moderateComment.isPending}
+                                            >
+                                                <Check className="h-4 w-4 mr-1" /> Aprovar
+                                            </Button>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </TabsContent>
+
                     <TabsContent value="types" className="space-y-4 pt-4">
                         <div className="p-4 rounded-lg bg-white/5 border border-white/10 space-y-4">
                             <h4 className="text-sm font-semibold">Adicionar Novo Tipo</h4>
