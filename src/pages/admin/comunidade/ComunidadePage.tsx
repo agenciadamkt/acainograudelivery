@@ -21,6 +21,19 @@ import {
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+
+interface RankingItem {
+    store_id: string;
+    store_name: string;
+    store_city: string;
+    revenue: number;
+    lessons_completed: number;
+    score: number;
+    rank_pos: number;
+    is_current_user: boolean;
+}
 
 // Level system
 const levels = [
@@ -86,17 +99,19 @@ const feedPosts = [
     },
 ];
 
-// Top ranking
-const topRanking = [
-    { pos: 1, name: 'Alphaville', points: 9800, level: 'Ouro' },
-    { pos: 2, name: 'Vila Mariana', points: 9200, level: 'Ouro' },
-    { pos: 3, name: 'Sua Unidade', points: 8750, level: 'Prata', isYou: true },
-    { pos: 4, name: 'Moema', points: 8400, level: 'Ouro' },
-    { pos: 5, name: 'Pinheiros', points: 8100, level: 'Prata' },
-];
+// Top ranking (mock removed, fetched via RPC)
 
 export default function ComunidadePage() {
     const [activeTab, setActiveTab] = useState<'feed' | 'desafios' | 'ranking'>('feed');
+
+    const { data: rankingData, isLoading } = useQuery({
+        queryKey: ['network-ranking'],
+        queryFn: async () => {
+            const { data, error } = await supabase.rpc('get_network_ranking' as any);
+            if (error) throw error;
+            return data as unknown as RankingItem[];
+        }
+    });
 
     const userPoints = 2350;
     const currentLevel = levels.find(l => userPoints >= l.min && userPoints <= l.max) || levels[0];
@@ -147,8 +162,8 @@ export default function ComunidadePage() {
                                 key={tab.key}
                                 onClick={() => setActiveTab(tab.key)}
                                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === tab.key
-                                        ? 'bg-pink-500 text-white shadow-lg shadow-pink-500/20'
-                                        : 'text-white/50 hover:text-white/70 hover:bg-white/5'
+                                    ? 'bg-pink-500 text-white shadow-lg shadow-pink-500/20'
+                                    : 'text-white/50 hover:text-white/70 hover:bg-white/5'
                                     }`}
                             >
                                 <Icon className="h-4 w-4" />
@@ -244,27 +259,30 @@ export default function ComunidadePage() {
                         </h3>
 
                         <div className="space-y-2">
-                            {topRanking.map(r => (
+                            {isLoading ? (
+                                <div className="text-center py-8 text-white/40">Carregando ranking...</div>
+                            ) : rankingData?.map(r => (
                                 <div
-                                    key={r.pos}
-                                    className={`flex items-center justify-between p-4 rounded-xl transition-all ${r.isYou
-                                            ? 'bg-pink-500/10 border border-pink-500/20'
-                                            : 'bg-white/[0.01] border border-white/[0.04] hover:bg-white/[0.03]'
+                                    key={r.store_id}
+                                    className={`flex items-center justify-between p-4 rounded-xl transition-all ${r.is_current_user
+                                        ? 'bg-pink-500/10 border border-pink-500/20'
+                                        : 'bg-white/[0.01] border border-white/[0.04] hover:bg-white/[0.03]'
                                         }`}
                                 >
                                     <div className="flex items-center gap-4">
-                                        <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm ${r.pos === 1 ? 'bg-yellow-500/20 text-yellow-400' :
-                                                r.pos === 2 ? 'bg-gray-400/20 text-gray-300' :
-                                                    r.pos === 3 ? 'bg-amber-600/20 text-amber-500' :
-                                                        'bg-white/5 text-white/40'
+                                        <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm ${r.rank_pos === 1 ? 'bg-yellow-500/20 text-yellow-400' :
+                                            r.rank_pos === 2 ? 'bg-gray-400/20 text-gray-300' :
+                                                r.rank_pos === 3 ? 'bg-amber-600/20 text-amber-500' :
+                                                    'bg-white/5 text-white/40'
                                             }`}>
-                                            {r.pos <= 3 ? ['🥇', '🥈', '🥉'][r.pos - 1] : r.pos}
+                                            {r.rank_pos <= 3 ? ['🥇', '🥈', '🥉'][r.rank_pos - 1] : r.rank_pos}
                                         </div>
                                         <div>
-                                            <span className={`text-sm font-medium ${r.isYou ? 'text-pink-300' : 'text-white/80'}`}>
-                                                {r.name} {r.isYou && '(Você ⭐)'}
+                                            <span className={`text-sm font-medium ${r.is_current_user ? 'text-pink-300' : 'text-white/80'}`}>
+                                                {r.store_name} {r.is_current_user && '(Você ⭐)'}
                                             </span>
-                                            <p className="text-[11px] text-white/30">{r.points.toLocaleString()} pts • {r.level}</p>
+                                            {/* Logic to determine Level based on Score could be added here, using mock level for now or deriving it */}
+                                            <p className="text-[11px] text-white/30">{Number(r.score).toLocaleString()} pts</p>
                                         </div>
                                     </div>
                                 </div>
