@@ -301,6 +301,18 @@ export default function UniversidadePage() {
     // Fetch trails from Supabase
     const { data: trails, isLoading, error } = useTrails();
 
+    // Hero Carousel State
+    const [heroTrails, setHeroTrails] = useState<Trail[]>([]);
+    const [heroIndex, setHeroIndex] = useState(0);
+
+    // Randomize Hero on refresh (when trails load)
+    useEffect(() => {
+        if (trails && trails.length > 0) {
+            const shuffled = [...trails].filter(t => t.active).sort(() => 0.5 - Math.random());
+            setHeroTrails(shuffled.slice(0, 5));
+        }
+    }, [trails]);
+
     // Scroll listener
     useEffect(() => {
         const handleScroll = () => setScrolled(window.scrollY > 0);
@@ -326,7 +338,7 @@ export default function UniversidadePage() {
     }
 
     const availableTrails = trails || [];
-    const heroTrail = availableTrails.find(t => t.active) || availableTrails[0];
+    const heroTrail = heroTrails[heroIndex] || availableTrails[0];
 
     // Categorize trails for rows
     const onboardingTrails = availableTrails.filter(t => t.category === 'onboarding');
@@ -409,12 +421,41 @@ export default function UniversidadePage() {
                                 <Play className="w-5 h-5 md:w-6 md:h-6 fill-black" />
                                 Assistir
                             </button>
-                            <button className="bg-white/20 backdrop-blur-sm text-white px-6 md:px-8 py-2 md:py-3 rounded flex items-center gap-2 font-bold hover:bg-white/30 transition-colors">
+                            <button
+                                onClick={() => setPreviewTrail(heroTrail)}
+                                className="bg-white/20 backdrop-blur-sm text-white px-6 md:px-8 py-2 md:py-3 rounded flex items-center gap-2 font-bold hover:bg-white/30 transition-colors"
+                            >
                                 <Info className="w-5 h-5 md:w-6 md:h-6" />
                                 Mais Informações
                             </button>
                         </div>
                     </div>
+
+                    {/* Slider Controls (Discrete) */}
+                    {heroTrails.length > 1 && (
+                        <>
+                            {/* Right Side Control area (hover to see arrow) */}
+                            <div className="absolute right-0 top-0 bottom-0 w-[10%] z-20 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-300">
+                                <button
+                                    onClick={() => setHeroIndex((prev) => (prev + 1) % heroTrails.length)}
+                                    className="bg-black/30 hover:bg-black/50 text-white p-2 rounded-full backdrop-blur-sm"
+                                >
+                                    <ChevronRight className="h-8 w-8" />
+                                </button>
+                            </div>
+
+                            {/* Dots */}
+                            <div className="absolute bottom-20 right-12 z-20 flex gap-2">
+                                {heroTrails.map((_, idx) => (
+                                    <button
+                                        key={idx}
+                                        onClick={() => setHeroIndex(idx)}
+                                        className={` transition-all duration-300 rounded-full ${idx === heroIndex ? 'w-8 h-2 bg-white' : 'w-2 h-2 bg-white/40 hover:bg-white/80'}`}
+                                    />
+                                ))}
+                            </div>
+                        </>
+                    )}
                 </div>
             )}
 
