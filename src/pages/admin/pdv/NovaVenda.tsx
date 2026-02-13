@@ -283,8 +283,8 @@ export default function NovaVenda() {
     return (
         <div className={`grid grid-cols-1 lg:grid-cols-3 gap-6 ${isFullscreen ? 'h-screen p-6 bg-background fixed inset-0 z-50 overflow-hidden' : 'h-[calc(100vh-100px)]'}`}>
             {/* Product Selection Area */}
-            <div className="lg:col-span-2 flex flex-col gap-4">
-                <Card className="flex-1 flex flex-col shadow-md border-0 bg-white/50 dark:bg-zinc-900/50 backdrop-blur-sm">
+            <div className="lg:col-span-2 flex flex-col gap-4 h-full min-h-0">
+                <Card className="flex-1 flex flex-col shadow-md border-0 bg-white/50 dark:bg-zinc-900/50 backdrop-blur-sm h-full">
                     <CardHeader className="pb-2">
                         <CardTitle className="flex justify-between items-center">
                             <div className="flex items-center gap-2">
@@ -434,7 +434,7 @@ export default function NovaVenda() {
             </div>
 
             {/* Cart & Checkout Area */}
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-4 h-full min-h-0">
                 <Card className="flex-1 flex flex-col h-full border-0 shadow-xl bg-white dark:bg-zinc-900 border-l border-zinc-100 dark:border-zinc-800">
                     <CardHeader className="bg-primary/5 pb-4 border-b border-primary/10">
                         <div className="flex justify-between items-center">
