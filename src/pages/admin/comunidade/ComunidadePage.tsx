@@ -147,27 +147,32 @@ export default function ComunidadePage() {
                 </div>
 
                 {/* Tabs */}
-                <div className="flex items-center gap-1 p-1 rounded-xl bg-white/[0.03] border border-white/[0.06] mb-8 w-fit">
-                    {[
-                        { key: 'feed' as const, label: 'Feed', icon: MessageCircle },
-                        { key: 'desafios' as const, label: 'Desafios', icon: Target },
-                        { key: 'ranking' as const, label: 'Ranking', icon: Trophy },
-                    ].map(tab => {
-                        const Icon = tab.icon;
-                        return (
-                            <button
-                                key={tab.key}
-                                onClick={() => setActiveTab(tab.key)}
-                                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === tab.key
-                                    ? 'bg-pink-500 text-white shadow-lg shadow-pink-500/20'
-                                    : 'text-white/50 hover:text-white/70 hover:bg-white/5'
-                                    }`}
-                            >
-                                <Icon className="h-4 w-4" />
-                                {tab.label}
-                            </button>
-                        );
-                    })}
+                {/* Tabs & Management */}
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8">
+                    <div className="flex items-center gap-1 p-1 rounded-xl bg-white/[0.03] border border-white/[0.06] w-fit">
+                        {[
+                            { key: 'feed' as const, label: 'Feed', icon: MessageCircle },
+                            { key: 'desafios' as const, label: 'Desafios', icon: Target },
+                            { key: 'ranking' as const, label: 'Ranking', icon: Trophy },
+                        ].map(tab => {
+                            const Icon = tab.icon;
+                            return (
+                                <button
+                                    key={tab.key}
+                                    onClick={() => setActiveTab(tab.key)}
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === tab.key
+                                        ? 'bg-pink-500 text-white shadow-lg shadow-pink-500/20'
+                                        : 'text-white/50 hover:text-white/70 hover:bg-white/5'
+                                        }`}
+                                >
+                                    <Icon className="h-4 w-4" />
+                                    {tab.label}
+                                </button>
+                            );
+                        })}
+                    </div>
+                    {/* Management Button */}
+                    <ManageCommunityDialog />
                 </div>
 
                 {/* Tab Content */}
