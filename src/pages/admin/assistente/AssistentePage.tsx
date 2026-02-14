@@ -59,25 +59,25 @@ function ChatBubble({ message }: { message: Message }) {
         <div className={`flex gap-3 ${isBot ? '' : 'flex-row-reverse'}`}>
             {/* Avatar */}
             <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${isBot
-                    ? 'bg-gradient-to-br from-purple-600 to-indigo-500'
-                    : 'bg-white/10'
+                ? 'bg-gradient-to-br from-purple-600 to-indigo-500'
+                : 'bg-white/10'
                 }`}>
                 {isBot ? <Bot className="h-4 w-4 text-white" /> : <User className="h-4 w-4 text-white/60" />}
             </div>
 
             {/* Bubble */}
-            <div className={`max-w-[80%] rounded-2xl px-4 py-3 ${isBot
-                    ? 'bg-white/[0.05] border border-white/[0.08]'
-                    : 'bg-purple-600/20 border border-purple-500/20'
+            <div className={`max-w-[80%] rounded-2xl px-4 py-3 shadow-sm dark:shadow-none ${isBot
+                ? 'bg-white dark:bg-white/[0.05] border border-gray-200 dark:border-white/[0.08]'
+                : 'bg-purple-100 dark:bg-purple-600/20 border border-transparent dark:border-purple-500/20'
                 }`}>
-                <div className="text-sm text-white/80 leading-relaxed whitespace-pre-wrap"
+                <div className="text-sm text-gray-800 dark:text-white/80 leading-relaxed whitespace-pre-wrap"
                     dangerouslySetInnerHTML={{
                         __html: message.content
-                            .replace(/\*\*(.*?)\*\*/g, '<strong class="text-white">$1</strong>')
+                            .replace(/\*\*(.*?)\*\*/g, '<strong class="text-gray-900 dark:text-white font-semibold">$1</strong>')
                             .replace(/\n/g, '<br/>')
                     }}
                 />
-                <p className="text-[10px] text-white/20 mt-2">
+                <p className="text-[10px] text-gray-400 dark:text-white/20 mt-2">
                     {message.timestamp.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                 </p>
             </div>
@@ -139,17 +139,17 @@ export default function AssistentePage() {
         <GrauOSLayout>
             <div className="max-w-4xl mx-auto h-[calc(100vh-8rem)] flex flex-col">
                 {/* Chat Header */}
-                <div className="px-4 sm:px-6 py-4 border-b border-white/5">
+                <div className="px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-white/5 bg-white/50 dark:bg-transparent backdrop-blur-sm">
                     <div className="flex items-center gap-3">
                         <div className="relative">
                             <div className="p-2.5 rounded-xl bg-gradient-to-br from-purple-600 to-indigo-500 shadow-lg shadow-purple-500/20">
                                 <Bot className="h-6 w-6 text-white" />
                             </div>
-                            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-400 border-2 border-[#0F0F14]" />
+                            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-400 border-2 border-white dark:border-[#0F0F14]" />
                         </div>
                         <div>
-                            <h3 className="text-base font-bold text-white">GrauBot</h3>
-                            <p className="text-xs text-green-400 font-medium">Online — Pronto para ajudar</p>
+                            <h3 className="text-base font-bold text-gray-900 dark:text-white">GrauBot</h3>
+                            <p className="text-xs text-green-600 dark:text-green-400 font-medium">Online — Pronto para ajudar</p>
                         </div>
                     </div>
                 </div>
@@ -165,10 +165,10 @@ export default function AssistentePage() {
                             <div className="w-8 h-8 rounded-full flex items-center justify-center bg-gradient-to-br from-purple-600 to-indigo-500">
                                 <Bot className="h-4 w-4 text-white" />
                             </div>
-                            <div className="bg-white/[0.05] border border-white/[0.08] rounded-2xl px-4 py-3">
+                            <div className="bg-white dark:bg-white/[0.05] border border-gray-200 dark:border-white/[0.08] rounded-2xl px-4 py-3 shadow-sm dark:shadow-none">
                                 <div className="flex items-center gap-2">
-                                    <Loader2 className="h-4 w-4 text-purple-400 animate-spin" />
-                                    <span className="text-sm text-white/40">Pensando...</span>
+                                    <Loader2 className="h-4 w-4 text-purple-500 dark:text-purple-400 animate-spin" />
+                                    <span className="text-sm text-gray-500 dark:text-white/40">Pensando...</span>
                                 </div>
                             </div>
                         </div>
@@ -181,15 +181,15 @@ export default function AssistentePage() {
                 {messages.length <= 1 && (
                     <div className="px-4 sm:px-6 pb-3">
                         <div className="flex items-center gap-2 mb-2">
-                            <Lightbulb className="h-3.5 w-3.5 text-white/30" />
-                            <span className="text-xs text-white/30 font-medium">Sugestões rápidas</span>
+                            <Lightbulb className="h-3.5 w-3.5 text-gray-400 dark:text-white/30" />
+                            <span className="text-xs text-gray-500 dark:text-white/30 font-medium">Sugestões rápidas</span>
                         </div>
                         <div className="flex flex-wrap gap-2">
                             {quickSuggestions.map(s => (
                                 <button
                                     key={s.label}
                                     onClick={() => handleSend(s.label)}
-                                    className="px-3 py-1.5 rounded-full text-xs bg-white/5 border border-white/[0.08] text-white/60 hover:bg-white/10 hover:text-white/80 transition-all hover:scale-[1.02]"
+                                    className="px-3 py-1.5 rounded-full text-xs bg-white dark:bg-white/5 border border-gray-200 dark:border-white/[0.08] text-gray-600 dark:text-white/60 hover:bg-gray-50 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-white/80 transition-all hover:scale-[1.02] shadow-sm dark:shadow-none"
                                 >
                                     {s.label}
                                 </button>
@@ -199,7 +199,7 @@ export default function AssistentePage() {
                 )}
 
                 {/* Input */}
-                <div className="px-4 sm:px-6 py-4 border-t border-white/5 bg-white/[0.01]">
+                <div className="px-4 sm:px-6 py-4 border-t border-gray-200 dark:border-white/5 bg-gray-50/50 dark:bg-white/[0.01]">
                     <form
                         onSubmit={(e) => {
                             e.preventDefault();
@@ -213,7 +213,7 @@ export default function AssistentePage() {
                             onChange={(e) => setInput(e.target.value)}
                             placeholder="Pergunte ao GrauBot..."
                             disabled={isTyping}
-                            className="flex-1 bg-white/5 border-white/10 text-white placeholder:text-white/30 h-11 rounded-xl focus:ring-purple-500/20 focus:border-purple-500/30"
+                            className="flex-1 bg-white dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/30 h-11 rounded-xl focus:ring-purple-500/20 focus:border-purple-500/30 shadow-sm dark:shadow-none"
                         />
                         <Button
                             type="submit"
@@ -224,7 +224,7 @@ export default function AssistentePage() {
                             <Send className="h-4 w-4 text-white" />
                         </Button>
                     </form>
-                    <p className="text-[10px] text-white/20 text-center mt-2">
+                    <p className="text-[10px] text-gray-400 dark:text-white/20 text-center mt-2">
                         GrauBot pode cometer erros. Verifique informações importantes.
                     </p>
                 </div>

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import {
     Plus, Pencil, Trash2, GripVertical, Play, Eye, BookOpen, Clock, CheckCircle2,
     FileText, ExternalLink, MessageCircle, ChevronLeft, Upload, X, Search, Loader2,
+    AlertCircle, Check
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +12,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { toast } from 'sonner';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
     Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
@@ -64,6 +67,7 @@ export default function UniversidadeAdminPage() {
     const createLink = useCreateLink();
     const deleteLink = useDeleteLink();
     const answerQuestion = useAnswerQuestion();
+    const queryClient = useQueryClient();
 
     const [view, setView] = useState<'list' | 'trail' | 'lesson'>('list');
     const [selectedTrailId, setSelectedTrailId] = useState<string | null>(null);
@@ -87,6 +91,7 @@ export default function UniversidadeAdminPage() {
 
     // ─── Material / Link add state ───
     const [newMaterial, setNewMaterial] = useState({ name: '', url: '', type: 'pdf', size: '' });
+    const [newLink, setNewLink] = useState({ title: '', url: '', description: '' });
     const [isUploadingMaterial, setIsUploadingMaterial] = useState(false);
     const [isMigrating, setIsMigrating] = useState(false);
 
@@ -317,12 +322,71 @@ export default function UniversidadeAdminPage() {
         },
     ];
 
-    /* ══════════════════════════════════════
-       RENDER — LIST VIEW
-       ══════════════════════════════════════ */
+    /* ══ MODERATION LOGIC ══ */
+    const { data: pendingComments, error: pendingError, isLoading: isPendingLoading } = useQuery({
+        queryKey: ['university_pending_comments'],
+        queryFn: async () => {
+            console.log('Fetching pending comments...');
+            const { data, error } = await supabase
+                .from('community_comments' as any)
+                .select('*, user:user_id(email)')
+                .eq('status', 'pending')
+                .order('created_at', { ascending: false });
+
+            console.log('Pending comments result:', { data, error });
+
+            if (error) {
+                console.error('Error fetching comments:', error);
+                throw error;
+            }
+            return data as any[];
+        }
+    });
+
+    console.log('Pending Comments State:', { pendingComments, isPendingLoading, pendingError });
+
+    const moderateComment = useMutation({
+        mutationFn: async ({ id, status }: { id: string, status: 'approved' | 'rejected' }) => {
+            const { error } = await supabase
+                .from('community_comments' as any)
+                .update({ status })
+                .eq('id', id);
+            if (error) throw error;
+        },
+        onSuccess: (_, variables) => {
+            toast.success(variables.status === 'approved' ? 'Comentário aprovado!' : 'Comentário rejeitado!');
+            queryClient.invalidateQueries({ queryKey: ['university_pending_comments'] });
+        },
+        onError: () => toast.error('Erro ao moderar comentário')
+    });
+
+    const [moderationOpen, setModerationOpen] = useState(false);
+
+    /* ══ RENDER — LIST VIEW ══ */
     if (view === 'list') {
         return (
             <div className="space-y-6">
+                {/* Moderation Banner */}
+                {pendingComments && pendingComments.length > 0 && (
+                    <div
+                        onClick={() => setModerationOpen(true)}
+                        className="bg-orange-500/10 border border-orange-500/20 p-4 rounded-lg flex items-center justify-between cursor-pointer hover:bg-orange-500/20 transition-colors group"
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-orange-500/20 rounded-full text-orange-500 group-hover:scale-110 transition-transform">
+                                <AlertCircle className="h-5 w-5" />
+                            </div>
+                            <div>
+                                <h3 className="font-semibold text-orange-500">Comentários Pendentes</h3>
+                                <p className="text-sm text-muted-foreground">Existem <strong className="text-white">{pendingComments.length}</strong> comentários aguardando aprovação.</p>
+                            </div>
+                        </div>
+                        <Button size="sm" variant="outline" className="border-orange-500/30 text-orange-400 hover:text-orange-300 hover:bg-orange-500/10">
+                            Revisar Agora
+                        </Button>
+                    </div>
+                )}
+
                 <div className="flex items-center justify-between">
                     <div>
                         <h1 className="text-3xl font-bold">Universidade — Admin</h1>
@@ -340,6 +404,67 @@ export default function UniversidadeAdminPage() {
                         </Button>
                     </div>
                 </div>
+
+                {/* Moderation Dialog */}
+                <Dialog open={moderationOpen} onOpenChange={setModerationOpen}>
+                    <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+                        <DialogHeader>
+                            <DialogTitle>Moderação de Comentários</DialogTitle>
+                            <DialogDescription>Aprove ou rejeite os comentários da comunidade.</DialogDescription>
+                        </DialogHeader>
+
+                        <div className="flex-1 overflow-y-auto py-4 space-y-4 pr-2">
+                            {pendingComments?.length === 0 ? (
+                                <div className="text-center py-12 text-muted-foreground">
+                                    <CheckCircle2 className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                                    <p>Nenhum comentário pendente!</p>
+                                    <Button variant="link" onClick={() => setModerationOpen(false)}>Fechar</Button>
+                                </div>
+                            ) : (
+                                pendingComments?.map((comment: any) => (
+                                    <div key={comment.id} className="p-4 rounded-lg bg-muted/30 border space-y-3">
+                                        <div className="flex justify-between items-start">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
+                                                    {comment.user?.email?.substring(0, 2).toUpperCase() || 'U'}
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs font-medium text-muted-foreground">
+                                                        {comment.user?.email || 'Usuário'} • {new Date(comment.created_at).toLocaleDateString()}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-background/50 p-3 rounded text-sm">
+                                            "{comment.content}"
+                                        </div>
+
+                                        <div className="flex justify-end gap-2 pt-2">
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/30"
+                                                onClick={() => moderateComment.mutate({ id: comment.id, status: 'rejected' })}
+                                                disabled={moderateComment.isPending}
+                                            >
+                                                <X className="h-4 w-4 mr-1" /> Rejeitar
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                className="bg-green-600 hover:bg-green-700 text-white"
+                                                onClick={() => moderateComment.mutate({ id: comment.id, status: 'approved' })}
+                                                disabled={moderateComment.isPending}
+                                            >
+                                                <Check className="h-4 w-4 mr-1" /> Aprovar
+                                            </Button>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </DialogContent>
+                </Dialog>
 
                 {/* Filter */}
                 <div className="flex items-center gap-4">

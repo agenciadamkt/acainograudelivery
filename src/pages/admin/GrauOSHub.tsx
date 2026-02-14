@@ -24,6 +24,7 @@ import heroImage from '@/assets/noGrauOS.png';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { clsx } from 'clsx';
+import { useHubNotifications } from '@/hooks/useHubNotifications';
 
 /* ───────────────────────── data ───────────────────────── */
 
@@ -62,12 +63,6 @@ const modules = [
     },
 ];
 
-const notifications = [
-    { id: 1, text: 'Novo treinamento obrigatório disponível', type: 'warning' as const, time: '2h atrás' },
-    { id: 2, text: 'Sua unidade subiu para o Top 5 do ranking!', type: 'success' as const, time: '2h atrás' },
-    { id: 3, text: 'Meta mensal de faturamento atingida! 🎉', type: 'success' as const, time: '2h atrás' },
-];
-
 /* ────────────────────── component ─────────────────────── */
 
 export default function GrauOSHub() {
@@ -75,6 +70,9 @@ export default function GrauOSHub() {
     const { signOut } = useAuth();
     const { currentStore } = useStore();
     const [hoveredModule, setHoveredModule] = useState<string | null>(null);
+
+    // Fetch dynamic notifications
+    const { data: notifications, isLoading: loadingNotifications } = useHubNotifications();
 
     return (
         <div className="min-h-screen bg-[#EDE8F0] font-[Inter,sans-serif] overflow-hidden">
@@ -184,6 +182,7 @@ export default function GrauOSHub() {
                         <ChevronRight className="h-5 w-5 text-gray-300 group-hover:text-gray-500 group-hover:translate-x-0.5 transition-all" />
                     </motion.button>
 
+
                     {/* ─── Notifications ─── */}
                     <motion.div
                         initial={{ opacity: 0, y: 16 }}
@@ -192,31 +191,41 @@ export default function GrauOSHub() {
                         className="rounded-2xl bg-white/70 backdrop-blur-sm border border-gray-200/50 shadow-[0_4px_20px_rgba(0,0,0,0.04)] overflow-hidden"
                     >
                         <div className="space-y-0">
-                            {notifications.map((n, idx) => {
-                                const isWarning = n.type === 'warning';
-                                return (
-                                    <div
-                                        key={n.id}
-                                        className={clsx(
-                                            'flex items-center justify-between px-5 py-3',
-                                            'border-l-4',
-                                            isWarning ? 'border-l-amber-400' : 'border-l-emerald-400',
-                                            idx !== notifications.length - 1 && 'border-b border-gray-100',
-                                        )}
-                                    >
-                                        <div className="flex items-center gap-3 min-w-0">
-                                            {isWarning
-                                                ? <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />
-                                                : <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-                                            }
-                                            <span className="text-sm text-gray-600 truncate">{n.text}</span>
+                            {loadingNotifications ? (
+                                <div className="p-4 text-center text-gray-400 text-sm">Carregando avisos...</div>
+                            ) : notifications && notifications.length > 0 ? (
+                                notifications.map((n, idx) => {
+                                    const isWarning = n.type === 'warning';
+                                    return (
+                                        <div
+                                            key={n.id}
+                                            onClick={() => n.link && navigate(n.link)}
+                                            className={clsx(
+                                                'flex items-center justify-between px-5 py-3 cursor-pointer hover:bg-white/60 transition-colors',
+                                                'border-l-4',
+                                                isWarning ? 'border-l-amber-400' : 'border-l-emerald-400',
+                                                idx !== notifications.length - 1 && 'border-b border-gray-100',
+                                            )}
+                                        >
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                {isWarning
+                                                    ? <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />
+                                                    : <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                                                }
+                                                <span className="text-sm text-gray-600 truncate">{n.text}</span>
+                                            </div>
+                                            <div className="flex items-center gap-1 shrink-0 ml-4 text-gray-400">
+                                                <span className="text-xs whitespace-nowrap">| {n.time}</span>
+                                            </div>
                                         </div>
-                                        <div className="flex items-center gap-1 shrink-0 ml-4 text-gray-400">
-                                            <span className="text-xs whitespace-nowrap">| {n.time}</span>
-                                        </div>
-                                    </div>
-                                );
-                            })}
+                                    );
+                                })
+                            ) : (
+                                <div className="p-4 text-center text-gray-400 text-sm flex items-center justify-center gap-2">
+                                    <CheckCircle2 className="h-4 w-4" />
+                                    Tudo certo por aqui!
+                                </div>
+                            )}
                         </div>
                     </motion.div>
                 </div>
@@ -266,6 +275,6 @@ export default function GrauOSHub() {
                     <span>© {new Date().getFullYear()} Todos os direitos reservados</span>
                 </div>
             </footer>
-        </div>
+        </div >
     );
 }

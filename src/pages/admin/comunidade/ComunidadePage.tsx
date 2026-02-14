@@ -16,12 +16,12 @@ import {
     ThumbsUp,
     Zap,
     Trash2,
-    Heart,
     MessageCircle as MessageIcon,
     Send,
     Share2,
     TrendingUp,
-    Shield
+    Shield,
+    Pencil
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -41,7 +41,6 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useState } from 'react';
 
 interface RankingItem {
     store_id: string;
@@ -94,29 +93,40 @@ export default function ComunidadePage() {
     const [activeTab, setActiveTab] = useState<'feed' | 'desafios' | 'ranking'>('feed');
     const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
     const [commentText, setCommentText] = useState('');
-    const [isAdmin, setIsAdmin] = useState(false);
-    const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
+    const [editingPost, setEditingPost] = useState<Post | null>(null);
+    const [isEditOpen, setIsEditOpen] = useState(false);
 
     const queryClient = useQueryClient();
 
     // Check if user is admin
-    useQuery({
+    const { data: user } = useQuery({
         queryKey: ['check-admin'],
         queryFn: async () => {
             const { data: { user } } = await supabase.auth.getUser();
-            if (user?.email) {
-                setCurrentUserEmail(user.email);
-                setIsAdmin(user.email === 'agenciadamkt@gmail.com');
-            }
             return user;
         }
     });
+
+    const isAdmin = user?.email === 'agenciadamkt@gmail.com';
     const { data: rankingData, isLoading: loadingRanking } = useQuery({
         queryKey: ['network-ranking'],
         queryFn: async () => {
             const { data, error } = await supabase.rpc('get_network_ranking' as any);
             if (error) throw error;
             return data as unknown as RankingItem[];
+        }
+    });
+
+    const { data: myLikes } = useQuery({
+        queryKey: ['my_likes'],
+        queryFn: async () => {
+            const user = (await supabase.auth.getUser()).data.user;
+            if (!user) return [];
+            const { data } = await supabase
+                .from('community_likes' as any)
+                .select('post_id')
+                .eq('user_id', user.id);
+            return data?.map((l: any) => l.post_id) || [];
         }
     });
 
@@ -155,8 +165,6 @@ export default function ComunidadePage() {
             return data as any[];
         }
     });
-
-    const queryClient = useQueryClient();
 
     // Delete Post Mutation
     const deletePost = useMutation({
@@ -203,6 +211,7 @@ export default function ComunidadePage() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['community_posts'] });
             queryClient.invalidateQueries({ queryKey: ['community_likes'] });
+            queryClient.invalidateQueries({ queryKey: ['my_likes'] });
         },
         onError: () => toast.error('Erro ao curtir post')
     });
@@ -261,37 +270,35 @@ export default function ComunidadePage() {
         <GrauOSLayout>
             <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {/* Level Card */}
-                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-pink-600/20 to-rose-500/10 border border-pink-500/10 p-6 mb-8">
-                    <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-pink-500/10 blur-2xl" />
+                <div className="relative overflow-hidden rounded-2xl bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.05] p-6 mb-8 shadow-sm dark:shadow-none">
                     <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center gap-6">
                         <div className="flex items-center gap-4">
                             <div className={`p-3 rounded-xl bg-gradient-to-br ${currentLevel.color} shadow-lg`}>
                                 <Medal className="h-8 w-8 text-white" />
                             </div>
                             <div>
-                                <p className="text-xs text-white/40 mb-0.5">Seu nível</p>
-                                <h3 className={`text-2xl font-bold ${currentLevel.textColor}`}>{currentLevel.name}</h3>
-                                <p className="text-sm text-white/50">{userPoints.toLocaleString()} pontos</p>
+                                <p className="text-xs text-gray-500 dark:text-white/40 mb-0.5">Seu nível</p>
+                                <h3 className={`text-2xl font-bold ${currentLevel.textColor} drop-shadow-sm`}>{currentLevel.name}</h3>
+                                <p className="text-sm text-gray-600 dark:text-white/50">{userPoints.toLocaleString()} pontos</p>
                             </div>
                         </div>
 
                         {nextLevel && (
                             <div className="flex-1 w-full md:w-auto">
                                 <div className="flex items-center justify-between mb-1.5">
-                                    <span className="text-xs text-white/40">Próximo nível: <span className="text-white/60 font-semibold">{nextLevel.name}</span></span>
-                                    <span className="text-xs text-white/40">{nextLevel.min.toLocaleString()} pts</span>
+                                    <span className="text-xs text-gray-500 dark:text-white/40">Próximo nível: <span className="text-gray-900 dark:text-white/60 font-semibold">{nextLevel.name}</span></span>
+                                    <span className="text-xs text-gray-500 dark:text-white/40">{nextLevel.min.toLocaleString()} pts</span>
                                 </div>
-                                <Progress value={progressToNext} className="h-2 bg-white/5" />
-                                <p className="text-[10px] text-white/30 mt-1">Faltam {(nextLevel.min - userPoints).toLocaleString()} pontos</p>
+                                <Progress value={progressToNext} className="h-2 bg-gray-100 dark:bg-white/5" />
+                                <p className="text-[10px] text-gray-400 dark:text-white/30 mt-1">Faltam {(nextLevel.min - userPoints).toLocaleString()} pontos</p>
                             </div>
                         )}
                     </div>
                 </div>
 
-                {/* Tabs */}
-                {/* Tabs & Management */}
+                {/* Tabs, Management */}
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8">
-                    <div className="flex items-center gap-1 p-1 rounded-xl bg-white/[0.03] border border-white/[0.06] w-fit">
+                    <div className="flex items-center gap-1 p-1 rounded-xl bg-white dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06] w-fit shadow-sm dark:shadow-none">
                         {[
                             { key: 'feed' as const, label: 'Feed', icon: MessageCircle },
                             { key: 'desafios' as const, label: 'Desafios', icon: Target },
@@ -303,8 +310,8 @@ export default function ComunidadePage() {
                                     key={tab.key}
                                     onClick={() => setActiveTab(tab.key)}
                                     className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === tab.key
-                                        ? 'bg-pink-500 text-white shadow-lg shadow-pink-500/20'
-                                        : 'text-white/50 hover:text-white/70 hover:bg-white/5'
+                                        ? 'bg-gradient-to-r from-pink-600 to-pink-500 text-white shadow-md shadow-pink-500/20'
+                                        : 'text-gray-500 dark:text-white/50 hover:text-gray-900 dark:hover:text-white/70 hover:bg-gray-50 dark:hover:bg-white/5'
                                         }`}
                                 >
                                     <Icon className="h-4 w-4" />
@@ -314,40 +321,68 @@ export default function ComunidadePage() {
                         })}
                     </div>
                     {/* Management Button (Admin Only) */}
-                    {isAdmin && <ManageCommunityDialog />}
+                    {isAdmin && (
+                        <>
+                            <Button
+                                onClick={() => {
+                                    setEditingPost(null);
+                                    setIsEditOpen(true);
+                                }}
+                                className="bg-pink-600 hover:bg-pink-700 text-white shadow-lg shadow-pink-600/20"
+                            >
+                                <Pencil className="h-4 w-4 mr-2" />
+                                Gerenciar
+                            </Button>
+
+                            <ManageCommunityDialog
+                                open={isEditOpen}
+                                onOpenChange={(open) => {
+                                    setIsEditOpen(open);
+                                    if (!open) setEditingPost(null);
+                                }}
+                                postToEdit={editingPost}
+                            />
+                        </>
+                    )}
                 </div>
 
                 {/* Tab Content */}
                 {activeTab === 'feed' && (
                     <div className="space-y-4">
                         {loadingPosts ? (
-                            <div className="text-center py-8 text-white/40">Carregando feed...</div>
+                            <div className="text-center py-8 text-gray-500 dark:text-white/40">Carregando feed...</div>
                         ) : posts?.length === 0 ? (
-                            <div className="text-center py-8 text-white/40">Nenhum post ainda. Seja o primeiro!</div>
+                            <div className="text-center py-8 text-gray-500 dark:text-white/40">Nenhum post ainda. Seja o primeiro!</div>
                         ) : posts?.map(post => {
                             const timeAgo = formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: ptBR });
                             return (
-                                <div key={post.id} className="p-5 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-white/[0.1] transition-all">
+                                <div key={post.id} className="p-5 rounded-xl bg-white dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06] hover:border-gray-300 dark:hover:border-white/[0.1] transition-all shadow-sm dark:shadow-none">
                                     {/* Post header */}
                                     <div className="flex items-center gap-3 mb-3">
-                                        <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-lg">
-                                            👤
+                                        <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-lg">
+                                            {!post.user || post.user.email === 'agenciadamkt@gmail.com' ? '🍇' : '👤'}
                                         </div>
                                         <div className="flex-1">
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-sm font-semibold text-white">Usuário</span>
-                                                {/* <Badge className="bg-white/5 text-white/50 text-[10px] border-0">{post.level}</Badge> */}
+                                            <div className="flex items-center gap-2 mb-0.5">
+                                                <h4 className="text-sm font-bold text-gray-900 dark:text-white">
+                                                    {!post.user || post.user.email === 'agenciadamkt@gmail.com' ? 'Açaí no Grau' : 'Franqueado'}
+                                                </h4>
+                                                {(!post.user || post.user.email === 'agenciadamkt@gmail.com') && (
+                                                    <Badge className="bg-pink-100 dark:bg-pink-500/20 text-pink-600 dark:text-pink-300 border-0 h-5 px-1.5 text-[10px]">
+                                                        Admin
+                                                    </Badge>
+                                                )}
                                                 {(() => {
                                                     const typeData = postTypes?.find((t: any) => t.value === post.type);
                                                     if (typeData) {
                                                         const colorMap: Record<string, string> = {
-                                                            blue: 'bg-blue-500/20 text-blue-300',
-                                                            green: 'bg-green-500/20 text-green-300',
-                                                            yellow: 'bg-yellow-500/20 text-yellow-300',
-                                                            red: 'bg-red-500/20 text-red-300',
-                                                            purple: 'bg-purple-500/20 text-purple-300',
+                                                            blue: 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300',
+                                                            green: 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300',
+                                                            yellow: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-300',
+                                                            red: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300',
+                                                            purple: 'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-300',
                                                         };
-                                                        const colorClass = colorMap[typeData.color] || 'bg-gray-500/20 text-gray-300';
+                                                        const colorClass = colorMap[typeData.color] || 'bg-gray-100 text-gray-700 dark:bg-gray-500/20 dark:text-gray-300';
 
                                                         return (
                                                             <Badge className={`${colorClass} text-[10px] border-0`}>
@@ -356,59 +391,87 @@ export default function ComunidadePage() {
                                                         );
                                                     }
                                                     // Fallback for old posts or missing types
-                                                    return <Badge className="bg-gray-500/20 text-gray-300 text-[10px] border-0">{post.type}</Badge>;
+                                                    if (post.type) {
+                                                        return <Badge className="bg-gray-100 text-gray-700 dark:bg-gray-500/20 dark:text-gray-300 text-[10px] border-0">{post.type}</Badge>;
+                                                    }
+                                                    return null;
                                                 })()}
                                             </div>
-                                            <p className="text-[11px] text-white/30">{timeAgo}</p>
+                                            <p className="text-[11px] text-gray-400 dark:text-white/30">{timeAgo}</p>
                                         </div>
 
-                                        {/* Delete Button (Admin Only) */}
+                                        {/* Actions (Admin Only) */}
                                         {isAdmin && (
-                                            <button
-                                                onClick={() => deletePost.mutate(post.id)}
-                                                className="text-white/20 hover:text-red-400 p-1 transition-colors"
-                                                title="Excluir post"
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </button>
+                                            <div className="flex items-center gap-1">
+                                                <button
+                                                    onClick={() => {
+                                                        setEditingPost(post);
+                                                        setIsEditOpen(true);
+                                                    }}
+                                                    className="text-gray-400 dark:text-white/20 hover:text-blue-600 dark:hover:text-blue-400 p-1 transition-colors"
+                                                    title="Editar post"
+                                                >
+                                                    <Pencil className="h-4 w-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => deletePost.mutate(post.id)}
+                                                    className="text-gray-400 dark:text-white/20 hover:text-red-500 dark:hover:text-red-400 p-1 transition-colors"
+                                                    title="Excluir post"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </button>
+                                            </div>
                                         )}
                                     </div>
 
                                     {/* Post content */}
-                                    <p className="text-sm text-white/70 leading-relaxed mb-4 whitespace-pre-wrap">{post.content}</p>
+                                    <p className="text-sm text-gray-700 dark:text-white/70 leading-relaxed mb-4 whitespace-pre-wrap">{post.content}</p>
 
                                     {/* Post actions */}
                                     <div className="flex items-center gap-4">
                                         <button
                                             onClick={() => toggleLike.mutate(post.id)}
-                                            className="flex items-center gap-1.5 text-xs text-white/40 hover:text-pink-400 transition-colors"
+                                            className={`flex items-center gap-1.5 text-xs transition-colors ${myLikes?.includes(post.id)
+                                                ? 'text-pink-500'
+                                                : 'text-gray-500 dark:text-white/40 hover:text-pink-500 dark:hover:text-pink-400'
+                                                }`}
                                         >
-                                            <Heart className="h-4 w-4" /> {post.likes_count || 0}
+                                            <Heart className={`h-4 w-4 ${myLikes?.includes(post.id) ? 'fill-current' : ''}`} />
+                                            {post.likes_count || 0}
                                         </button>
 
                                         <Dialog>
                                             <DialogTrigger asChild>
                                                 <button
-                                                    className="flex items-center gap-1.5 text-xs text-white/40 hover:text-blue-400 transition-colors"
+                                                    className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-white/40 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                                                     onClick={() => setSelectedPostId(post.id)}
                                                 >
                                                     <MessageIcon className="h-4 w-4" /> {post.comments_count || 0}
                                                 </button>
                                             </DialogTrigger>
-                                            <DialogContent className="bg-slate-900 border-white/10 text-white sm:max-w-md">
+                                            <DialogContent className="bg-white dark:bg-slate-900 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white sm:max-w-md">
                                                 <DialogHeader>
                                                     <DialogTitle>Comentários</DialogTitle>
                                                 </DialogHeader>
 
-                                                <ScrollArea className="h-[300px] w-full rounded-md border border-white/5 p-4">
+                                                <ScrollArea className="h-[300px] w-full rounded-md border border-gray-100 dark:border-white/5 p-4">
                                                     {comments?.length === 0 ? (
-                                                        <p className="text-sm text-white/40 text-center py-8">Nenhum comentário aprovado ainda.</p>
+                                                        <p className="text-sm text-gray-500 dark:text-white/40 text-center py-8">Nenhum comentário aprovado ainda.</p>
                                                     ) : (
                                                         <div className="space-y-4">
                                                             {comments?.map((comment: any) => (
-                                                                <div key={comment.id} className="bg-white/5 p-3 rounded-lg">
-                                                                    <p className="text-xs text-white/30 mb-1">Usuário</p>
-                                                                    <p className="text-sm text-white">{comment.content}</p>
+                                                                <div key={comment.id} className="bg-gray-50 dark:bg-white/5 p-3 rounded-lg">
+                                                                    <div className="flex items-center gap-2 mb-1">
+                                                                        <p className="text-xs font-bold text-gray-600 dark:text-white/50">
+                                                                            {!comment.user || comment.user.email === 'agenciadamkt@gmail.com' ? 'Açaí no Grau' : 'Franqueado'}
+                                                                        </p>
+                                                                        {(!comment.user || comment.user.email === 'agenciadamkt@gmail.com') && (
+                                                                            <Badge className="bg-pink-100 dark:bg-pink-500/20 text-pink-600 dark:text-pink-300 border-0 h-4 px-1 text-[8px]">
+                                                                                Admin
+                                                                            </Badge>
+                                                                        )}
+                                                                    </div>
+                                                                    <p className="text-sm text-gray-800 dark:text-white">{comment.content}</p>
                                                                 </div>
                                                             ))}
                                                         </div>
@@ -418,13 +481,13 @@ export default function ComunidadePage() {
                                                 <div className="flex items-center gap-2 mt-2">
                                                     <Textarea
                                                         placeholder="Escreva um comentário (sujeito a moderação)..."
-                                                        className="bg-white/5 border-white/10 text-white min-h-[40px] resize-none"
+                                                        className="bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white min-h-[40px] resize-none"
                                                         value={commentText}
                                                         onChange={e => setCommentText(e.target.value)}
                                                     />
                                                     <Button
                                                         size="icon"
-                                                        className="bg-pink-600 hover:bg-pink-700"
+                                                        className="bg-pink-600 hover:bg-pink-700 text-white"
                                                         onClick={() => addComment.mutate()}
                                                         disabled={addComment.isPending || !commentText.trim()}
                                                     >
@@ -434,7 +497,7 @@ export default function ComunidadePage() {
                                             </DialogContent>
                                         </Dialog>
 
-                                        <button className="flex items-center gap-1.5 text-xs text-white/40 hover:text-green-400 transition-colors">
+                                        <button className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-white/40 hover:text-green-600 dark:hover:text-green-400 transition-colors">
                                             <Share2 className="h-4 w-4" /> Compartilhar
                                         </button>
                                     </div>
@@ -447,27 +510,27 @@ export default function ComunidadePage() {
                 {activeTab === 'desafios' && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {loadingChallenges ? (
-                            <div className="text-center py-8 text-white/40 col-span-2">Carregando desafios...</div>
+                            <div className="text-center py-8 text-gray-500 dark:text-white/40 col-span-2">Carregando desafios...</div>
                         ) : challenges?.length === 0 ? (
-                            <div className="text-center py-8 text-white/40 col-span-2">Nenhum desafio ativo.</div>
+                            <div className="text-center py-8 text-gray-500 dark:text-white/40 col-span-2">Nenhum desafio ativo.</div>
                         ) : challenges?.map(ch => {
                             const daysLeft = Math.ceil((new Date(ch.end_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
                             const mockProgress = 0; // TODO: Implement challenge progress tracking
 
                             return (
-                                <div key={ch.id} className="p-5 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-white/[0.1] transition-all">
+                                <div key={ch.id} className="p-5 rounded-xl bg-white dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06] hover:border-gray-300 dark:hover:border-white/[0.1] transition-all shadow-sm dark:shadow-none">
                                     <div className="flex items-start gap-3 mb-3">
                                         <span className="text-2xl">{ch.icon}</span>
                                         <div className="flex-1">
-                                            <h4 className="text-sm font-bold text-white mb-0.5">{ch.title}</h4>
-                                            <p className="text-xs text-white/40 leading-relaxed">{ch.description}</p>
+                                            <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-0.5">{ch.title}</h4>
+                                            <p className="text-xs text-gray-600 dark:text-white/40 leading-relaxed">{ch.description}</p>
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center justify-between text-xs text-white/40 mb-2">
+                                    <div className="flex items-center justify-between text-xs text-gray-500 dark:text-white/40 mb-2">
                                         <div className="flex items-center gap-1">
-                                            <Gift className="h-3 w-3 text-yellow-400" />
-                                            <span className="text-yellow-400 font-medium">+{ch.reward_points} pts</span>
+                                            <Gift className="h-3 w-3 text-yellow-500 dark:text-yellow-400" />
+                                            <span className="text-yellow-600 dark:text-yellow-400 font-medium">+{ch.reward_points} pts</span>
                                         </div>
                                         <div className="flex items-center gap-1">
                                             <Clock className="h-3 w-3" />
@@ -475,8 +538,8 @@ export default function ComunidadePage() {
                                         </div>
                                     </div>
 
-                                    <Progress value={mockProgress} className="h-1.5 bg-white/5" />
-                                    <p className="text-[10px] text-white/30 mt-1">{mockProgress}% concluído</p>
+                                    <Progress value={mockProgress} className="h-1.5 bg-gray-100 dark:bg-white/5" />
+                                    <p className="text-[10px] text-gray-400 dark:text-white/30 mt-1">{mockProgress}% concluído</p>
                                 </div>
                             )
                         })}
@@ -484,37 +547,37 @@ export default function ComunidadePage() {
                 )}
 
                 {activeTab === 'ranking' && (
-                    <div className="p-6 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-                        <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-6">
-                            <Trophy className="h-4 w-4 text-yellow-400" />
+                    <div className="p-6 rounded-xl bg-white dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06] shadow-sm dark:shadow-none">
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2 mb-6">
+                            <Trophy className="h-4 w-4 text-yellow-500 dark:text-yellow-400" />
                             Ranking Geral — Fevereiro 2026
                         </h3>
 
                         <div className="space-y-2">
                             {loadingRanking ? (
-                                <div className="text-center py-8 text-white/40">Carregando ranking...</div>
+                                <div className="text-center py-8 text-gray-500 dark:text-white/40">Carregando ranking...</div>
                             ) : rankingData?.map(r => (
                                 <div
                                     key={r.store_id}
-                                    className={`flex items-center justify-between p-4 rounded-xl transition-all ${r.is_current_user
-                                        ? 'bg-pink-500/10 border border-pink-500/20'
-                                        : 'bg-white/[0.01] border border-white/[0.04] hover:bg-white/[0.03]'
+                                    className={`flex items-center justify-between p-4 rounded-xl transition-all border ${r.is_current_user
+                                        ? 'bg-pink-50 dark:bg-pink-500/10 border-pink-200 dark:border-pink-500/20'
+                                        : 'bg-white dark:bg-white/[0.01] border-gray-100 dark:border-white/[0.04] hover:bg-gray-50 dark:hover:bg-white/[0.03]'
                                         }`}
                                 >
                                     <div className="flex items-center gap-4">
-                                        <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm ${r.rank_pos === 1 ? 'bg-yellow-500/20 text-yellow-400' :
-                                            r.rank_pos === 2 ? 'bg-gray-400/20 text-gray-300' :
-                                                r.rank_pos === 3 ? 'bg-amber-600/20 text-amber-500' :
-                                                    'bg-white/5 text-white/40'
+                                        <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm ${r.rank_pos === 1 ? 'bg-yellow-100 text-yellow-600 dark:bg-yellow-500/20 dark:text-yellow-400' :
+                                            r.rank_pos === 2 ? 'bg-gray-200 text-gray-600 dark:bg-gray-400/20 dark:text-gray-300' :
+                                                r.rank_pos === 3 ? 'bg-amber-100 text-amber-600 dark:bg-amber-600/20 dark:text-amber-500' :
+                                                    'bg-gray-100 text-gray-500 dark:bg-white/5 dark:text-white/40'
                                             }`}>
                                             {r.rank_pos <= 3 ? ['🥇', '🥈', '🥉'][r.rank_pos - 1] : r.rank_pos}
                                         </div>
                                         <div>
-                                            <span className={`text-sm font-medium ${r.is_current_user ? 'text-pink-300' : 'text-white/80'}`}>
+                                            <span className={`text-sm font-medium ${r.is_current_user ? 'text-pink-600 dark:text-pink-300' : 'text-gray-900 dark:text-white/80'}`}>
                                                 {r.store_name} {r.is_current_user && '(Você ⭐)'}
                                             </span>
                                             {/* Logic to determine Level based on Score could be added here, using mock level for now or deriving it */}
-                                            <p className="text-[11px] text-white/30">{Number(r.score).toLocaleString()} pts</p>
+                                            <p className="text-[11px] text-gray-500 dark:text-white/30">{Number(r.score).toLocaleString()} pts</p>
                                         </div>
                                     </div>
                                 </div>

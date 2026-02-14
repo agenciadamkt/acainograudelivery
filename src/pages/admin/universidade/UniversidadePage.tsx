@@ -406,7 +406,7 @@ export default function UniversidadePage() {
             {/* ════ Navbar ════ */}
             <nav className={`fixed top-0 w-full z-50 transition-colors duration-500 px-4 md:px-12 h-16 flex items-center justify-between ${scrolled ? 'bg-[#141414]' : 'bg-gradient-to-b from-black/80 to-transparent'}`}>
                 <div className="flex items-center gap-8">
-                    <img src={logoWhite} alt="Logo" className="h-8 md:h-10 w-auto cursor-pointer object-contain" onClick={() => { setActiveTab('inicio'); navigate('/hub'); }} />
+                    <img src={logoWhite} alt="Logo" className="h-8 md:h-10 w-auto cursor-pointer object-contain" onClick={() => { setActiveTab('inicio'); navigate('/admin/hub'); }} />
                     <ul className="hidden md:flex items-center gap-5 text-sm font-medium text-white/80">
                         <li
                             onClick={() => setActiveTab('inicio')}
@@ -615,7 +615,7 @@ export default function UniversidadePage() {
             )}
 
             {/* ════ Content Rows ════ */}
-            <div className="relative z-10 -mt-32 md:-mt-48 pb-20 space-y-8 md:space-y-12">
+            <div className={`relative z-10 pb-20 space-y-8 md:space-y-12 ${(activeTab === 'inicio' && !searchQuery) ? '-mt-32 md:-mt-48' : ''}`}>
 
                 {/* Search/Filter Results View (if active) */}
                 {(searchQuery || activeTab !== 'inicio') ? (

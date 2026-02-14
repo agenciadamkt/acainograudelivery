@@ -1,4 +1,4 @@
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   ShoppingBag,
@@ -115,6 +115,7 @@ const menuSections = [
 export function AdminSidebar() {
   const { state } = useSidebar();
   const location = useLocation();
+  const navigate = useNavigate();
   const { signOut, user } = useAuth();
 
   const isActive = (path: string) => location.pathname === path;
@@ -124,7 +125,10 @@ export function AdminSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b p-4">
-        <div className="flex items-center gap-3">
+        <div
+          className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
+          onClick={() => navigate('/admin/hub')}
+        >
           <img src={logoCircular} alt="PedeGrau" className="h-10 w-10" />
           {!isCollapsed && (
             <div>

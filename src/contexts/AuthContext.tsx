@@ -160,8 +160,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (!error) {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('Error signing out:', error);
+      }
+    } catch (error) {
+      console.error('Exception during sign out:', error);
+    } finally {
+      setUser(null);
+      setSession(null);
       setUserRole(null);
       navigate('/admin/login');
       toast.success('Logout realizado com sucesso!');

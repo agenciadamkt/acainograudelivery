@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStore } from '@/contexts/StoreContext';
 import { Button } from '@/components/ui/button';
+import { Theme } from '@/components/ui/theme';
 import {
     ArrowLeft,
     LogOut,
@@ -51,16 +52,16 @@ export function GrauOSLayout({ children }: GrauOSLayoutProps) {
     const ModuleIcon = currentModule.icon;
 
     return (
-        <div className="min-h-screen bg-[#0F0F14] text-white">
-            {/* Ambient background */}
-            <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="min-h-screen bg-gray-50 dark:bg-[#0F0F14] text-gray-900 dark:text-white transition-colors duration-300">
+            {/* Ambient background (Dark mode only) */}
+            <div className="fixed inset-0 pointer-events-none overflow-hidden hidden dark:block">
                 <div className="absolute top-[-20%] right-[-10%] w-[500px] h-[500px] rounded-full bg-purple-600/5 blur-3xl" />
                 <div className="absolute bottom-[-20%] left-[-10%] w-[400px] h-[400px] rounded-full bg-blue-600/5 blur-3xl" />
             </div>
 
             <div className="relative z-10 flex flex-col min-h-screen">
                 {/* Top Navigation */}
-                <nav className="border-b border-white/5 bg-white/[0.02] backdrop-blur-xl sticky top-0 z-50">
+                <nav className="border-b border-gray-200 dark:border-white/5 bg-white/80 dark:bg-white/[0.02] backdrop-blur-xl sticky top-0 z-50 transition-colors duration-300">
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                         <div className="flex items-center justify-between h-14">
                             {/* Left: Back + Module */}
@@ -69,33 +70,35 @@ export function GrauOSLayout({ children }: GrauOSLayoutProps) {
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => navigate('/admin/hub')}
-                                    className="text-white/50 hover:text-white hover:bg-white/10 gap-1.5"
+                                    className="text-gray-500 dark:text-white/50 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 gap-1.5"
                                 >
                                     <ArrowLeft className="h-4 w-4" />
                                     <Home className="h-4 w-4" />
                                 </Button>
 
-                                <div className="h-5 w-px bg-white/10" />
+                                <div className="h-5 w-px bg-gray-200 dark:bg-white/10" />
 
                                 <div className="flex items-center gap-2.5">
                                     <div className={`p-1.5 rounded-lg bg-gradient-to-br ${currentModule.gradient}`}>
                                         <ModuleIcon className="h-4 w-4 text-white" />
                                     </div>
-                                    <span className="text-sm font-semibold text-white/90">{currentModule.title}</span>
+                                    <span className="text-sm font-semibold text-gray-900 dark:text-white/90">{currentModule.title}</span>
                                 </div>
                             </div>
 
                             {/* Right */}
                             <div className="flex items-center gap-3">
+                                <Theme variant="button" size="sm" />
+
                                 <div className={`hidden sm:flex items-center gap-2 px-3 py-1 rounded-full border ${level.borderColor} ${level.bgColor}`}>
                                     <LevelIcon className={`h-3.5 w-3.5 ${level.textColor}`} />
                                     <span className={`text-[11px] font-bold ${level.textColor}`}>{level.name}</span>
                                 </div>
 
                                 {currentStore && (
-                                    <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10">
+                                    <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
                                         <div className="w-2 h-2 rounded-full bg-green-400" />
-                                        <span className="text-[11px] text-white/60 font-medium">{currentStore.name}</span>
+                                        <span className="text-[11px] text-gray-600 dark:text-white/60 font-medium">{currentStore.name}</span>
                                     </div>
                                 )}
 
@@ -103,7 +106,7 @@ export function GrauOSLayout({ children }: GrauOSLayoutProps) {
                                     variant="ghost"
                                     size="sm"
                                     onClick={signOut}
-                                    className="text-white/30 hover:text-red-400 hover:bg-red-500/10"
+                                    className="text-gray-400 dark:text-white/30 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10"
                                 >
                                     <LogOut className="h-4 w-4" />
                                 </Button>
@@ -118,11 +121,11 @@ export function GrauOSLayout({ children }: GrauOSLayoutProps) {
                 </main>
 
                 {/* Footer */}
-                <footer className="border-t border-white/5 py-4">
+                <footer className="border-t border-gray-200 dark:border-white/5 py-4">
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                        <div className="flex items-center justify-between text-[11px] text-white/20">
+                        <div className="flex items-center justify-between text-[11px] text-gray-400 dark:text-white/20">
                             <div className="flex items-center gap-2">
-                                <img src={logoCircular} alt="" className="h-4 w-4 opacity-30" />
+                                <img src={logoCircular} alt="" className="h-4 w-4 opacity-50 dark:opacity-30" />
                                 <span>GrauOS v1.0</span>
                             </div>
                             <span>© {new Date().getFullYear()} Açaí no Grau</span>
