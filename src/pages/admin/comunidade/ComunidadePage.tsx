@@ -21,7 +21,8 @@ import {
     Share2,
     TrendingUp,
     Shield,
-    Pencil
+    Pencil,
+    CheckCircle2
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -61,7 +62,6 @@ interface Post {
     likes_count: number;
     comments_count: number;
     user_id: string;
-    // Relations to be fetched or mocked for now
     user?: {
         email: string;
     }
@@ -75,6 +75,16 @@ interface Challenge {
     icon: string;
     end_date: string;
     active: boolean;
+    type: 'sales' | 'orders' | 'lessons' | 'manual';
+    target_value: number;
+    metric_table?: string;
+}
+
+interface UserChallenge {
+    id: string;
+    challenge_id: string;
+    status: 'active' | 'completed' | 'failed';
+    progress: number;
 }
 
 // Level system
@@ -84,10 +94,6 @@ const levels = [
     { name: 'Ouro', min: 5000, max: 9999, color: 'from-yellow-500 to-yellow-300', textColor: 'text-yellow-500', icon: Crown },
     { name: 'Elite', min: 10000, max: Infinity, color: 'from-purple-600 to-indigo-400', textColor: 'text-purple-400', icon: Zap },
 ];
-
-// Mock data removed. Interfaces defined above.
-
-// Top ranking (mock removed, fetched via RPC)
 
 export default function ComunidadePage() {
     const [activeTab, setActiveTab] = useState<'feed' | 'desafios' | 'ranking'>('feed');
@@ -151,6 +157,21 @@ export default function ComunidadePage() {
                 .order('end_date', { ascending: true });
             if (error) throw error;
             return data as unknown as Challenge[];
+        }
+    });
+
+    // Fetch User Challenges
+    const { data: userChallenges, refetch: refetchUserChallenges } = useQuery({
+        queryKey: ['user_challenges'],
+        queryFn: async () => {
+            const user = (await supabase.auth.getUser()).data.user;
+            if (!user) return [];
+            const { data, error } = await supabase
+                .from('user_challenges' as any)
+                .select('*')
+                .eq('user_id', user.id);
+            if (error) throw error;
+            return data as unknown as UserChallenge[];
         }
     });
 
@@ -256,6 +277,53 @@ export default function ComunidadePage() {
             if (error) throw error;
             return data as any[];
         }
+    });
+
+    // Join Challenge
+    const joinChallenge = useMutation({
+        mutationFn: async (challengeId: string) => {
+            const user = (await supabase.auth.getUser()).data.user;
+            if (!user) throw new Error('User not found');
+            const { error } = await supabase
+                .from('user_challenges' as any)
+                .insert({
+                    user_id: user.id,
+                    challenge_id: challengeId,
+                    status: 'active',
+                    progress: 0
+                });
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            toast.success('Desafio aceito! Boa sorte 🚀');
+            refetchUserChallenges();
+        },
+        onError: () => toast.error('Erro ao aceitar desafio')
+    });
+
+    // Update Progress (Call RPC)
+    const updateProgress = useMutation({
+        mutationFn: async (challengeId: string) => {
+            const user = (await supabase.auth.getUser()).data.user;
+            if (!user) throw new Error('User not found');
+
+            const { data, error } = await supabase.rpc('verify_challenge_progress', {
+                p_user_id: user.id,
+                p_challenge_id: challengeId
+            });
+
+            if (error) throw error;
+            return data;
+        },
+        onSuccess: (data: any) => {
+            if (data.new_status === 'completed') {
+                toast.success('Parabéns! Desafio concluído! 🏆');
+            } else {
+                toast.info(`Progresso atualizado: ${data.new_progress}%`);
+            }
+            refetchUserChallenges();
+        },
+        onError: (error) => toast.error('Erro ao atualizar progresso: ' + error.message)
     });
 
     // Calculate real user points from ranking
@@ -515,19 +583,30 @@ export default function ComunidadePage() {
                             <div className="text-center py-8 text-gray-500 dark:text-white/40 col-span-2">Nenhum desafio ativo.</div>
                         ) : challenges?.map(ch => {
                             const daysLeft = Math.ceil((new Date(ch.end_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-                            const mockProgress = 0; // TODO: Implement challenge progress tracking
+
+                            const userChallenge = userChallenges?.find((uc: any) => uc.challenge_id === ch.id);
+                            const isParticipating = !!userChallenge;
+                            const isCompleted = userChallenge?.status === 'completed';
+                            const progress = userChallenge?.progress || 0;
 
                             return (
-                                <div key={ch.id} className="p-5 rounded-xl bg-white dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06] hover:border-gray-300 dark:hover:border-white/[0.1] transition-all shadow-sm dark:shadow-none">
+                                <div key={ch.id} className="flex flex-col p-5 rounded-xl bg-white dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06] hover:border-gray-300 dark:hover:border-white/[0.1] transition-all shadow-sm dark:shadow-none h-full">
                                     <div className="flex items-start gap-3 mb-3">
                                         <span className="text-2xl">{ch.icon}</span>
                                         <div className="flex-1">
                                             <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-0.5">{ch.title}</h4>
                                             <p className="text-xs text-gray-600 dark:text-white/40 leading-relaxed">{ch.description}</p>
+                                            <div className="mt-1 flex items-center gap-2">
+                                                <Badge variant="outline" className="text-[10px] h-5 border-gray-200 dark:border-white/10 text-gray-500">
+                                                    Meta: {ch.type === 'sales' ? `R$ ${ch.target_value}` :
+                                                        ch.type === 'orders' ? `${ch.target_value} pedidos` :
+                                                            ch.type === 'lessons' ? `${ch.target_value} aulas` : 'Manual'}
+                                                </Badge>
+                                            </div>
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center justify-between text-xs text-gray-500 dark:text-white/40 mb-2">
+                                    <div className="flex items-center justify-between text-xs text-gray-500 dark:text-white/40 mb-4 mt-auto pt-2">
                                         <div className="flex items-center gap-1">
                                             <Gift className="h-3 w-3 text-yellow-500 dark:text-yellow-400" />
                                             <span className="text-yellow-600 dark:text-yellow-400 font-medium">+{ch.reward_points} pts</span>
@@ -538,8 +617,39 @@ export default function ComunidadePage() {
                                         </div>
                                     </div>
 
-                                    <Progress value={mockProgress} className="h-1.5 bg-gray-100 dark:bg-white/5" />
-                                    <p className="text-[10px] text-gray-400 dark:text-white/30 mt-1">{mockProgress}% concluído</p>
+                                    {/* Action Area */}
+                                    {isCompleted ? (
+                                        <div className="mt-2 w-full p-2 bg-green-100 dark:bg-green-500/20 border border-green-200 dark:border-green-500/20 text-green-700 dark:text-green-300 rounded-lg text-center text-xs font-bold flex items-center justify-center gap-2">
+                                            <CheckCircle2 className="h-4 w-4" /> Desafio Concluído!
+                                        </div>
+                                    ) : isParticipating ? (
+                                        <div className="mt-2 space-y-3">
+                                            <div className="space-y-1.5">
+                                                <div className="flex justify-between text-[10px] text-gray-500 dark:text-white/40">
+                                                    <span>Progresso atual</span>
+                                                    <span className="font-bold text-gray-900 dark:text-white">{progress}%</span>
+                                                </div>
+                                                <Progress value={progress} className="h-1.5 bg-gray-100 dark:bg-white/5" />
+                                            </div>
+                                            <Button
+                                                onClick={() => updateProgress.mutate(ch.id)}
+                                                disabled={updateProgress.isPending}
+                                                className="w-full bg-white dark:bg-white/10 hover:bg-gray-50 dark:hover:bg-white/20 text-gray-900 dark:text-white border border-gray-200 dark:border-white/10 h-8 text-xs gap-2"
+                                                variant="outline"
+                                            >
+                                                <TrendingUp className="h-3 w-3" />
+                                                {updateProgress.isPending ? 'Verificando...' : 'Atualizar Progresso'}
+                                            </Button>
+                                        </div>
+                                    ) : (
+                                        <Button
+                                            onClick={() => joinChallenge.mutate(ch.id)}
+                                            disabled={joinChallenge.isPending}
+                                            className="w-full bg-pink-600 hover:bg-pink-700 text-white h-8 text-xs mt-2"
+                                        >
+                                            {joinChallenge.isPending ? 'Entrando...' : 'Aceitar Desafio'}
+                                        </Button>
+                                    )}
                                 </div>
                             )
                         })}

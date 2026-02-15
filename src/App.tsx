@@ -79,6 +79,7 @@ import UniversidadeAdminPage from "./pages/admin/universidade/UniversidadeAdminP
 import PerformancePage from "./pages/admin/performance/PerformancePage";
 import AssistentePage from "./pages/admin/assistente/AssistentePage";
 import ComunidadePage from "./pages/admin/comunidade/ComunidadePage";
+import FluxoCaixaPage from "./pages/admin/financial/FluxoCaixaPage";
 
 import { ThemeProvider } from "next-themes";
 
@@ -191,6 +192,14 @@ const App = () => (
                         element={
                           <PrivateRoute requiredRole="staff">
                             <ComunidadePage />
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/financeiro"
+                        element={
+                          <PrivateRoute requiredRole="staff">
+                            <FluxoCaixaPage />
                           </PrivateRoute>
                         }
                       />

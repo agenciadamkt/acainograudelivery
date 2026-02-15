@@ -25,6 +25,8 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { clsx } from 'clsx';
 import { useHubNotifications } from '@/hooks/useHubNotifications';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 /* ───────────────────────── data ───────────────────────── */
 
@@ -61,6 +63,15 @@ const modules = [
         color: '#2AABB3',          // teal
         hoverColor: '#239aa1',
     },
+    {
+        id: 'financeiro',
+        title: 'Fluxo de Caixa',
+        subtitle: 'Controle Distribuidora',
+        path: '/admin/financeiro',
+        color: '#10B981', // emerald
+        hoverColor: '#059669',
+        adminOnly: true, // Custom flag to handle visibility logic in render
+    },
 ];
 
 /* ────────────────────── component ─────────────────────── */
@@ -70,6 +81,23 @@ export default function GrauOSHub() {
     const { signOut } = useAuth();
     const { currentStore } = useStore();
     const [hoveredModule, setHoveredModule] = useState<string | null>(null);
+    const { user: authUser } = useAuth(); // Get user from context if available, or we can fetch. 
+    // Looking at `useAuth` usage in imports: `import { useAuth } from '@/contexts/AuthContext';`
+    // and usage: `const { signOut } = useAuth();`
+    // effectively `useAuth` returns the context. Let's assume it has `user`.
+    // If not, we can use the `useQuery` pattern from `ComunidadePage`.
+
+    // Copied pattern from ComunidadePage for consistency and safety
+    const { data: user } = useQuery({ // Using react-query to ensure we have the user and it's cached/managed
+        queryKey: ['check-admin-hub'],
+        queryFn: async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            return user;
+        },
+        initialData: authUser as any // Fallback/Initial
+    });
+
+    const isAdmin = user?.email === 'agenciadamkt@gmail.com';
 
     // Fetch dynamic notifications
     const { data: notifications, isLoading: loadingNotifications } = useHubNotifications();
@@ -135,33 +163,57 @@ export default function GrauOSHub() {
 
                     {/* ─── Module grid (2×2) ─── */}
                     <div className="grid grid-cols-2 gap-4 sm:gap-5 mb-8 lg:mb-10">
-                        {modules.map((mod, i) => (
-                            <motion.button
-                                key={mod.id}
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.15 + i * 0.08, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-                                onClick={() => navigate(mod.path)}
-                                onMouseEnter={() => setHoveredModule(mod.id)}
-                                onMouseLeave={() => setHoveredModule(null)}
-                                className="group relative rounded-2xl p-5 sm:p-6 text-left text-white transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-400"
-                                style={{
-                                    backgroundColor: hoveredModule === mod.id ? mod.hoverColor : mod.color,
-                                    boxShadow: hoveredModule === mod.id
-                                        ? `0 12px 32px ${mod.color}55`
-                                        : `0 6px 20px ${mod.color}30`,
-                                    transform: hoveredModule === mod.id ? 'translateY(-2px)' : 'translateY(0)',
-                                }}
-                            >
-                                {/* title */}
-                                <h3 className="text-sm sm:text-base font-bold mb-1 leading-tight">{mod.title}</h3>
-                                {/* subtitle */}
-                                <p className="text-[11px] sm:text-xs text-white/80 leading-snug">{mod.subtitle}</p>
+                        {modules.map((mod, i) => {
+                            // Hide admin-only modules if not admin
+                            // Assuming 'currentStore' logic or 'user' email check is needed here
+                            // For now, let's use the 'isAdmin' check we can derive or prop drill
+                            // Actually, let's check user email from auth context or similar?
+                            // 'useAuth' gives signOut. 'useHubNotifications' might help or we need a new check.
+                            // Let's stick to the existing pattern: if we don't have user in context, we might need to fetch it or use a simple heuristic.
+                            // START_ADJUSTMENT: We need to know if user is admin. 
+                            // In ComunidadePage we checked `user?.email === 'agenciadamkt@gmail.com'`.
+                            // Let's add that check here.
 
-                                {/* arrow hint */}
-                                <ChevronRight className="absolute bottom-4 right-4 h-4 w-4 text-white/40 group-hover:text-white/80 group-hover:translate-x-0.5 transition-all" />
-                            </motion.button>
-                        ))}
+                            // (Implementation detail: I need to add the user check hook first, but `replace_file_content` is local. 
+                            // I will add the logic inside the component body in a separate step if needed, or inline it here if I can accesses user).
+                            // `useAuth` returns { user, ... } usually. Let's check `useAuth` definition or just use supabase directly?
+                            // `useAuth` comes from `@/contexts/AuthContext`.
+
+                            // Let's assume we can get user from useAuth() or we fetch it.
+                            // Getting user from `useAuth`...
+                            // const { user } = useAuth(); // Need to verify if useAuth exposes user.
+
+                            // If mod.adminOnly and !isAdmin, return null.
+                            if (mod.adminOnly && !isAdmin) return null;
+
+                            return (
+                                <motion.button
+                                    key={mod.id}
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.15 + i * 0.08, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+                                    onClick={() => navigate(mod.path)}
+                                    onMouseEnter={() => setHoveredModule(mod.id)}
+                                    onMouseLeave={() => setHoveredModule(null)}
+                                    className="group relative rounded-2xl p-5 sm:p-6 text-left text-white transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-400"
+                                    style={{
+                                        backgroundColor: hoveredModule === mod.id ? mod.hoverColor : mod.color,
+                                        boxShadow: hoveredModule === mod.id
+                                            ? `0 12px 32px ${mod.color}55`
+                                            : `0 6px 20px ${mod.color}30`,
+                                        transform: hoveredModule === mod.id ? 'translateY(-2px)' : 'translateY(0)',
+                                    }}
+                                >
+                                    {/* title */}
+                                    <h3 className="text-sm sm:text-base font-bold mb-1 leading-tight">{mod.title}</h3>
+                                    {/* subtitle */}
+                                    <p className="text-[11px] sm:text-xs text-white/80 leading-snug">{mod.subtitle}</p>
+
+                                    {/* arrow hint */}
+                                    <ChevronRight className="absolute bottom-4 right-4 h-4 w-4 text-white/40 group-hover:text-white/80 group-hover:translate-x-0.5 transition-all" />
+                                </motion.button>
+                            )
+                        })}
                     </div>
 
                     {/* ─── Community bar ─── */}

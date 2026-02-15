@@ -74,3 +74,5 @@ Você poderá:
 - ✅ Sistema executará automaticamente no horário definido
 
 **Tempo total: ~2 minutos** ⏱️
+APPLYING MIGRATION: 20260214120000_create_user_challenges.sql
+APPLYING MIGRATION: 20260214123000_verify_challenges_rpc.sql
