@@ -104,9 +104,10 @@ export function RecordFormDialog({ open, onOpenChange, record, onSuccess }: Reco
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error('User not found');
 
-            const payload = {
+            const payload: any = {
                 ...values,
                 user_id: user.id,
+                created_by_email: user.email,
                 status: 'pending' // Always start as pending
             };
 
@@ -166,24 +167,31 @@ export function RecordFormDialog({ open, onOpenChange, record, onSuccess }: Reco
         setIsUploading(true);
         try {
             const fileExt = file.name.split('.').pop();
-            const filePath = `${Math.random()}.${fileExt}`;
+            const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
+            const filePath = `${fileName}`;
 
-            // Assuming a 'financial_evidence' bucket exists or we use 'materials' for now
-            // I'll skip actual bucket creation for this step as I'm focused on the form logic, 
-            // but in real world I'd create the bucket. 
-            // Let's use a mock URL or assume bucket exists.
-            // If bucket doesn't exist, upload will fail. 
-            // For now, I'll simulate upload success or user needs to run migration.
-            // I'll add bucket creation to my mental to-do or check if 'materials' is usable.
+            // Upload to 'financial_evidence' bucket
+            const { error: uploadError } = await supabase.storage
+                .from('financial_evidence')
+                .upload(filePath, file);
 
-            // await supabase.storage.from('financial_evidence').upload(filePath, file);
-            // const { data } = supabase.storage.from('financial_evidence').getPublicUrl(filePath);
+            if (uploadError) {
+                // If bucket doesn't exist, try creating it (admin only usually) or handle error
+                console.error("Upload error:", uploadError);
+                throw uploadError;
+            }
 
-            // Mocking for now to avoid blocking on storage config
-            toast.info("Upload simulado (Configurar bucket)");
-            form.setValue('evidence_url', 'http://mock-url.com/file');
-        } catch (error) {
-            toast.error('Erro no upload');
+            const { data } = supabase.storage
+                .from('financial_evidence')
+                .getPublicUrl(filePath);
+
+            if (data?.publicUrl) {
+                form.setValue('evidence_url', data.publicUrl);
+                toast.success("Comprovante anexado!");
+            }
+        } catch (error: any) {
+            console.error("Erro detalhado upload:", error);
+            toast.error('Erro no upload: ' + (error.message || "Verifique permissões do bucket"));
         } finally {
             setIsUploading(false);
         }
@@ -256,7 +264,7 @@ export function RecordFormDialog({ open, onOpenChange, record, onSuccess }: Reco
                             )}
                         />
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className={isCreditMethod ? "grid grid-cols-2 gap-4" : ""}>
                             <FormField
                                 control={form.control}
                                 name="payment_method_id"
@@ -268,14 +276,9 @@ export function RecordFormDialog({ open, onOpenChange, record, onSuccess }: Reco
                                                 value={field.value || ''}
                                                 onChange={(val, isCredit) => {
                                                     field.onChange(val);
-                                                    // Reset installments if not credit
                                                     if (!isCredit) {
                                                         form.setValue('installments', 1);
                                                     }
-                                                    // Store isCredit in a local state if needed, or derived
-                                                    // For now validation handles it, but we need isCredit for UI
-                                                    // Let's use a hidden custom field or just state?
-                                                    // Actually we can use the ref passed back or just toggle a state here
                                                     setIsCreditMethod(isCredit);
                                                 }}
                                             />

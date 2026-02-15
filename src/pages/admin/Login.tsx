@@ -4,8 +4,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import logoAcai from '@/assets/logo-acai.png'; // Fallback logo
+import logoAcai from '@/assets/logo-acai.png';
 import loginBg from '@/assets/login-bg.jpg';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -27,7 +28,31 @@ export default function Login() {
     const { error } = await signIn(email, password);
 
     if (!error) {
-      navigate('/admin/hub');
+      // Check if user is a financial employee (not staff/admin)
+      try {
+        const { data: financialUser } = await supabase
+          .from('financial_users' as any)
+          .select('id')
+          .eq('email', email.toLowerCase())
+          .eq('active', true)
+          .maybeSingle();
+
+        const { data: roles } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', (await supabase.auth.getUser()).data.user?.id || '');
+
+        const hasStaffRole = roles && roles.some((r: any) => ['admin', 'manager', 'staff', 'franchisee_master'].includes(r.role));
+
+        if (financialUser && !hasStaffRole) {
+          // Financial-only employee → go directly to financial page
+          navigate('/admin/financeiro');
+        } else {
+          navigate('/admin/hub');
+        }
+      } catch {
+        navigate('/admin/hub');
+      }
     }
 
     setIsLoading(false);

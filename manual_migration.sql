@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS public.financial_records (
     
     status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'cancelled')),
     
+    created_by_email TEXT,
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -73,3 +74,20 @@ CREATE POLICY "Allow All" ON public.financial_clients FOR ALL USING (true);
 CREATE POLICY "Allow All" ON public.financial_records FOR ALL USING (true);
 CREATE POLICY "Allow All" ON public.financial_audit_logs FOR ALL USING (true);
 CREATE POLICY "Allow All" ON public.financial_payment_methods FOR ALL USING (true);
+
+-- 6. Financial Users (Funcionários autorizados)
+CREATE TABLE IF NOT EXISTS public.financial_users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    email TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'operator' CHECK (role IN ('admin', 'operator', 'viewer')),
+    active BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    created_by UUID REFERENCES auth.users(id)
+);
+
+ALTER TABLE public.financial_users ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow All" ON public.financial_users FOR ALL USING (true);
+
+CREATE INDEX IF NOT EXISTS idx_financial_users_email ON public.financial_users(email);

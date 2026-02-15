@@ -198,7 +198,7 @@ const App = () => (
                       <Route
                         path="/admin/financeiro"
                         element={
-                          <PrivateRoute requiredRole="staff">
+                          <PrivateRoute>
                             <FluxoCaixaPage />
                           </PrivateRoute>
                         }

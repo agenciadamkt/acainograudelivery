@@ -23,7 +23,9 @@ import {
     FileText,
     ListFilter,
     File,
-    FileSpreadsheet
+    FileSpreadsheet,
+    Users,
+    ShieldAlert
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -50,12 +52,15 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarPicker } from '@/components/ui/calendar';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { RecordFormDialog } from './components/RecordFormDialog';
 import { ActionDialog } from './components/ActionDialog';
 import { ProofDialog } from './components/ProofDialog';
-import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { ManageUsersDialog } from './components/ManageUsersDialog';
+import { format, startOfMonth, endOfMonth, subDays, startOfDay, endOfDay, startOfYear, endOfYear } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -66,6 +71,7 @@ export default function FluxoCaixaPage() {
     const [typeFilter, setTypeFilter] = useState<string>('all');
     const [dateStart, setDateStart] = useState<string>(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
     const [dateEnd, setDateEnd] = useState<string>(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
+    const [quickDateFilter, setQuickDateFilter] = useState<string>('month');
 
     // Dialog states
     const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -73,6 +79,7 @@ export default function FluxoCaixaPage() {
     const [actionType, setActionType] = useState<'approve' | 'reject' | 'cancel' | null>(null);
     const [isProofOpen, setIsProofOpen] = useState(false);
     const [selectedProof, setSelectedProof] = useState<string | null>(null);
+    const [isManageUsersOpen, setIsManageUsersOpen] = useState(false);
 
     // Check admin
     const { data: user } = useQuery({
@@ -82,14 +89,43 @@ export default function FluxoCaixaPage() {
             return user;
         }
     });
-    const isAdmin = user?.email === 'agenciadamkt@gmail.com';
+
+    // Master admin email (always has full access)
+    const MASTER_EMAIL = 'agenciadamkt@gmail.com';
+
+    // Check if user is authorized and determine role
+    const { data: financialAccess, isLoading: isCheckingAccess } = useQuery({
+        queryKey: ['financial_access', user?.email],
+        queryFn: async () => {
+            if (!user?.email) return null;
+
+            // Master email always has full admin access
+            if (user.email === MASTER_EMAIL) return { authorized: true, isAdmin: true };
+
+            const { data, error } = await supabase
+                .from('financial_users' as any)
+                .select('*')
+                .eq('email', user.email)
+                .eq('active', true)
+                .maybeSingle();
+
+            if (error || !data) return { authorized: false, isAdmin: false };
+
+            const role = (data as any).role;
+            return { authorized: true, isAdmin: role === 'admin', role };
+        },
+        enabled: !!user?.email,
+    });
+
+    const isAdmin = financialAccess?.isAdmin || false;
+    const isAuthorized = financialAccess?.authorized || false;
 
     // Fetch records
     const { data: records, isLoading, refetch } = useQuery({
         queryKey: ['financial_records', statusFilter, typeFilter, dateStart, dateEnd],
         queryFn: async () => {
             let query = supabase
-                .from('financial_records' as any) // Cast to any to bypass type check if types are outdated
+                .from('financial_records' as any)
                 .select(`
                     *,
                     financial_clients (name)
@@ -106,9 +142,28 @@ export default function FluxoCaixaPage() {
             if (error) throw error;
             return data;
         },
-        // We use select to transform data if needed, but filtering name is easier done in component for now
-        // since Supabase doesn't support ILIKE on foreign tables easily without complicated syntax or views
     });
+
+    // Fetch financial users lookup (to map user_id -> name)
+    const { data: financialUsersList } = useQuery({
+        queryKey: ['financial_users_lookup'],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from('financial_users' as any)
+                .select('email, name, user_id');
+            if (error) return [];
+            return data as any[];
+        },
+    });
+
+    // Build lookup map: user_id -> name (and email -> name)
+    const userNameMap = new Map<string, string>();
+    financialUsersList?.forEach((u: any) => {
+        if (u.user_id) userNameMap.set(u.user_id, u.name);
+        if (u.email) userNameMap.set(u.email, u.name);
+    });
+    // Always map master admin
+    userNameMap.set(MASTER_EMAIL, 'Admin Master');
 
     // Client-side search filtering (Name, Order, Description)
     const filteredRecords = records?.filter((record: any) => {
@@ -124,13 +179,17 @@ export default function FluxoCaixaPage() {
     // Stats calculation based on filtered records
     const stats = filteredRecords?.reduce((acc: any, curr: any) => {
         const val = Number(curr.amount);
-        acc.total += val;
         acc.count += 1;
+        // Não somar cancelados/rejeitados no total recebido
+        if (curr.status !== 'cancelled' && curr.status !== 'rejected') {
+            acc.total += val;
+        }
         if (curr.status === 'approved') acc.approved += val;
         if (curr.status === 'pending') acc.pending += val;
         if (curr.status === 'rejected') acc.rejected += val;
+        if (curr.status === 'cancelled') acc.cancelled += val;
         return acc;
-    }, { total: 0, count: 0, approved: 0, pending: 0, rejected: 0 }) || { total: 0, count: 0, approved: 0, pending: 0, rejected: 0 };
+    }, { total: 0, count: 0, approved: 0, pending: 0, rejected: 0, cancelled: 0 }) || { total: 0, count: 0, approved: 0, pending: 0, rejected: 0, cancelled: 0 };
 
     const handleAction = (record: any, type: 'approve' | 'reject' | 'cancel') => {
         setSelectedRecord(record);
@@ -186,6 +245,26 @@ export default function FluxoCaixaPage() {
         document.body.removeChild(link);
     };
 
+    // Access denied screen
+    if (!isCheckingAccess && !isAuthorized && user) {
+        return (
+            <GrauOSLayout>
+                <div className="max-w-lg mx-auto px-4 py-20 text-center">
+                    <div className="bg-white dark:bg-white/[0.03] rounded-2xl border border-gray-200 dark:border-white/[0.06] p-10 shadow-sm">
+                        <ShieldAlert className="h-16 w-16 text-rose-400 mx-auto mb-4" />
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Acesso Restrito</h2>
+                        <p className="text-gray-500 dark:text-white/40 text-sm">
+                            Você não tem permissão para acessar o módulo financeiro.
+                        </p>
+                        <p className="text-gray-400 dark:text-white/30 text-xs mt-2">
+                            Solicite ao administrador que cadastre seu email (<strong>{user.email}</strong>) na lista de funcionários autorizados.
+                        </p>
+                    </div>
+                </div>
+            </GrauOSLayout>
+        );
+    }
+
     return (
         <GrauOSLayout>
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -196,22 +275,29 @@ export default function FluxoCaixaPage() {
                     </div>
                     <div className="flex items-center gap-3">
                         {isAdmin && (
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="outline" className="gap-2 bg-white dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-700 dark:text-white">
-                                        <Download className="h-4 w-4" /> Exportar
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent>
-                                    <DropdownMenuItem onClick={handleExportPDF}>
-                                        <File className="mr-2 h-4 w-4" /> Exportar PDF
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={handleExportExcel}>
-                                        <FileSpreadsheet className="mr-2 h-4 w-4" /> Exportar Excel (CSV)
-                                    </DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
+                            <Button
+                                variant="outline"
+                                className="gap-2 bg-white dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-700 dark:text-white"
+                                onClick={() => setIsManageUsersOpen(true)}
+                            >
+                                <Users className="h-4 w-4" /> Equipe
+                            </Button>
                         )}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" className="gap-2 bg-white dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-700 dark:text-white">
+                                    <Download className="h-4 w-4" /> Exportar
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                                <DropdownMenuItem onClick={handleExportPDF}>
+                                    <File className="mr-2 h-4 w-4" /> Exportar PDF
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={handleExportExcel}>
+                                    <FileSpreadsheet className="mr-2 h-4 w-4" /> Exportar Excel (CSV)
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                         <Button
                             onClick={() => setIsCreateOpen(true)}
                             className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 shadow-lg shadow-emerald-600/20"
@@ -245,7 +331,7 @@ export default function FluxoCaixaPage() {
                             <div className="text-2xl font-bold text-gray-900 dark:text-white">
                                 R$ {stats.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                             </div>
-                            <p className="text-xs text-gray-500 mt-1">Todas as transações</p>
+                            <p className="text-xs text-gray-500 mt-1">Excluindo cancelados/rejeitados</p>
                         </CardContent>
                     </Card>
                     <Card className="bg-white dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] shadow-sm">
@@ -279,7 +365,7 @@ export default function FluxoCaixaPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="text-2xl font-bold text-red-600 dark:text-red-400">
-                                R$ {stats.rejected.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                R$ {(stats.rejected + stats.cancelled).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                             </div>
                             <p className="text-xs text-gray-500 mt-1">Títulos não compensados</p>
                         </CardContent>
@@ -288,30 +374,115 @@ export default function FluxoCaixaPage() {
 
                 {/* Filters & List */}
                 <div className="bg-white dark:bg-white/[0.03] rounded-xl border border-gray-200 dark:border-white/[0.06] shadow-sm overflow-hidden">
-                    <div className="p-4 border-b border-gray-100 dark:border-white/[0.05] flex flex-col md:flex-row gap-4 items-end md:items-center">
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 flex-1 w-full">
-                            < div >
-                                <span className="text-xs text-gray-500 mb-1 block">Início</span>
-                                <Input
-                                    type="date"
-                                    value={dateStart}
-                                    onChange={(e) => setDateStart(e.target.value)}
-                                    className="bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10"
-                                />
-                            </div>
-                            <div>
-                                <span className="text-xs text-gray-500 mb-1 block">Fim</span>
-                                <Input
-                                    type="date"
-                                    value={dateEnd}
-                                    onChange={(e) => setDateEnd(e.target.value)}
-                                    className="bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10"
-                                />
-                            </div>
+                    <div className="p-4 border-b border-gray-100 dark:border-white/[0.05] space-y-3">
+                        {/* Row 1: Quick Date Filter Pills */}
+                        <div className="flex flex-wrap items-center gap-2">
+                            {[
+                                { key: 'today', label: 'Hoje' },
+                                { key: 'yesterday', label: 'Ontem' },
+                                { key: '7days', label: '7 Dias' },
+                                { key: 'month', label: 'Mês' },
+                                { key: 'year', label: 'Ano' },
+                                { key: 'custom', label: 'Personalizado' },
+                            ].map((opt) => (
+                                <button
+                                    key={opt.key}
+                                    onClick={() => {
+                                        setQuickDateFilter(opt.key);
+                                        const today = new Date();
+                                        switch (opt.key) {
+                                            case 'today':
+                                                setDateStart(format(startOfDay(today), 'yyyy-MM-dd'));
+                                                setDateEnd(format(endOfDay(today), 'yyyy-MM-dd'));
+                                                break;
+                                            case 'yesterday': {
+                                                const yesterday = subDays(today, 1);
+                                                setDateStart(format(startOfDay(yesterday), 'yyyy-MM-dd'));
+                                                setDateEnd(format(endOfDay(yesterday), 'yyyy-MM-dd'));
+                                                break;
+                                            }
+                                            case '7days':
+                                                setDateStart(format(subDays(today, 7), 'yyyy-MM-dd'));
+                                                setDateEnd(format(endOfDay(today), 'yyyy-MM-dd'));
+                                                break;
+                                            case 'month':
+                                                setDateStart(format(startOfMonth(today), 'yyyy-MM-dd'));
+                                                setDateEnd(format(endOfMonth(today), 'yyyy-MM-dd'));
+                                                break;
+                                            case 'year':
+                                                setDateStart(format(startOfYear(today), 'yyyy-MM-dd'));
+                                                setDateEnd(format(endOfYear(today), 'yyyy-MM-dd'));
+                                                break;
+                                            case 'custom':
+                                                break;
+                                        }
+                                    }}
+                                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${quickDateFilter === opt.key
+                                        ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/30'
+                                        : 'bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/50 hover:bg-gray-200 dark:hover:bg-white/10'
+                                        }`}
+                                >
+                                    {opt.label}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Row 2: Filter Controls */}
+                        <div className={`grid gap-3 items-end ${quickDateFilter === 'custom' ? 'grid-cols-2 md:grid-cols-6' : 'grid-cols-2 md:grid-cols-3'}`}>
+                            {quickDateFilter === 'custom' && (
+                                <>
+                                    <div>
+                                        <span className="text-xs text-gray-500 mb-1 block">Início</span>
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <Button
+                                                    variant="outline"
+                                                    className="w-full justify-start text-left font-normal h-9 bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-700 dark:text-white/80"
+                                                >
+                                                    <CalendarIcon className="mr-2 h-4 w-4 text-gray-400" />
+                                                    {format(new Date(dateStart + 'T12:00:00'), 'dd/MM/yyyy')}
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0" align="start">
+                                                <CalendarPicker
+                                                    mode="single"
+                                                    selected={new Date(dateStart + 'T12:00:00')}
+                                                    onSelect={(date) => { if (date) setDateStart(format(date, 'yyyy-MM-dd')); }}
+                                                    locale={ptBR}
+                                                    initialFocus
+                                                />
+                                            </PopoverContent>
+                                        </Popover>
+                                    </div>
+                                    <div>
+                                        <span className="text-xs text-gray-500 mb-1 block">Fim</span>
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <Button
+                                                    variant="outline"
+                                                    className="w-full justify-start text-left font-normal h-9 bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-700 dark:text-white/80"
+                                                >
+                                                    <CalendarIcon className="mr-2 h-4 w-4 text-gray-400" />
+                                                    {format(new Date(dateEnd + 'T12:00:00'), 'dd/MM/yyyy')}
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0" align="start">
+                                                <CalendarPicker
+                                                    mode="single"
+                                                    selected={new Date(dateEnd + 'T12:00:00')}
+                                                    onSelect={(date) => { if (date) setDateEnd(format(date, 'yyyy-MM-dd')); }}
+                                                    locale={ptBR}
+                                                    initialFocus
+                                                />
+                                            </PopoverContent>
+                                        </Popover>
+                                    </div>
+                                </>
+                            )}
                             <div>
                                 <span className="text-xs text-gray-500 mb-1 block">Tipo</span>
                                 <Select value={typeFilter} onValueChange={setTypeFilter}>
-                                    <SelectTrigger className="bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10">
+                                    <SelectTrigger className="h-9 bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10">
                                         <SelectValue placeholder="Tipo" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -325,7 +496,7 @@ export default function FluxoCaixaPage() {
                             <div>
                                 <span className="text-xs text-gray-500 mb-1 block">Status</span>
                                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                                    <SelectTrigger className="bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10">
+                                    <SelectTrigger className="h-9 bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10">
                                         <SelectValue placeholder="Status" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -337,17 +508,18 @@ export default function FluxoCaixaPage() {
                                     </SelectContent>
                                 </Select>
                             </div>
-                        </div>
-
-                        <div className="relative w-full md:w-64">
-                            <span className="text-xs text-gray-500 mb-1 block">Busca</span>
-                            <Search className="absolute left-3 top-8 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                            <Input
-                                placeholder="Buscar cliente..."
-                                className="pl-9 bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
+                            <div className={quickDateFilter === 'custom' ? 'col-span-2' : ''}>
+                                <span className="text-xs text-gray-500 mb-1 block">Busca</span>
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                    <Input
+                                        placeholder="Buscar cliente..."
+                                        className="pl-9 h-9 bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10"
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                    />
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -361,14 +533,15 @@ export default function FluxoCaixaPage() {
                                     <th className="px-6 py-3">Tipo</th>
                                     <th className="px-6 py-3">Valor</th>
                                     <th className="px-6 py-3">Status</th>
+                                    <th className="px-6 py-3">Registrado por</th>
                                     <th className="px-6 py-3 text-right">Ações</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
                                 {isLoading ? (
-                                    <tr><td colSpan={6} className="px-6 py-8 text-center text-gray-500">Carregando registros...</td></tr>
+                                    <tr><td colSpan={7} className="px-6 py-8 text-center text-gray-500">Carregando registros...</td></tr>
                                 ) : filteredRecords?.length === 0 ? (
-                                    <tr><td colSpan={6} className="px-6 py-8 text-center text-gray-500">Nenhum registro encontrado.</td></tr>
+                                    <tr><td colSpan={7} className="px-6 py-8 text-center text-gray-500">Nenhum registro encontrado.</td></tr>
                                 ) : filteredRecords?.map((record: any) => (
                                     <tr key={record.id} className="hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors">
                                         <td className="px-6 py-4 text-gray-900 dark:text-white font-medium">
@@ -401,6 +574,16 @@ export default function FluxoCaixaPage() {
                                                     record.status === 'rejected' ? 'Rejeitado' :
                                                         record.status === 'cancelled' ? 'Cancelado' : 'Pendente'}
                                             </Badge>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-2">
+                                                <div className="h-6 w-6 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-[10px] font-bold text-indigo-700 dark:text-indigo-300">
+                                                    {(userNameMap.get(record.user_id) || userNameMap.get(record.created_by_email) || record.created_by_email || '?').charAt(0).toUpperCase()}
+                                                </div>
+                                                <span className="text-xs text-gray-600 dark:text-white/60 truncate max-w-[120px]" title={record.created_by_email}>
+                                                    {userNameMap.get(record.user_id) || userNameMap.get(record.created_by_email) || record.created_by_email || 'Usuário'}
+                                                </span>
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex items-center justify-end gap-1">
@@ -482,8 +665,8 @@ export default function FluxoCaixaPage() {
                                                     </>
                                                 )}
 
-                                                {/* Cancel / Delete (Soft) */}
-                                                {(record.status === 'pending') && (
+                                                {/* Cancel / Delete (Soft) - Admin only */}
+                                                {isAdmin && (record.status === 'pending') && (
                                                     <TooltipProvider>
                                                         <Tooltip>
                                                             <TooltipTrigger asChild>
@@ -540,6 +723,11 @@ export default function FluxoCaixaPage() {
                 open={isProofOpen}
                 onOpenChange={setIsProofOpen}
                 url={selectedProof}
+            />
+
+            <ManageUsersDialog
+                open={isManageUsersOpen}
+                onOpenChange={setIsManageUsersOpen}
             />
         </GrauOSLayout>
     );

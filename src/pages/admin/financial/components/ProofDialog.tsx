@@ -49,8 +49,9 @@ export function ProofDialog({ open, onOpenChange, url }: ProofDialogProps) {
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-4xl w-full p-0 overflow-hidden bg-black/95 border-gray-800 h-[80vh] flex flex-col">
-                <div className="relative flex-1 flex items-center justify-center bg-black w-full h-full">
+            <DialogContent className="max-w-4xl w-full p-0 overflow-hidden bg-black/95 border-gray-800 h-[85vh] flex flex-col">
+                {/* Image area - flex-1 with min-h-0 prevents it from pushing the bar away */}
+                <div className="relative flex-1 min-h-0 flex items-center justify-center bg-black w-full overflow-hidden">
                     <button
                         onClick={() => onOpenChange(false)}
                         className="absolute top-4 right-4 z-50 p-2 bg-black/50 rounded-full text-white hover:bg-white/20 transition-colors"
@@ -62,10 +63,12 @@ export function ProofDialog({ open, onOpenChange, url }: ProofDialogProps) {
                     <img
                         src={url}
                         alt="Comprovante"
-                        className="max-w-full max-h-full object-contain"
+                        className="max-w-full max-h-full object-contain p-4"
                     />
                 </div>
-                <div className="bg-white/10 p-4 flex justify-between items-center backdrop-blur-sm w-full">
+
+                {/* Action bar - always visible at bottom with shrink-0 */}
+                <div className="shrink-0 bg-white/10 px-4 py-3 flex justify-between items-center backdrop-blur-sm w-full border-t border-white/10">
                     <span className="text-white/60 text-sm ml-2">Visualização do Comprovante</span>
                     <div className="flex gap-2">
                         <Button variant="outline" onClick={() => window.open(url, '_blank')} className="gap-2 bg-transparent text-white border-white/20 hover:bg-white/10">

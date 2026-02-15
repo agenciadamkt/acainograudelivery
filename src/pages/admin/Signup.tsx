@@ -8,6 +8,7 @@ import logoAcai from '@/assets/logo-acai.png';
 import signupBg from '@/assets/signup-bg.jpg';
 import { z } from 'zod';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 const signupSchema = z.object({
   fullName: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres'),
@@ -55,8 +56,23 @@ export default function Signup() {
     const { error } = await signUp(email, password, fullName);
 
     if (!error) {
-      //   toast.success("Conta criada com sucesso!");
-      navigate('/admin/hub');
+      // Check if this email is registered as financial employee
+      try {
+        const { data: financialUser } = await supabase
+          .from('financial_users' as any)
+          .select('id')
+          .eq('email', email.toLowerCase())
+          .eq('active', true)
+          .maybeSingle();
+
+        if (financialUser) {
+          navigate('/admin/financeiro');
+        } else {
+          navigate('/admin/hub');
+        }
+      } catch {
+        navigate('/admin/hub');
+      }
     }
 
     setIsLoading(false);
