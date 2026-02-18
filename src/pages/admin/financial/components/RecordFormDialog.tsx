@@ -36,8 +36,11 @@ import { Loader2, UploadCloud, Camera, CheckCircle2 } from 'lucide-react';
 import { PaymentMethodSelect } from './PaymentMethodSelect';
 import { ClientSelect } from './ClientSelect';
 import { cn } from '@/lib/utils';
+import DistributionCenterSelect from './DistributionCenterSelect';
+import CurrencyInput from './CurrencyInput';
 
 const formSchema = z.object({
+    distribution_center_id: z.string().min(1, 'Selecione o CD'),
     client_id: z.string().min(1, 'Selecione um cliente'),
     transaction_date: z.string().min(1, 'Data é obrigatória'),
     transaction_type: z.enum(['sale', 'write_off', 'other']),
@@ -64,6 +67,7 @@ export function RecordFormDialog({ open, onOpenChange, record, onSuccess }: Reco
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
+            distribution_center_id: '',
             transaction_type: 'sale',
             transaction_date: new Date().toISOString().split('T')[0],
             amount: '',
@@ -75,6 +79,7 @@ export function RecordFormDialog({ open, onOpenChange, record, onSuccess }: Reco
     useEffect(() => {
         if (record) {
             form.reset({
+                distribution_center_id: record.distribution_center_id || '',
                 client_id: record.client_id,
                 transaction_date: record.transaction_date,
                 transaction_type: record.transaction_type,
@@ -90,6 +95,7 @@ export function RecordFormDialog({ open, onOpenChange, record, onSuccess }: Reco
             setIsCreditMethod((record.installments && record.installments > 1) || false);
         } else {
             form.reset({
+                distribution_center_id: '',
                 transaction_type: 'sale',
                 transaction_date: new Date().toISOString().split('T')[0],
                 amount: '',
@@ -199,7 +205,7 @@ export function RecordFormDialog({ open, onOpenChange, record, onSuccess }: Reco
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[500px] bg-white dark:bg-[#1A1A1A] border-gray-200 dark:border-white/10">
+            <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto bg-white dark:bg-[#1A1A1A] border-gray-200 dark:border-white/10">
                 <DialogHeader>
                     <DialogTitle className="text-gray-900 dark:text-white">
                         {record ? 'Editar Lançamento' : 'Novo Lançamento'}
@@ -246,6 +252,24 @@ export function RecordFormDialog({ open, onOpenChange, record, onSuccess }: Reco
                                 )}
                             />
                         </div>
+
+                        {/* Centro de Distribuição */}
+                        <FormField
+                            control={form.control}
+                            name="distribution_center_id"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Centro de Distribuição</FormLabel>
+                                    <FormControl>
+                                        <DistributionCenterSelect
+                                            value={field.value}
+                                            onChange={field.onChange}
+                                        />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
 
                         <FormField
                             control={form.control}
@@ -328,11 +352,9 @@ export function RecordFormDialog({ open, onOpenChange, record, onSuccess }: Reco
                                     <FormItem>
                                         <FormLabel>Valor (R$)</FormLabel>
                                         <FormControl>
-                                            <Input
-                                                type="number"
-                                                step="0.01"
-                                                placeholder="0,00"
-                                                {...field}
+                                            <CurrencyInput
+                                                value={Number(field.value) || 0}
+                                                onChange={(num) => field.onChange(String(num))}
                                             />
                                         </FormControl>
                                         <FormMessage />

@@ -80,6 +80,15 @@ import PerformancePage from "./pages/admin/performance/PerformancePage";
 import AssistentePage from "./pages/admin/assistente/AssistentePage";
 import ComunidadePage from "./pages/admin/comunidade/ComunidadePage";
 import FluxoCaixaPage from "./pages/admin/financial/FluxoCaixaPage";
+import WeeklyCashFlowPage from "./pages/admin/financial/WeeklyCashFlowPage";
+import FinancialLayout from "./pages/admin/financial/FinancialLayout";
+import FinancialDashboard from "./pages/admin/financial/FinancialDashboard";
+import CashClosingsPage from "./pages/admin/financial/CashClosingsPage";
+import CadastrosPage from "./pages/admin/financial/CadastrosPage";
+import ExpensesPage from "./pages/admin/financial/ExpensesPage";
+import DREReportPage from "./pages/admin/financial/DREReportPage";
+import ReportsPage from "./pages/admin/financial/ReportsPage";
+import MetasPage from "./pages/admin/financial/MetasPage";
 
 import { ThemeProvider } from "next-themes";
 
@@ -199,10 +208,21 @@ const App = () => (
                         path="/admin/financeiro"
                         element={
                           <PrivateRoute>
-                            <FluxoCaixaPage />
+                            <FinancialLayout />
                           </PrivateRoute>
                         }
-                      />
+                      >
+                        <Route index element={<FinancialDashboard />} />
+                        <Route path="lancamentos" element={<FluxoCaixaPage />} />
+                        <Route path="fluxo-semanal" element={<WeeklyCashFlowPage />} />
+                        <Route path="cadastros" element={<CadastrosPage />} />
+                        <Route path="fluxo" element={<CashClosingsPage />} />
+                        <Route path="despesas" element={<ExpensesPage />} />
+                        <Route path="dre" element={<DREReportPage />} />
+                        <Route path="relatorios" element={<ReportsPage />} />
+
+                        <Route path="configuracoes" element={<div className="p-8 text-center text-gray-400">Configurações — Em breve</div>} />
+                      </Route>
 
                       {/* Franchise management */}
                       <Route path="/admin/franchisees" element={

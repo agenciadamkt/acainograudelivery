@@ -65,7 +65,7 @@ const modules = [
     },
     {
         id: 'financeiro',
-        title: 'Fluxo de Caixa',
+        title: 'Financeiro no Grau',
         subtitle: 'Controle Distribuidora',
         path: '/admin/financeiro',
         color: '#10B981', // emerald

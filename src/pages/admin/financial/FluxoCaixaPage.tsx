@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { GrauOSLayout } from '@/components/admin/GrauOSLayout';
+
 import {
     TrendingUp,
     ArrowUpCircle,
@@ -57,6 +57,7 @@ import { Calendar as CalendarPicker } from '@/components/ui/calendar';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { RecordFormDialog } from './components/RecordFormDialog';
+import DistributionCenterSelect from './components/DistributionCenterSelect';
 import { ActionDialog } from './components/ActionDialog';
 import { ProofDialog } from './components/ProofDialog';
 import { ManageUsersDialog } from './components/ManageUsersDialog';
@@ -64,6 +65,7 @@ import { format, startOfMonth, endOfMonth, subDays, startOfDay, endOfDay, startO
 import { ptBR } from 'date-fns/locale';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { addPdfBranding } from './utils/pdfBranding';
 
 export default function FluxoCaixaPage() {
     const [searchTerm, setSearchTerm] = useState('');
@@ -72,6 +74,7 @@ export default function FluxoCaixaPage() {
     const [dateStart, setDateStart] = useState<string>(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
     const [dateEnd, setDateEnd] = useState<string>(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
     const [quickDateFilter, setQuickDateFilter] = useState<string>('month');
+    const [selectedCD, setSelectedCD] = useState<string>('');
 
     // Dialog states
     const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -95,34 +98,55 @@ export default function FluxoCaixaPage() {
 
     // Check if user is authorized and determine role
     const { data: financialAccess, isLoading: isCheckingAccess } = useQuery({
-        queryKey: ['financial_access', user?.email],
+        queryKey: ['financial_access'],
         queryFn: async () => {
-            if (!user?.email) return null;
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return null;
 
-            // Master email always has full admin access
-            if (user.email === MASTER_EMAIL) return { authorized: true, isAdmin: true };
-
-            const { data, error } = await supabase
+            // Check manual access table
+            const { data: access } = await supabase
                 .from('financial_users' as any)
                 .select('*')
                 .eq('email', user.email)
-                .eq('active', true)
-                .maybeSingle();
+                .single();
 
-            if (error || !data) return { authorized: false, isAdmin: false };
+            // Master admin always has access
+            if (user.email === MASTER_EMAIL) {
+                return { authorized: true, isAdmin: true, role: 'admin', name: 'Master Admin' };
+            }
 
-            const role = (data as any).role;
-            return { authorized: true, isAdmin: role === 'admin', role };
-        },
-        enabled: !!user?.email,
+            if (access) {
+                return {
+                    ...access,
+                    authorized: !!access.active,
+                    isAdmin: access.role === 'admin'
+                };
+            }
+
+            return null;
+        }
     });
+
+    const { data: centers = [] } = useQuery({
+        queryKey: ['distribution_centers'],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from('distribution_centers' as any)
+                .select('*')
+                .eq('active', true)
+                .order('name');
+            if (error) throw error;
+            return data as any[];
+        },
+    });
+
 
     const isAdmin = financialAccess?.isAdmin || false;
     const isAuthorized = financialAccess?.authorized || false;
 
     // Fetch records
     const { data: records, isLoading, refetch } = useQuery({
-        queryKey: ['financial_records', statusFilter, typeFilter, dateStart, dateEnd],
+        queryKey: ['financial_records', statusFilter, typeFilter, dateStart, dateEnd, selectedCD],
         queryFn: async () => {
             let query = supabase
                 .from('financial_records' as any)
@@ -137,6 +161,7 @@ export default function FluxoCaixaPage() {
             if (typeFilter !== 'all') query = query.eq('transaction_type', typeFilter);
             if (dateStart) query = query.gte('transaction_date', dateStart);
             if (dateEnd) query = query.lte('transaction_date', dateEnd);
+            if (selectedCD) query = query.eq('distribution_center_id', selectedCD);
 
             const { data, error } = await query;
             if (error) throw error;
@@ -196,14 +221,21 @@ export default function FluxoCaixaPage() {
         setActionType(type);
     };
 
-    const handleExportPDF = () => {
+    const handleExportPDF = async () => {
         const doc = new jsPDF();
-        doc.text("Fluxo de Caixa - Relatório", 14, 15);
-        doc.setFontSize(10);
-        doc.text(`Período: ${format(new Date(dateStart), 'dd/MM/yyyy')} a ${format(new Date(dateEnd), 'dd/MM/yyyy')}`, 14, 22);
+        const centerName = selectedCD
+            ? centers.find((c: any) => c.id === selectedCD)?.name
+            : 'Todos os CDs';
 
-        const tableData = filteredRecords.map((r: any) => [
-            format(new Date(r.transaction_date), 'dd/MM/yyyy'),
+        const startY = await addPdfBranding(doc, centerName);
+
+        doc.setFontSize(14);
+        doc.text("Financeiro no Grau - Relatório", 14, startY + 5);
+        doc.setFontSize(10);
+        doc.text(`Período: ${format(new Date(dateStart), 'dd/MM/yyyy')} a ${format(new Date(dateEnd), 'dd/MM/yyyy')}`, 14, startY + 12);
+
+        const tableData = (filteredRecords || []).map((r: any) => [
+            format(new Date(r.transaction_date + 'T12:00:00'), 'dd/MM/yyyy'),
             r.financial_clients?.name || '-',
             r.transaction_type === 'sale' ? 'Venda' : r.transaction_type === 'write_off' ? 'Baixa' : 'Outros',
             `R$ ${Number(r.amount).toFixed(2)}`,
@@ -213,7 +245,7 @@ export default function FluxoCaixaPage() {
         autoTable(doc, {
             head: [['Data', 'Cliente', 'Tipo', 'Valor', 'Status']],
             body: tableData,
-            startY: 25,
+            startY: startY + 15,
         });
 
         doc.save('fluxo-caixa.pdf');
@@ -223,7 +255,7 @@ export default function FluxoCaixaPage() {
         // Simple CSV generation
         const headers = ["Data", "Cliente", "Tipo", "Valor", "Status", "Descricao", "Pedido"];
         const rows = filteredRecords.map((r: any) => [
-            format(new Date(r.transaction_date), 'dd/MM/yyyy'),
+            format(new Date(r.transaction_date + 'T12:00:00'), 'dd/MM/yyyy'),
             r.financial_clients?.name || '',
             r.transaction_type,
             Number(r.amount).toFixed(2),
@@ -248,7 +280,7 @@ export default function FluxoCaixaPage() {
     // Access denied screen
     if (!isCheckingAccess && !isAuthorized && user) {
         return (
-            <GrauOSLayout>
+            <>
                 <div className="max-w-lg mx-auto px-4 py-20 text-center">
                     <div className="bg-white dark:bg-white/[0.03] rounded-2xl border border-gray-200 dark:border-white/[0.06] p-10 shadow-sm">
                         <ShieldAlert className="h-16 w-16 text-rose-400 mx-auto mb-4" />
@@ -261,28 +293,20 @@ export default function FluxoCaixaPage() {
                         </p>
                     </div>
                 </div>
-            </GrauOSLayout>
+            </>
         );
     }
 
     return (
-        <GrauOSLayout>
+        <>
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Fluxo de Caixa</h1>
+                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Financeiro no Grau</h1>
                         <p className="text-sm text-gray-500 dark:text-white/40">Gestão financeira da distribuidora</p>
                     </div>
                     <div className="flex items-center gap-3">
-                        {isAdmin && (
-                            <Button
-                                variant="outline"
-                                className="gap-2 bg-white dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-700 dark:text-white"
-                                onClick={() => setIsManageUsersOpen(true)}
-                            >
-                                <Users className="h-4 w-4" /> Equipe
-                            </Button>
-                        )}
+
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button variant="outline" className="gap-2 bg-white dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-700 dark:text-white">
@@ -428,7 +452,15 @@ export default function FluxoCaixaPage() {
                         </div>
 
                         {/* Row 2: Filter Controls */}
-                        <div className={`grid gap-3 items-end ${quickDateFilter === 'custom' ? 'grid-cols-2 md:grid-cols-6' : 'grid-cols-2 md:grid-cols-3'}`}>
+                        <div className={`grid gap-3 items-end ${quickDateFilter === 'custom' ? 'grid-cols-2 md:grid-cols-7' : 'grid-cols-2 md:grid-cols-4'}`}>
+                            <div>
+                                <span className="text-xs text-gray-500 mb-1 block">Centro de Distribuição</span>
+                                <DistributionCenterSelect
+                                    value={selectedCD}
+                                    onChange={setSelectedCD}
+                                    placeholder="Todos os CDs"
+                                />
+                            </div>
                             {quickDateFilter === 'custom' && (
                                 <>
                                     <div>
@@ -545,7 +577,7 @@ export default function FluxoCaixaPage() {
                                 ) : filteredRecords?.map((record: any) => (
                                     <tr key={record.id} className="hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors">
                                         <td className="px-6 py-4 text-gray-900 dark:text-white font-medium">
-                                            {format(new Date(record.transaction_date), 'dd/MM/yyyy')}
+                                            {format(new Date(record.transaction_date + 'T12:00:00'), 'dd/MM/yyyy')}
                                             <div className="text-xs text-gray-400 font-normal">{format(new Date(record.created_at), 'HH:mm', { locale: ptBR })}</div>
                                         </td>
                                         <td className="px-6 py-4 text-gray-700 dark:text-white/80">
@@ -729,6 +761,6 @@ export default function FluxoCaixaPage() {
                 open={isManageUsersOpen}
                 onOpenChange={setIsManageUsersOpen}
             />
-        </GrauOSLayout>
+        </>
     );
 }
