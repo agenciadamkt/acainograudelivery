@@ -1,5 +1,5 @@
 import jsPDF from 'jspdf';
-import logoCircularUrl from '@/assets/logo-circular.png';
+import logoCircularUrl from '@/assets/logo-acai.png';
 
 /**
  * Adds the GrauOS branding header to any jsPDF document.

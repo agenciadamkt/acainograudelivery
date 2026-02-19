@@ -50,6 +50,8 @@ export default function ExpensesPage() {
     const [filterCD, setFilterCD] = useState('');
     const [filterType, setFilterType] = useState('');
     const [filterStatus, setFilterStatus] = useState('all');
+    const [filterCostCenter, setFilterCostCenter] = useState('');
+    const [filterChartAccount, setFilterChartAccount] = useState('');
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editRecord, setEditRecord] = useState<any>(null);
     const [confirmDialog, setConfirmDialog] = useState<{ type: 'delete' | 'pay'; id: string | null; open: boolean }>({
@@ -71,8 +73,34 @@ export default function ExpensesPage() {
         },
     });
 
+    const { data: costCenters = [] } = useQuery({
+        queryKey: ['cost_centers_list'],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from('cost_centers' as any)
+                .select('id, name')
+                .eq('active', true)
+                .order('name');
+            if (error) throw error;
+            return data as any[];
+        },
+    });
+
+    const { data: chartAccounts = [] } = useQuery({
+        queryKey: ['chart_accounts_list'],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from('chart_of_accounts' as any)
+                .select('id, name')
+                .eq('active', true)
+                .order('name');
+            if (error) throw error;
+            return data as any[];
+        },
+    });
+
     const { data: expenses = [], isLoading, refetch } = useQuery({
-        queryKey: ['expenses', dateStart, dateEnd, filterCD, filterType, filterStatus],
+        queryKey: ['expenses', dateStart, dateEnd, filterCD, filterType, filterStatus, filterCostCenter, filterChartAccount],
         queryFn: async () => {
             let query = supabase
                 .from('expenses' as any)
@@ -88,6 +116,8 @@ export default function ExpensesPage() {
 
             if (filterCD) query = query.eq('distribution_center_id', filterCD);
             if (filterType) query = query.eq('expense_type', filterType);
+            if (filterCostCenter) query = query.eq('cost_center_id', filterCostCenter);
+            if (filterChartAccount) query = query.eq('chart_account_id', filterChartAccount);
             if (filterStatus !== 'all') {
                 if (filterStatus === 'paid') query = query.eq('paid', true);
                 if (filterStatus === 'pending') query = query.eq('paid', false);
@@ -301,6 +331,32 @@ export default function ExpensesPage() {
                         <option value="fixed">Fixa</option>
                         <option value="variable">Variável</option>
                         <option value="investment">Investimento</option>
+                    </select>
+                </div>
+                <div>
+                    <label className="text-xs text-gray-500 dark:text-white/30 mb-1 block">Centro de Custos</label>
+                    <select
+                        className="w-full h-10 rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-black/20 px-3 text-sm text-gray-900 dark:text-white outline-none"
+                        value={filterCostCenter}
+                        onChange={(e) => setFilterCostCenter(e.target.value)}
+                    >
+                        <option value="">Todos</option>
+                        {costCenters.map((cc: any) => (
+                            <option key={cc.id} value={cc.id}>{cc.name}</option>
+                        ))}
+                    </select>
+                </div>
+                <div>
+                    <label className="text-xs text-gray-500 dark:text-white/30 mb-1 block">Plano de Contas</label>
+                    <select
+                        className="w-full h-10 rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-black/20 px-3 text-sm text-gray-900 dark:text-white outline-none"
+                        value={filterChartAccount}
+                        onChange={(e) => setFilterChartAccount(e.target.value)}
+                    >
+                        <option value="">Todos</option>
+                        {chartAccounts.map((ca: any) => (
+                            <option key={ca.id} value={ca.id}>{ca.name}</option>
+                        ))}
                     </select>
                 </div>
                 <div>
