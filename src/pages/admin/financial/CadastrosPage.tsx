@@ -25,6 +25,9 @@ import {
     ToggleRight,
     Loader2,
     Users,
+    Wallet,
+    Landmark,
+    PiggyBank
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -577,6 +580,8 @@ export default function CadastrosPage() {
                             parentLabel="Centro de Custos"
                             ParentSelect={CostCenterSelect as any}
                         />
+                        <AccountsSection />
+                        <ClientsSection />
                     </div>
                 </TabsContent>
 
@@ -591,5 +596,346 @@ export default function CadastrosPage() {
                 onOpenChange={setIsManageUsersOpen}
             />
         </div>
+    );
+}
+
+function ClientsSection() {
+    const queryClient = useQueryClient();
+    const [dialogOpen, setDialogOpen] = useState(false);
+    const [editItem, setEditItem] = useState<any>(null);
+    const [name, setName] = useState('');
+    const [phone, setPhone] = useState('');
+
+    const { data: items = [], isLoading } = useQuery({
+        queryKey: ['financial_clients'],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from('financial_clients' as any)
+                .select('*')
+                .order('name');
+            if (error) throw error;
+            return data as any[];
+        },
+    });
+
+    const saveMutation = useMutation({
+        mutationFn: async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            const payload: any = { name, phone };
+            if (!user) throw new Error('User not found');
+
+            if (editItem) {
+                const { error } = await supabase
+                    .from('financial_clients' as any)
+                    .update(payload)
+                    .eq('id', editItem.id);
+                if (error) throw error;
+            } else {
+                const { error } = await supabase
+                    .from('financial_clients' as any)
+                    .insert({ ...payload, created_by: user.id });
+                if (error) throw error;
+            }
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['financial_clients'] });
+            toast.success(editItem ? 'Atualizado!' : 'Cadastrado!');
+            setDialogOpen(false);
+            setEditItem(null);
+            setName('');
+            setPhone('');
+        },
+        onError: (e: any) => toast.error('Erro: ' + e.message),
+    });
+
+    const openNew = () => {
+        setEditItem(null);
+        setName('');
+        setPhone('');
+        setDialogOpen(true);
+    };
+
+    const openEdit = (item: any) => {
+        setEditItem(item);
+        setName(item.name);
+        setPhone(item.phone || '');
+        setDialogOpen(true);
+    };
+
+    return (
+        <Card className="bg-white dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] shadow-sm">
+            <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2 text-base font-semibold text-gray-900 dark:text-white">
+                        <Users className="h-5 w-5 text-purple-500" />
+                        Clientes / Pagadores
+                    </CardTitle>
+                    <Button
+                        size="sm"
+                        onClick={openNew}
+                        className="bg-purple-600 hover:bg-purple-700 text-white h-8"
+                    >
+                        <Plus className="mr-1 h-3.5 w-3.5" />
+                        Novo
+                    </Button>
+                </div>
+            </CardHeader>
+            <CardContent className="p-0">
+                <div className="divide-y divide-gray-50 dark:divide-white/[0.03]">
+                    {isLoading && <div className="px-4 py-6 text-center text-gray-400 font-medium">Carregando...</div>}
+                    {!isLoading && items.length === 0 && <div className="px-4 py-6 text-center text-gray-400">Nenhum cliente encontrado</div>}
+                    {items.slice(0, 10).map((item: any) => (
+                        <div key={item.id} className="flex items-center justify-between px-4 py-3 hover:bg-gray-50/50 dark:hover:bg-white/[0.02] transition-colors">
+                            <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-lg bg-purple-100 dark:bg-purple-900/20 flex items-center justify-center">
+                                    <Users className="h-4 w-4 text-purple-600" />
+                                </div>
+                                <div className="flex flex-col">
+                                    <p className="text-sm font-medium text-gray-900 dark:text-white">{item.name}</p>
+                                    <p className="text-[11px] text-gray-400 dark:text-white/30">{item.phone || 'Sem telefone'}</p>
+                                </div>
+                            </div>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => openEdit(item)}>
+                                <Edit2 className="h-3.5 w-3.5 text-gray-400" />
+                            </Button>
+                        </div>
+                    ))}
+                    {items.length > 10 && (
+                        <div className="px-4 py-2 text-center">
+                            <p className="text-[10px] text-gray-400 italic">E mais {items.length - 10} clientes...</p>
+                        </div>
+                    )}
+                </div>
+            </CardContent>
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                <DialogContent className="sm:max-w-[400px] bg-white dark:bg-[#1A1A24] border-gray-200 dark:border-white/10">
+                    <DialogHeader>
+                        <DialogTitle>{editItem ? 'Editar Cliente' : 'Novo Cliente'}</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-2">
+                        <div>
+                            <label className="text-sm font-medium text-gray-700 dark:text-white/70 mb-1.5 block">Nome</label>
+                            <Input
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                placeholder="Nome do cliente"
+                                className="bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium text-gray-700 dark:text-white/70 mb-1.5 block">Telefone</label>
+                            <Input
+                                value={phone}
+                                onChange={(e) => setPhone(e.target.value)}
+                                placeholder="Telefone (opcional)"
+                                className="bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10"
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+                        <Button
+                            onClick={() => saveMutation.mutate()}
+                            disabled={!name.trim() || saveMutation.isPending}
+                            className="bg-purple-600 hover:bg-purple-700 text-white"
+                        >
+                            {saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            {editItem ? 'Salvar' : 'Cadastrar'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </Card>
+    );
+}
+
+function AccountsSection() {
+    const queryClient = useQueryClient();
+    const [dialogOpen, setDialogOpen] = useState(false);
+    const [editItem, setEditItem] = useState<any>(null);
+    const [name, setName] = useState('');
+    const [type, setType] = useState('cash');
+
+    const { data: items = [], isLoading } = useQuery({
+        queryKey: ['financial_accounts'],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from('financial_accounts' as any)
+                .select('*')
+                .order('name');
+            if (error) throw error;
+            return data as any[];
+        },
+    });
+
+    const saveMutation = useMutation({
+        mutationFn: async () => {
+            const payload: any = { name, type };
+
+            if (editItem) {
+                const { error } = await supabase
+                    .from('financial_accounts' as any)
+                    .update(payload)
+                    .eq('id', editItem.id);
+                if (error) throw error;
+            } else {
+                const { error } = await supabase
+                    .from('financial_accounts' as any)
+                    .insert(payload);
+                if (error) throw error;
+            }
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['financial_accounts'] });
+            toast.success(editItem ? 'Atualizado!' : 'Cadastrado!');
+            setDialogOpen(false);
+            setEditItem(null);
+            setName('');
+            setType('cash');
+        },
+        onError: (e: any) => toast.error('Erro: ' + e.message),
+    });
+
+    const toggleMutation = useMutation({
+        mutationFn: async (item: any) => {
+            const { error } = await supabase
+                .from('financial_accounts' as any)
+                .update({ active: !item.active })
+                .eq('id', item.id);
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['financial_accounts'] });
+            toast.success('Status atualizado!');
+        },
+    });
+
+    const openNew = () => {
+        setEditItem(null);
+        setName('');
+        setType('cash');
+        setDialogOpen(true);
+    };
+
+    const openEdit = (item: any) => {
+        setEditItem(item);
+        setName(item.name);
+        setType(item.type);
+        setDialogOpen(true);
+    };
+
+    const getIcon = (t: string) => {
+        switch (t) {
+            case 'bank': return <Landmark className="h-4 w-4" />;
+            case 'reserve': return <PiggyBank className="h-4 w-4" />;
+            default: return <Wallet className="h-4 w-4" />;
+        }
+    };
+
+    return (
+        <Card className="bg-white dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] shadow-sm">
+            <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2 text-base font-semibold text-gray-900 dark:text-white">
+                        <Wallet className="h-5 w-5 text-purple-500" />
+                        Contas Financeiras
+                    </CardTitle>
+                    <Button
+                        size="sm"
+                        onClick={openNew}
+                        className="bg-purple-600 hover:bg-purple-700 text-white h-8"
+                    >
+                        <Plus className="mr-1 h-3.5 w-3.5" />
+                        Novo
+                    </Button>
+                </div>
+            </CardHeader>
+            <CardContent className="p-0">
+                <div className="divide-y divide-gray-50 dark:divide-white/[0.03]">
+                    {isLoading && <div className="px-4 py-6 text-center text-gray-400 font-medium">Carregando...</div>}
+                    {!isLoading && items.length === 0 && <div className="px-4 py-6 text-center text-gray-400">Nenhuma conta encontrada</div>}
+                    {items.map((item: any) => (
+                        <div key={item.id} className="flex items-center justify-between px-4 py-3 hover:bg-gray-50/50 dark:hover:bg-white/[0.02] transition-colors" >
+                            <div className="flex items-center gap-3">
+                                <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${item.active ? 'bg-purple-100 dark:bg-purple-900/20' : 'bg-gray-100 dark:bg-white/5'}`}>
+                                    <div className={item.active ? 'text-purple-600' : 'text-gray-400'}>
+                                        {getIcon(item.type)}
+                                    </div>
+                                </div>
+                                <div className="flex flex-col">
+                                    <p className={`text-sm font-medium ${item.active ? 'text-gray-900 dark:text-white' : 'text-gray-400 line-through'}`}>{item.name}</p>
+                                    <p className="text-[10px] text-gray-400 dark:text-white/30 uppercase font-bold tracking-tighter">{item.type}</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-1">
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => openEdit(item)}>
+                                    <Edit2 className="h-3.5 w-3.5 text-gray-400" />
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0"
+                                    onClick={() => toggleMutation.mutate(item)}
+                                >
+                                    {item.active ? (
+                                        <ToggleRight className="h-4 w-4 text-emerald-500" />
+                                    ) : (
+                                        <ToggleLeft className="h-4 w-4 text-gray-400" />
+                                    )}
+                                </Button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </CardContent>
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                <DialogContent className="sm:max-w-[400px] bg-white dark:bg-[#1A1A24] border-gray-200 dark:border-white/10">
+                    <DialogHeader>
+                        <DialogTitle>{editItem ? 'Editar Conta' : 'Nova Conta'}</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-2">
+                        <div>
+                            <label className="text-sm font-medium text-gray-700 dark:text-white/70 mb-1.5 block">Nome da Conta</label>
+                            <Input
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                placeholder="Ex: Banco do Brasil, Reserva Mensal"
+                                className="bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium text-gray-700 dark:text-white/70 mb-1.5 block">Tipo</label>
+                            <div className="grid grid-cols-3 gap-2">
+                                {['cash', 'bank', 'reserve'].map((t) => (
+                                    <button
+                                        key={t}
+                                        type="button"
+                                        onClick={() => setType(t)}
+                                        className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-all ${type === t
+                                            ? 'bg-purple-100 border-purple-300 text-purple-700 dark:bg-purple-900/40 dark:border-purple-500/50 dark:text-purple-300'
+                                            : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100 dark:bg-white/5 dark:border-white/10 dark:text-white/40'
+                                            }`}
+                                    >
+                                        {getIcon(t)}
+                                        <span className="text-[10px] font-bold uppercase">{t === 'cash' ? 'Caixa' : t === 'bank' ? 'Banco' : 'Reserva'}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+                        <Button
+                            onClick={() => saveMutation.mutate()}
+                            disabled={!name.trim() || saveMutation.isPending}
+                            className="bg-purple-600 hover:bg-purple-700 text-white"
+                        >
+                            {saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            {editItem ? 'Salvar' : 'Cadastrar'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </Card>
     );
 }

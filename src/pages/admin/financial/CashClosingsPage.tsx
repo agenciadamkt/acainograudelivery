@@ -59,6 +59,19 @@ export default function CashClosingsPage() {
         },
     });
 
+    const totals = useMemo(() => {
+        return closings.reduce(
+            (acc, curr) => {
+                acc.sales += Number(curr.total_sales || 0);
+                acc.cash += Number(curr.total_cash || 0);
+                acc.expenses += Number(curr.total_expenses || 0);
+                acc.balance += Number(curr.balance || 0);
+                return acc;
+            },
+            { sales: 0, cash: 0, expenses: 0, balance: 0 }
+        );
+    }, [closings]);
+
     const handleEdit = (record: any) => {
         setEditData(record);
         setIsFormOpen(true);
@@ -74,7 +87,7 @@ export default function CashClosingsPage() {
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Fluxo de Caixa</h1>
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Fechamento de Caixa</h1>
                     <p className="text-sm text-gray-500 dark:text-white/40">Fechamentos de caixa consolidados</p>
                 </div>
                 <Button
@@ -212,6 +225,26 @@ export default function CashClosingsPage() {
                                     </tr>
                                 ))}
                             </tbody>
+                            <tfoot className="border-t-2 border-gray-100 dark:border-white/[0.05] bg-gray-50/50 dark:bg-white/[0.02] font-bold">
+                                <tr>
+                                    <td className="px-4 py-3 text-gray-900 dark:text-white" colSpan={2}>
+                                        TOTAL NO PERÍODO
+                                    </td>
+                                    <td className="px-4 py-3 text-emerald-600 dark:text-emerald-400">
+                                        {formatBRL(totals.sales)}
+                                    </td>
+                                    <td className="px-4 py-3 text-gray-900 dark:text-white">
+                                        {formatBRL(totals.cash)}
+                                    </td>
+                                    <td className="px-4 py-3 text-red-500">
+                                        {formatBRL(totals.expenses)}
+                                    </td>
+                                    <td className={`px-4 py-3 ${totals.balance >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
+                                        {formatBRL(totals.balance)}
+                                    </td>
+                                    <td colSpan={2}></td>
+                                </tr>
+                            </tfoot>
                         </table>
                     </div>
                 </CardContent>

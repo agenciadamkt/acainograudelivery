@@ -52,6 +52,7 @@ const formSchema = z.object({
     title_settlement: z.coerce.number().min(0, 'Valor inválido'),
     cash_settlement: z.coerce.number().min(0, 'Valor inválido'),
     checked_by_id: z.string().min(1, 'Selecione quem conferiu'),
+    account_id: z.string().optional(),
     notes: z.string().optional(),
 });
 
@@ -82,6 +83,7 @@ export default function CashClosingFormDialog({ open, onOpenChange, editData }: 
             title_settlement: 0,
             cash_settlement: 0,
             checked_by_id: '',
+            account_id: '',
             notes: '',
         },
     });
@@ -104,6 +106,7 @@ export default function CashClosingFormDialog({ open, onOpenChange, editData }: 
                 title_settlement: editData.title_settlement || 0,
                 cash_settlement: editData.cash_settlement || 0,
                 checked_by_id: editData.checked_by_id || '',
+                account_id: editData.account_id || '',
                 notes: editData.notes || '',
             });
             // Load existing documents
@@ -115,6 +118,16 @@ export default function CashClosingFormDialog({ open, onOpenChange, editData }: 
                     .then(({ data }) => setExistingDocs(data || []));
             }
         } else {
+            // Fetch Caixa Geral ID for new closings
+            supabase
+                .from('financial_accounts' as any)
+                .select('id')
+                .eq('name', 'Caixa Geral')
+                .single()
+                .then(({ data }) => {
+                    if (data?.id) form.setValue('account_id', data.id);
+                });
+
             form.reset({
                 distribution_center_id: '',
                 closing_date: format(new Date(), 'yyyy-MM-dd'),
@@ -125,6 +138,7 @@ export default function CashClosingFormDialog({ open, onOpenChange, editData }: 
                 title_settlement: 0,
                 cash_settlement: 0,
                 checked_by_id: '',
+                account_id: '',
                 notes: '',
             });
             setFiles([]);

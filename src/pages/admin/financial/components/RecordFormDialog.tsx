@@ -32,15 +32,17 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, UploadCloud, Camera, CheckCircle2 } from 'lucide-react';
+import { Loader2, UploadCloud, Camera, CheckCircle2, Sparkles, FileSearch } from 'lucide-react';
 import { PaymentMethodSelect } from './PaymentMethodSelect';
 import { ClientSelect } from './ClientSelect';
 import { cn } from '@/lib/utils';
 import DistributionCenterSelect from './DistributionCenterSelect';
+import AccountSelect from './AccountSelect';
 import CurrencyInput from './CurrencyInput';
 
 const formSchema = z.object({
     distribution_center_id: z.string().min(1, 'Selecione o CD'),
+    account_id: z.string().min(1, 'Selecione a conta'),
     client_id: z.string().min(1, 'Selecione um cliente'),
     transaction_date: z.string().min(1, 'Data é obrigatória'),
     transaction_type: z.enum(['sale', 'write_off', 'other']),
@@ -62,12 +64,14 @@ interface RecordFormDialogProps {
 export function RecordFormDialog({ open, onOpenChange, record, onSuccess }: RecordFormDialogProps) {
     const queryClient = useQueryClient();
     const [isUploading, setIsUploading] = useState(false);
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [isCreditMethod, setIsCreditMethod] = useState(false);
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
             distribution_center_id: '',
+            account_id: '',
             transaction_type: 'sale',
             transaction_date: new Date().toISOString().split('T')[0],
             amount: '',
@@ -80,6 +84,7 @@ export function RecordFormDialog({ open, onOpenChange, record, onSuccess }: Reco
         if (record) {
             form.reset({
                 distribution_center_id: record.distribution_center_id || '',
+                account_id: record.account_id || '',
                 client_id: record.client_id,
                 transaction_date: record.transaction_date,
                 transaction_type: record.transaction_type,
@@ -194,12 +199,93 @@ export function RecordFormDialog({ open, onOpenChange, record, onSuccess }: Reco
             if (data?.publicUrl) {
                 form.setValue('evidence_url', data.publicUrl);
                 toast.success("Comprovante anexado!");
+                return { url: data.publicUrl, file };
             }
         } catch (error: any) {
             console.error("Erro detalhado upload:", error);
             toast.error('Erro no upload: ' + (error.message || "Verifique permissões do bucket"));
         } finally {
             setIsUploading(false);
+        }
+    };
+
+    const handleOCR = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // 1. Upload first (standard flow)
+        const uploadResult = await handleUpload(e);
+        if (!uploadResult) return;
+
+        setIsAnalyzing(true);
+        const toastId = toast.loading("Analisando comprovante com IA...");
+
+        try {
+            // 2. Convert to Base64 for OCR
+            const reader = new FileReader();
+            const base64Promise = new Promise<string>((resolve, reject) => {
+                reader.onload = () => {
+                    const base64 = (reader.result as string).split(',')[1];
+                    resolve(base64);
+                };
+                reader.onerror = reject;
+            });
+            reader.readAsDataURL(file);
+            const fileBase64 = await base64Promise;
+
+            // 3. Call Edge Function
+            const { data: ocrData, error: ocrError } = await supabase.functions.invoke('ocr-receipt', {
+                body: { fileBase64, contentType: file.type }
+            });
+
+            if (ocrError) throw ocrError;
+
+            // 4. Fill form fields
+            if (ocrData.amount) form.setValue('amount', ocrData.amount.toString());
+            if (ocrData.date) form.setValue('transaction_date', ocrData.date);
+
+            let observation = "";
+            if (ocrData.payer_name) observation += `Pagador: ${ocrData.payer_name}\n`;
+            if (ocrData.bank) observation += `Banco: ${ocrData.bank}\n`;
+            if (ocrData.tid) observation += `ID Transação: ${ocrData.tid}`;
+            form.setValue('description', observation);
+
+            // 5. Try identifying PIX method
+            const { data: methodsData } = await supabase
+                .from('financial_payment_methods' as any)
+                .select('id, name')
+                .ilike('name', '%pix%');
+
+            const methods = methodsData as any[];
+
+            if (methods && methods.length > 0) {
+                form.setValue('payment_method_id', methods[0].id);
+            }
+
+            // 6. Try identifying Client (Fuzzy Search)
+            if (ocrData.payer_name) {
+                const { data: clientsData } = await supabase
+                    .from('financial_clients' as any)
+                    .select('id, name')
+                    .ilike('name', `%${ocrData.payer_name.split(' ')[0]}%`);
+
+                const clients = clientsData as any[];
+
+                if (clients && clients.length > 0) {
+                    form.setValue('client_id', clients[0].id);
+                    toast.success(`Cliente identificado: ${clients[0].name}`, { id: toastId });
+                } else {
+                    toast.info("Comprovante lido! Selecione o cliente manualmente.", { id: toastId });
+                }
+            } else {
+                toast.success("Comprovante lido com sucesso!", { id: toastId });
+            }
+
+        } catch (error: any) {
+            console.error("OCR Error:", error);
+            toast.error("Não foi possível ler o comprovante automaticamente.", { id: toastId });
+        } finally {
+            setIsAnalyzing(false);
         }
     };
 
@@ -262,6 +348,24 @@ export function RecordFormDialog({ open, onOpenChange, record, onSuccess }: Reco
                                     <FormLabel>Centro de Distribuição</FormLabel>
                                     <FormControl>
                                         <DistributionCenterSelect
+                                            value={field.value}
+                                            onChange={field.onChange}
+                                        />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        {/* Conta Financeira */}
+                        <FormField
+                            control={form.control}
+                            name="account_id"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Conta Financeira</FormLabel>
+                                    <FormControl>
+                                        <AccountSelect
                                             value={field.value}
                                             onChange={field.onChange}
                                         />
@@ -390,24 +494,46 @@ export function RecordFormDialog({ open, onOpenChange, record, onSuccess }: Reco
                             )}
                         />
 
-                        <div className="border-2 border-dashed border-gray-200 dark:border-white/10 rounded-lg p-4 text-center cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-colors relative">
-                            <Input
-                                type="file"
-                                accept="image/*"
-                                capture="environment"
-                                className="absolute inset-0 opacity-0 cursor-pointer"
-                                onChange={handleUpload}
-                                disabled={isUploading}
-                            />
-                            <div className="flex flex-col items-center gap-2 text-gray-500">
-                                {isUploading ? (
-                                    <Loader2 className="h-6 w-6 animate-spin" />
-                                ) : (
-                                    <>
-                                        <UploadCloud className="h-6 w-6" />
-                                        <span className="text-sm">Anexar Comprovante (Imagem/PDF)</span>
-                                    </>
-                                )}
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="border-2 border-dashed border-purple-200 dark:border-purple-500/20 rounded-lg p-3 text-center cursor-pointer hover:bg-purple-50 dark:hover:bg-purple-500/5 transition-colors relative group">
+                                <Input
+                                    type="file"
+                                    accept="image/*,application/pdf"
+                                    className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                                    onChange={handleOCR}
+                                    disabled={isAnalyzing || isUploading}
+                                />
+                                <div className="flex flex-col items-center gap-1 text-purple-600 dark:text-purple-400">
+                                    {isAnalyzing ? (
+                                        <Loader2 className="h-5 w-5 animate-spin" />
+                                    ) : (
+                                        <>
+                                            <Sparkles className="h-5 w-5 group-hover:scale-110 transition-transform" />
+                                            <span className="text-[11px] font-bold uppercase tracking-wider">Escanear IA</span>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="border-2 border-dashed border-gray-200 dark:border-white/10 rounded-lg p-3 text-center cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-colors relative">
+                                <Input
+                                    type="file"
+                                    accept="image/*,application/pdf"
+                                    capture="environment"
+                                    className="absolute inset-0 opacity-0 cursor-pointer"
+                                    onChange={handleUpload}
+                                    disabled={isUploading || isAnalyzing}
+                                />
+                                <div className="flex flex-col items-center gap-1 text-gray-500">
+                                    {isUploading ? (
+                                        <Loader2 className="h-5 w-5 animate-spin" />
+                                    ) : (
+                                        <>
+                                            <UploadCloud className="h-5 w-5" />
+                                            <span className="text-[11px] font-bold uppercase tracking-wider">Anexo Manual</span>
+                                        </>
+                                    )}
+                                </div>
                             </div>
                         </div>
                         {form.watch('evidence_url') && (

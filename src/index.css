@@ -217,3 +217,23 @@ All colors MUST be HSL.
     line-height: 1.2;
   }
 }
+
+/* 
+  Radix UI / Shadcn Scroll Lock Fix 
+  Prevents the scroll from getting stuck on body after closing a dialog.
+*/
+body {
+  pointer-events: auto !important;
+}
+
+html,
+body {
+  overflow: initial !important;
+  height: auto !important;
+}
+
+/* Re-lock scroll only when a Dialog or Drawer is actually open */
+body:has([data-state="open"][role="dialog"]),
+body:has([data-state="open"][role="alertdialog"]) {
+  overflow: hidden !important;
+}

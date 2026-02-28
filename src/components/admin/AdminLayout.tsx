@@ -21,6 +21,7 @@ import { FeedbackModal } from '@/components/common/FeedbackModal';
 import { Theme } from '@/components/ui/theme';
 import { useUpdateStore } from '@/hooks/useStores';
 import { Switch } from '@/components/ui/switch';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -41,6 +42,12 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const [orderToPrint, setOrderToPrint] = useState<any>(null);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobile();
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Optimistic UI for store status
   const [localStatus, setLocalStatus] = useState<boolean | null>(null);
@@ -247,6 +254,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       }, 250);
     };
   };
+  if (!isMounted) return null;
 
   return (
     <SidebarProvider>

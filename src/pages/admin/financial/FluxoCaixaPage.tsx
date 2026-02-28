@@ -25,7 +25,8 @@ import {
     File,
     FileSpreadsheet,
     Users,
-    ShieldAlert
+    ShieldAlert,
+    Sparkles
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -57,6 +58,7 @@ import { Calendar as CalendarPicker } from '@/components/ui/calendar';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { RecordFormDialog } from './components/RecordFormDialog';
+import { BatchOCRDialog } from './components/BatchOCRDialog';
 import DistributionCenterSelect from './components/DistributionCenterSelect';
 import { ActionDialog } from './components/ActionDialog';
 import { ProofDialog } from './components/ProofDialog';
@@ -81,6 +83,7 @@ export default function FluxoCaixaPage() {
     const [selectedRecord, setSelectedRecord] = useState<any>(null);
     const [actionType, setActionType] = useState<'approve' | 'reject' | 'cancel' | null>(null);
     const [isProofOpen, setIsProofOpen] = useState(false);
+    const [isBatchOCROpen, setIsBatchOCROpen] = useState(false);
     const [selectedProof, setSelectedProof] = useState<string | null>(null);
     const [isManageUsersOpen, setIsManageUsersOpen] = useState(false);
 
@@ -116,10 +119,11 @@ export default function FluxoCaixaPage() {
             }
 
             if (access) {
+                const accessData = access as any;
                 return {
-                    ...access,
-                    authorized: !!access.active,
-                    isAdmin: access.role === 'admin'
+                    ...accessData,
+                    authorized: !!accessData.active,
+                    isAdmin: accessData.role === 'admin'
                 };
             }
 
@@ -227,51 +231,137 @@ export default function FluxoCaixaPage() {
             ? centers.find((c: any) => c.id === selectedCD)?.name
             : 'Todos os CDs';
 
-        const startY = await addPdfBranding(doc, centerName);
+        let currentY = await addPdfBranding(doc, centerName);
 
         doc.setFontSize(14);
-        doc.text("Financeiro no Grau - Relatório", 14, startY + 5);
+        doc.text("Financeiro no Grau - Relatório Detalhado", 14, currentY + 5);
         doc.setFontSize(10);
-        doc.text(`Período: ${format(new Date(dateStart), 'dd/MM/yyyy')} a ${format(new Date(dateEnd), 'dd/MM/yyyy')}`, 14, startY + 12);
+        doc.text(`Período: ${format(new Date(dateStart + 'T12:00:00'), 'dd/MM/yyyy')} a ${format(new Date(dateEnd + 'T12:00:00'), 'dd/MM/yyyy')}`, 14, currentY + 12);
 
-        const tableData = (filteredRecords || []).map((r: any) => [
-            format(new Date(r.transaction_date + 'T12:00:00'), 'dd/MM/yyyy'),
-            r.financial_clients?.name || '-',
-            r.transaction_type === 'sale' ? 'Venda' : r.transaction_type === 'write_off' ? 'Baixa' : 'Outros',
-            `R$ ${Number(r.amount).toFixed(2)}`,
-            r.status === 'approved' ? 'Aprovado' : r.status === 'pending' ? 'Pendente' : 'Rejeitado'
-        ]);
+        currentY += 20;
 
-        autoTable(doc, {
-            head: [['Data', 'Cliente', 'Tipo', 'Valor', 'Status']],
-            body: tableData,
-            startY: startY + 15,
+        // Grouping data
+        const groups: Record<string, any[]> = { sale: [], write_off: [], other: [] };
+        (filteredRecords || []).forEach((r: any) => {
+            const type = r.transaction_type || 'other';
+            if (groups[type]) groups[type].push(r);
+            else groups['other'].push(r); // fallback
         });
 
-        doc.save('fluxo-caixa.pdf');
+        const typeLabels: Record<string, string> = { sale: 'Vendas', write_off: 'Baixas', other: 'Outros' };
+        let grandTotal = 0;
+        let grandCount = 0;
+
+        // Iterate over groups
+        for (const type of ['sale', 'write_off', 'other']) {
+            const groupRecords = groups[type];
+            if (groupRecords.length === 0) continue;
+
+            const subTotal = groupRecords
+                .filter((r: any) => r.status === 'approved')
+                .reduce((sum, r) => sum + Number(r.amount), 0);
+
+            grandTotal += subTotal;
+            grandCount += groupRecords.length;
+
+            // Section Header
+            doc.setFontSize(11);
+            doc.setTextColor(0, 0, 0);
+            doc.text(`${typeLabels[type]} (${groupRecords.length} registros)`, 14, currentY + 5);
+            currentY += 7;
+
+            const tableData = groupRecords.map((r: any) => [
+                format(new Date(r.transaction_date + 'T12:00:00'), 'dd/MM/yyyy'),
+                r.financial_clients?.name || '-',
+                `R$ ${Number(r.amount).toFixed(2)}`,
+                r.status === 'approved' ? 'Aprovado' : r.status === 'pending' ? 'Pendente' : 'Rejeitado'
+            ]);
+
+            autoTable(doc, {
+                head: [['Data', 'Cliente', 'Valor', 'Status']],
+                body: tableData,
+                startY: currentY,
+                theme: 'grid',
+                styles: { fontSize: 8 },
+                headStyles: { fillColor: [60, 60, 60] },
+                margin: { left: 14, right: 14 },
+            });
+
+            // Update currentY for next section
+            currentY = (doc as any).lastAutoTable.finalY + 2;
+
+            // Subtotal Row
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'bold');
+            doc.text(`Subtotal ${typeLabels[type]}: R$ ${subTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 14, currentY + 5);
+            currentY += 10;
+        }
+
+        // Grand Total Section
+        currentY += 5;
+        doc.setDrawColor(200, 200, 200);
+        doc.line(14, currentY, 196, currentY);
+        currentY += 7;
+
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`TOTAL GERAL (${grandCount} registros): R$ ${grandTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 14, currentY);
+
+        doc.save('fluxo-caixa-detalhado.pdf');
     };
 
     const handleExportExcel = () => {
-        // Simple CSV generation
-        const headers = ["Data", "Cliente", "Tipo", "Valor", "Status", "Descricao", "Pedido"];
-        const rows = filteredRecords.map((r: any) => [
-            format(new Date(r.transaction_date + 'T12:00:00'), 'dd/MM/yyyy'),
-            r.financial_clients?.name || '',
-            r.transaction_type,
-            Number(r.amount).toFixed(2),
-            r.status,
-            r.description || '',
-            r.order_number || ''
-        ]);
+        const groups: Record<string, any[]> = { sale: [], write_off: [], other: [] };
+        (filteredRecords || []).forEach((r: any) => {
+            const type = r.transaction_type || 'other';
+            if (groups[type]) groups[type].push(r);
+            else groups['other'].push(r);
+        });
 
-        let csvContent = "data:text/csv;charset=utf-8,"
-            + headers.join(";") + "\n"
-            + rows.map((e: any[]) => e.join(";")).join("\n");
+        const typeLabels: Record<string, string> = { sale: 'VENDAS', write_off: 'BAIXAS', other: 'OUTROS' };
+        let csvContent = "data:text/csv;charset=utf-8,";
+        let grandTotal = 0;
+        let grandCount = 0;
+
+        // Iterate groups
+        for (const type of ['sale', 'write_off', 'other']) {
+            const groupRecords = groups[type];
+            if (groupRecords.length === 0) continue;
+
+            const subTotal = groupRecords
+                .filter((r: any) => r.status === 'approved')
+                .reduce((sum, r) => sum + Number(r.amount), 0);
+
+            grandTotal += subTotal;
+            grandCount += groupRecords.length;
+
+            // Section Header
+            csvContent += `\n${typeLabels[type]}\n`;
+            csvContent += "Data;Cliente;Valor;Status;Descricao;Pedido\n";
+
+            groupRecords.forEach((r: any) => {
+                const row = [
+                    format(new Date(r.transaction_date + 'T12:00:00'), 'dd/MM/yyyy'),
+                    r.financial_clients?.name || '',
+                    Number(r.amount).toFixed(2),
+                    r.status,
+                    r.description || '',
+                    r.order_number || ''
+                ];
+                csvContent += row.join(";") + "\n";
+            });
+
+            // Subtotal
+            csvContent += `;;SUBTOTAL ${typeLabels[type]};${subTotal.toFixed(2)};;;\n`;
+        }
+
+        // Grand Total
+        csvContent += `\n;;TOTAL GERAL (${grandCount} items);${grandTotal.toFixed(2)};;;\n`;
 
         const encodedUri = encodeURI(csvContent);
         const link = document.createElement("a");
         link.setAttribute("href", encodedUri);
-        link.setAttribute("download", "fluxo_caixa_export.csv");
+        link.setAttribute("download", "fluxo_caixa_detalhado.csv");
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -302,8 +392,8 @@ export default function FluxoCaixaPage() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Financeiro no Grau</h1>
-                        <p className="text-sm text-gray-500 dark:text-white/40">Gestão financeira da distribuidora</p>
+                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Fechamento de Caixa</h1>
+                        <p className="text-sm text-gray-500 dark:text-white/40">Gestão financeira e lançamentos</p>
                     </div>
                     <div className="flex items-center gap-3">
 
@@ -322,6 +412,13 @@ export default function FluxoCaixaPage() {
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
+                        <Button
+                            onClick={() => setIsBatchOCROpen(true)}
+                            variant="outline"
+                            className="bg-purple-50 hover:bg-purple-100 dark:bg-purple-900/10 dark:hover:bg-purple-900/20 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-500/20 gap-2"
+                        >
+                            <Sparkles className="h-4 w-4" /> Importar Lote (IA)
+                        </Button>
                         <Button
                             onClick={() => setIsCreateOpen(true)}
                             className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 shadow-lg shadow-emerald-600/20"
@@ -760,6 +857,11 @@ export default function FluxoCaixaPage() {
             <ManageUsersDialog
                 open={isManageUsersOpen}
                 onOpenChange={setIsManageUsersOpen}
+            />
+            <BatchOCRDialog
+                open={isBatchOCROpen}
+                onOpenChange={setIsBatchOCROpen}
+                onSuccess={refetch}
             />
         </>
     );

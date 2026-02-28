@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { format, startOfWeek, endOfWeek, addDays, getDay, isWithinInterval, parseISO, subDays } from 'date-fns';
+import { format, startOfWeek, endOfWeek, addDays, getDay, isWithinInterval, parseISO, subDays, eachDayOfInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import CashFlowFilters from './components/cash-flow/CashFlowFilters';
 import CashFlowStats from './components/cash-flow/CashFlowStats';
@@ -11,24 +11,33 @@ import autoTable from 'jspdf-autotable';
 import { addPdfBranding } from './utils/pdfBranding';
 
 export default function WeeklyCashFlowPage() {
-    const [date, setDate] = useState<Date>(new Date());
+    const today = new Date();
+    const [dateStart, setDateStart] = useState<string>(format(subDays(today, 7), 'yyyy-MM-dd'));
+    const [dateEnd, setDateEnd] = useState<string>(format(today, 'yyyy-MM-dd'));
     const [filterCD, setFilterCD] = useState('');
     const [filterType, setFilterType] = useState<'all' | 'inflow' | 'outflow'>('all');
     const [filterStatus, setFilterStatus] = useState<'all' | 'realized' | 'projected'>('all');
 
-    const start = startOfWeek(date, { weekStartsOn: 1 }); // Monday
-    const end = endOfWeek(date, { weekStartsOn: 1 }); // Sunday
-    const days = Array.from({ length: 7 }).map((_, i) => addDays(start, i));
+    const days = useMemo(() => {
+        try {
+            return eachDayOfInterval({
+                start: parseISO(dateStart),
+                end: parseISO(dateEnd)
+            });
+        } catch (e) {
+            return [];
+        }
+    }, [dateStart, dateEnd]);
 
     /* ── 1. Fetch Previous Balance (Day before start of week) ── */
     const { data: previousBalance = 0, refetch: refetchBalance } = useQuery({
-        queryKey: ['cash_flow_previous_balance', date, filterCD],
+        queryKey: ['cash_flow_previous_balance', dateStart, filterCD],
         queryFn: async () => {
             // Find the last closing BEFORE the start date
             let query = supabase
                 .from('cash_closings' as any)
                 .select('balance, closing_date')
-                .lt('closing_date', format(start, 'yyyy-MM-dd'))
+                .lt('closing_date', dateStart)
                 .order('closing_date', { ascending: false })
                 .limit(1);
 
@@ -43,13 +52,13 @@ export default function WeeklyCashFlowPage() {
 
     /* ── 2. Fetch Cash Closings (Inflows) ── */
     const { data: closings = [], isLoading: loadingClosings, refetch: refetchClosings } = useQuery({
-        queryKey: ['cash_flow_closings', date, filterCD],
+        queryKey: ['cash_flow_closings', dateStart, dateEnd, filterCD],
         queryFn: async () => {
             let query = supabase
                 .from('cash_closings' as any)
                 .select('*')
-                .gte('closing_date', format(start, 'yyyy-MM-dd'))
-                .lte('closing_date', format(end, 'yyyy-MM-dd'));
+                .gte('closing_date', dateStart)
+                .lte('closing_date', dateEnd);
 
             if (filterCD) query = query.eq('distribution_center_id', filterCD);
 
@@ -61,7 +70,7 @@ export default function WeeklyCashFlowPage() {
 
     /* ── 3. Fetch Expenses (Outflows) ── */
     const { data: expenses = [], isLoading: loadingExpenses, refetch: refetchExpenses } = useQuery({
-        queryKey: ['cash_flow_expenses', date, filterCD, filterStatus],
+        queryKey: ['cash_flow_expenses', dateStart, dateEnd, filterCD, filterStatus],
         queryFn: async () => {
             let query = supabase
                 .from('expenses' as any)
@@ -69,8 +78,8 @@ export default function WeeklyCashFlowPage() {
                     *,
                     cost_center:cost_centers!cost_center_id(name)
                 `)
-                .gte('expense_date', format(start, 'yyyy-MM-dd'))
-                .lte('expense_date', format(end, 'yyyy-MM-dd'));
+                .gte('expense_date', dateStart)
+                .lte('expense_date', dateEnd);
 
             if (filterCD) query = query.eq('distribution_center_id', filterCD);
 
@@ -175,13 +184,13 @@ export default function WeeklyCashFlowPage() {
 
     /* ── Export Functions ── */
     const handleExportPDF = async () => {
-        const doc = new jsPDF('l', 'mm', 'a4'); // Landscape for weekly view
+        const doc = new jsPDF('l', 'mm', 'a4'); // Landscape for many columns
         const startY = await addPdfBranding(doc, filterCD ? 'CD Específico' : 'Consolidado');
 
         doc.setFontSize(14);
-        doc.text('Relatório de Fluxo de Caixa Semanal', 14, startY + 5);
+        doc.text('Relatório de Fluxo de Caixa', 14, startY + 5);
         doc.setFontSize(10);
-        doc.text(`Período: ${format(start, 'dd/MM/yyyy')} a ${format(end, 'dd/MM/yyyy')}`, 14, startY + 12);
+        doc.text(`Período: ${format(parseISO(dateStart), 'dd/MM/yyyy')} a ${format(parseISO(dateEnd), 'dd/MM/yyyy')}`, 14, startY + 12);
 
         const head = [
             ['Categoria', ...days.map(d => format(d, 'dd/MM/yy')), 'Total']
@@ -194,7 +203,7 @@ export default function WeeklyCashFlowPage() {
         body.push(rowInflows);
 
         // Spacer
-        body.push([{ content: 'SAÍDAS', colSpan: 9, styles: { fillColor: [240, 240, 240], fontStyle: 'bold' } }]);
+        body.push([{ content: 'SAÍDAS', colSpan: days.length + 2, styles: { fillColor: [240, 240, 240], fontStyle: 'bold' } }]);
 
         // Outflows
         Object.entries(reportData.outflows).forEach(([cat, vals]: any) => {
@@ -203,7 +212,7 @@ export default function WeeklyCashFlowPage() {
         });
 
         // Results
-        body.push([{ content: 'RESULTADO', colSpan: 9, styles: { fillColor: [240, 240, 240], fontStyle: 'bold' } }]);
+        body.push([{ content: 'RESULTADO', colSpan: days.length + 2, styles: { fillColor: [240, 240, 240], fontStyle: 'bold' } }]);
 
         const rowResult = ['Resultado Diário', ...days.map(d => reportData.dailyResult[format(d, 'yyyy-MM-dd')].toLocaleString('pt-BR', { minimumFractionDigits: 2 })), reportData.totals.result.toLocaleString('pt-BR', { minimumFractionDigits: 2 })];
         body.push(rowResult);
@@ -215,16 +224,14 @@ export default function WeeklyCashFlowPage() {
             head: head,
             body: body,
             startY: startY + 18,
-            styles: { fontSize: 8 },
-            headStyles: { fillColor: [100, 100, 100] },
+            styles: { fontSize: 7, cellPadding: 2, halign: 'right' },
+            headStyles: { fillColor: [100, 100, 100], halign: 'center' },
             columnStyles: {
-                0: { cellWidth: 40 },
-                1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' },
-                5: { halign: 'right' }, 6: { halign: 'right' }, 7: { halign: 'right' }, 8: { halign: 'right' }
+                0: { cellWidth: 35, halign: 'left', fontStyle: 'bold' }
             }
         });
 
-        doc.save(`fluxo_caixa_semanal_${format(start, 'yyyy-MM-dd')}.pdf`);
+        doc.save(`fluxo_caixa_${dateStart}_a_${dateEnd}.pdf`);
     };
 
     const handleExportExcel = () => {
@@ -259,7 +266,7 @@ export default function WeeklyCashFlowPage() {
         if (link.download !== undefined) {
             const url = URL.createObjectURL(blob);
             link.setAttribute('href', url);
-            link.setAttribute('download', `fluxo_caixa_semanal_${format(start, 'yyyy-MM-dd')}.csv`);
+            link.setAttribute('download', `fluxo_caixa_${dateStart}_a_${dateEnd}.csv`);
             link.style.visibility = 'hidden';
             document.body.appendChild(link);
             link.click();
@@ -280,8 +287,10 @@ export default function WeeklyCashFlowPage() {
             </div>
 
             <CashFlowFilters
-                date={date}
-                setDate={setDate}
+                dateStart={dateStart}
+                setDateStart={setDateStart}
+                dateEnd={dateEnd}
+                setDateEnd={setDateEnd}
                 filterCD={filterCD}
                 setFilterCD={setFilterCD}
                 filterType={filterType}

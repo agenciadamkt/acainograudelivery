@@ -27,6 +27,7 @@ import { clsx } from 'clsx';
 import { useHubNotifications } from '@/hooks/useHubNotifications';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 /* ───────────────────────── data ───────────────────────── */
 
@@ -80,7 +81,13 @@ export default function GrauOSHub() {
     const navigate = useNavigate();
     const { signOut } = useAuth();
     const { currentStore } = useStore();
+    const isMobile = useIsMobile();
     const [hoveredModule, setHoveredModule] = useState<string | null>(null);
+    const [isMounted, setIsMounted] = useState(false);
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
     const { user: authUser } = useAuth(); // Get user from context if available, or we can fetch. 
     // Looking at `useAuth` usage in imports: `import { useAuth } from '@/contexts/AuthContext';`
     // and usage: `const { signOut } = useAuth();`
@@ -101,6 +108,7 @@ export default function GrauOSHub() {
 
     // Fetch dynamic notifications
     const { data: notifications, isLoading: loadingNotifications } = useHubNotifications();
+    if (!isMounted) return null;
 
     return (
         <div className="min-h-screen bg-[#EDE8F0] font-[Inter,sans-serif] overflow-hidden">

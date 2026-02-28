@@ -6,19 +6,52 @@ import logoCircularUrl from '@/assets/logo-acai.png';
  * Logo on the right side with "GrauOS" + "Sistema Operacional da Franquia".
  * Returns the Y offset to start content after the header.
  */
+const LOGO_WIDTH = 300; // Resize target width
+const LOGO_HEIGHT = 300; // Resize target height
 let cachedLogoBase64: string | null = null;
 
 async function loadLogoBase64(): Promise<string> {
     if (cachedLogoBase64) return cachedLogoBase64;
+
+    // 1. Fetch the image
     const response = await fetch(logoCircularUrl);
     const blob = await response.blob();
-    return new Promise((resolve) => {
+    const originalBase64 = await new Promise<string>((resolve) => {
         const reader = new FileReader();
-        reader.onloadend = () => {
-            cachedLogoBase64 = reader.result as string;
-            resolve(cachedLogoBase64);
-        };
+        reader.onloadend = () => resolve(reader.result as string);
         reader.readAsDataURL(blob);
+    });
+
+    // 2. Resize using Canvas
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            // Keep aspect ratio
+            const scale = Math.min(LOGO_WIDTH / img.width, LOGO_HEIGHT / img.height);
+            const w = img.width * scale;
+            const h = img.height * scale;
+
+            canvas.width = w;
+            canvas.height = h;
+
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                ctx.drawImage(img, 0, 0, w, h);
+                // Export as PNG to preserve transparency
+                // PNG compression is lossless, but resizing the canvas earlier significantly reduces data size
+                cachedLogoBase64 = canvas.toDataURL('image/png');
+                resolve(cachedLogoBase64);
+            } else {
+                // Fallback to original if context fails
+                cachedLogoBase64 = originalBase64;
+                resolve(originalBase64);
+            }
+        };
+        img.onerror = () => {
+            resolve(''); // Fail silently
+        };
+        img.src = originalBase64;
     });
 }
 

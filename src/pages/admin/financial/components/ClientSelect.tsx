@@ -1,5 +1,3 @@
-'use client';
-
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,7 +15,7 @@ import {
     PopoverTrigger,
 } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
-import { Check, ChevronsUpDown, UserPlus } from 'lucide-react';
+import { Check, ChevronsUpDown, UserPlus, Pencil, Trash } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
     Dialog,
@@ -25,6 +23,7 @@ import {
     DialogHeader,
     DialogTitle,
     DialogFooter,
+    DialogDescription,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -37,9 +36,12 @@ interface ClientSelectProps {
 
 export function ClientSelect({ value, onChange }: ClientSelectProps) {
     const [open, setOpen] = useState(false);
-    const [isCreateOpen, setIsCreateOpen] = useState(false);
-    const [newClientName, setNewClientName] = useState('');
-    const [newClientPhone, setNewClientPhone] = useState('');
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [editingClient, setEditingClient] = useState<any>(null);
+    const [clientToDelete, setClientToDelete] = useState<any>(null);
+    const [clientName, setClientName] = useState('');
+    const [clientPhone, setClientPhone] = useState('');
     const queryClient = useQueryClient();
 
     // Fetch clients
@@ -55,34 +57,99 @@ export function ClientSelect({ value, onChange }: ClientSelectProps) {
         }
     });
 
-    // Create client mutation
-    const createMutation = useMutation({
+    // Create/Edit client mutation
+    const saveMutation = useMutation({
         mutationFn: async () => {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error('User not found');
 
-            const { data, error } = await supabase
-                .from('financial_clients' as any)
-                .insert({
-                    name: newClientName,
-                    phone: newClientPhone,
-                    created_by: user.id
-                })
-                .select()
-                .single();
-            if (error) throw error;
-            return data as any;
+            if (editingClient) {
+                // Update
+                const { data, error } = await supabase
+                    .from('financial_clients' as any)
+                    .update({
+                        name: clientName,
+                        phone: clientPhone
+                    })
+                    .eq('id', editingClient.id)
+                    .select()
+                    .single();
+                if (error) throw error;
+                return { data, action: 'updated' };
+            } else {
+                // Create
+                const { data, error } = await supabase
+                    .from('financial_clients' as any)
+                    .insert({
+                        name: clientName,
+                        phone: clientPhone,
+                        created_by: user.id
+                    })
+                    .select()
+                    .single();
+                if (error) throw error;
+                return { data, action: 'created' };
+            }
         },
-        onSuccess: (newClient) => {
+        onSuccess: ({ data, action }) => {
+            const clientData = data as any;
             queryClient.invalidateQueries({ queryKey: ['financial_clients'] });
-            onChange(newClient.id); // Auto-select the new client
-            setIsCreateOpen(false);
-            setNewClientName('');
-            setNewClientPhone('');
-            toast.success('Cliente cadastrado com sucesso!');
+            if (action === 'created') {
+                onChange(clientData.id);
+            }
+            setIsDialogOpen(false);
+            setClientName('');
+            setClientPhone('');
+            setEditingClient(null);
+            toast.success(action === 'created' ? 'Cliente cadastrado!' : 'Cliente atualizado!');
         },
-        onError: (error) => toast.error('Erro ao cadastrar: ' + error.message)
+        onError: (error) => toast.error('Erro ao salvar: ' + error.message)
     });
+
+    // Delete client mutation
+    const deleteMutation = useMutation({
+        mutationFn: async (clientId: string) => {
+            const { error } = await supabase
+                .from('financial_clients' as any)
+                .delete()
+                .eq('id', clientId);
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['financial_clients'] });
+            if (value === clientToDelete?.id) {
+                onChange(''); // Clear selection if deleted
+            }
+            setIsDeleteDialogOpen(false);
+            setClientToDelete(null);
+            toast.success('Cliente excluído com sucesso!');
+        },
+        onError: (error) => toast.error('Erro ao excluir: ' + error.message)
+    });
+
+    const handleEdit = (client: any, e: React.MouseEvent) => {
+        e.stopPropagation();
+        setEditingClient(client);
+        setClientName(client.name);
+        setClientPhone(client.phone || '');
+        setIsDialogOpen(true);
+        setOpen(false);
+    };
+
+    const handleDeleteClick = (client: any, e: React.MouseEvent) => {
+        e.stopPropagation();
+        setClientToDelete(client);
+        setIsDeleteDialogOpen(true);
+        setOpen(false);
+    }
+
+    const handleNew = () => {
+        setEditingClient(null);
+        setClientName('');
+        setClientPhone('');
+        setIsDialogOpen(true);
+        setOpen(false);
+    };
 
     return (
         <>
@@ -103,19 +170,20 @@ export function ClientSelect({ value, onChange }: ClientSelectProps) {
                 <PopoverContent className="w-[300px] p-0">
                     <Command>
                         <CommandInput placeholder="Buscar cliente..." />
+                        <div className="p-1 border-b border-gray-100 dark:border-white/5">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="w-full justify-start text-xs h-8 text-purple-600 hover:text-purple-700 hover:bg-purple-50 dark:hover:bg-purple-900/10"
+                                onClick={handleNew}
+                            >
+                                <UserPlus className="mr-2 h-3.5 w-3.5" />
+                                Cadastrar novo cliente
+                            </Button>
+                        </div>
                         <CommandList>
-                            <CommandEmpty className="py-2 px-2">
-                                <Button
-                                    variant="ghost"
-                                    className="w-full justify-start text-xs"
-                                    onClick={() => {
-                                        setOpen(false);
-                                        setIsCreateOpen(true);
-                                    }}
-                                >
-                                    <UserPlus className="mr-2 h-3 w-3" />
-                                    Cadastrar novo cliente
-                                </Button>
+                            <CommandEmpty className="py-2 px-2 text-xs text-gray-400">
+                                Nenhum cliente encontrado.
                             </CommandEmpty>
                             <CommandGroup>
                                 {clients?.map((client: any) => (
@@ -126,41 +194,49 @@ export function ClientSelect({ value, onChange }: ClientSelectProps) {
                                             onChange(client.id);
                                             setOpen(false);
                                         }}
+                                        className="flex items-center justify-between group"
                                     >
-                                        <Check
-                                            className={cn(
-                                                "mr-2 h-4 w-4",
-                                                value === client.id ? "opacity-100" : "opacity-0"
-                                            )}
-                                        />
-                                        {client.name}
+                                        <div className="flex items-center truncate max-w-[180px]">
+                                            <Check
+                                                className={cn(
+                                                    "mr-2 h-4 w-4 shrink-0",
+                                                    value === client.id ? "opacity-100" : "opacity-0"
+                                                )}
+                                            />
+                                            <span className="truncate">{client.name}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-6 w-6"
+                                                onClick={(e) => handleEdit(client, e)}
+                                                title="Editar"
+                                            >
+                                                <Pencil className="h-3 w-3 text-gray-400 hover:text-indigo-500" />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-6 w-6"
+                                                onClick={(e) => handleDeleteClick(client, e)}
+                                                title="Excluir"
+                                            >
+                                                <Trash className="h-3 w-3 text-gray-400 hover:text-red-500" />
+                                            </Button>
+                                        </div>
                                     </CommandItem>
                                 ))}
                             </CommandGroup>
-                            {/* Always show create option at bottom */}
-                            <div className="p-1 border-t border-gray-100 dark:border-white/5">
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="w-full justify-start text-xs h-8"
-                                    onClick={() => {
-                                        setOpen(false);
-                                        setIsCreateOpen(true);
-                                    }}
-                                >
-                                    <UserPlus className="mr-2 h-3 w-3" />
-                                    Novo Cliente
-                                </Button>
-                            </div>
                         </CommandList>
                     </Command>
                 </PopoverContent>
             </Popover>
 
-            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
-                        <DialogTitle>Novo Cliente</DialogTitle>
+                        <DialogTitle>{editingClient ? 'Editar Cliente' : 'Novo Cliente'}</DialogTitle>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                         <div className="grid grid-cols-4 items-center gap-4">
@@ -169,8 +245,8 @@ export function ClientSelect({ value, onChange }: ClientSelectProps) {
                             </Label>
                             <Input
                                 id="name"
-                                value={newClientName}
-                                onChange={(e) => setNewClientName(e.target.value)}
+                                value={clientName}
+                                onChange={(e) => setClientName(e.target.value)}
                                 className="col-span-3"
                             />
                         </div>
@@ -180,18 +256,40 @@ export function ClientSelect({ value, onChange }: ClientSelectProps) {
                             </Label>
                             <Input
                                 id="phone"
-                                value={newClientPhone}
-                                onChange={(e) => setNewClientPhone(e.target.value)}
+                                value={clientPhone}
+                                onChange={(e) => setClientPhone(e.target.value)}
                                 className="col-span-3"
                             />
                         </div>
                     </div>
                     <DialogFooter>
                         <Button
-                            onClick={() => createMutation.mutate()}
-                            disabled={createMutation.isPending || !newClientName}
+                            onClick={() => saveMutation.mutate()}
+                            disabled={saveMutation.isPending || !clientName}
                         >
-                            {createMutation.isPending ? 'Salvando...' : 'Cadastrar'}
+                            {saveMutation.isPending ? 'Salvando...' : (editingClient ? 'Atualizar' : 'Cadastrar')}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                <DialogContent className="sm:max-w-[400px]">
+                    <DialogHeader>
+                        <DialogTitle>Excluir Cliente</DialogTitle>
+                        <DialogDescription>
+                            Tem certeza que deseja excluir <strong>{clientToDelete?.name}</strong>?
+                            Essa ação não pode ser desfeita.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>Cancelar</Button>
+                        <Button
+                            variant="destructive"
+                            onClick={() => deleteMutation.mutate(clientToDelete.id)}
+                            disabled={deleteMutation.isPending}
+                        >
+                            {deleteMutation.isPending ? 'Excluindo...' : 'Excluir'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

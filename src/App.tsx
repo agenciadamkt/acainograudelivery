@@ -89,6 +89,9 @@ import ExpensesPage from "./pages/admin/financial/ExpensesPage";
 import DREReportPage from "./pages/admin/financial/DREReportPage";
 import ReportsPage from "./pages/admin/financial/ReportsPage";
 import MetasPage from "./pages/admin/financial/MetasPage";
+import CaixaPage from "./pages/admin/financial/CaixaPage";
+import RevenueExpenseReportPage from "./pages/admin/financial/RevenueExpenseReportPage";
+import DetailedExpensesReportPage from "./pages/admin/financial/DetailedExpensesReportPage";
 
 import { ThemeProvider } from "next-themes";
 
@@ -220,6 +223,9 @@ const App = () => (
                         <Route path="despesas" element={<ExpensesPage />} />
                         <Route path="dre" element={<DREReportPage />} />
                         <Route path="relatorios" element={<ReportsPage />} />
+                        <Route path="receitas-despesas" element={<RevenueExpenseReportPage />} />
+                        <Route path="despesas-detalhadas" element={<DetailedExpensesReportPage />} />
+                        <Route path="caixa" element={<CaixaPage />} />
 
                         <Route path="configuracoes" element={<div className="p-8 text-center text-gray-400">Configurações — Em breve</div>} />
                       </Route>

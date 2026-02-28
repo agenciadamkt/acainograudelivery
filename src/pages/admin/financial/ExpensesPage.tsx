@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Pencil, Loader2, ArrowDownLeft, Download, FileSpreadsheet, Banknote, Eye, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Loader2, ArrowDownLeft, Download, FileSpreadsheet, Banknote, Eye, Trash2, Paperclip } from 'lucide-react';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import DistributionCenterSelect from './components/DistributionCenterSelect';
@@ -117,7 +117,7 @@ export default function ExpensesPage() {
             if (filterCD) query = query.eq('distribution_center_id', filterCD);
             if (filterType) query = query.eq('expense_type', filterType);
             if (filterCostCenter) query = query.eq('cost_center_id', filterCostCenter);
-            if (filterChartAccount) query = query.eq('chart_account_id', filterChartAccount);
+            if (filterChartAccount) query = query.eq('chart_of_accounts_id', filterChartAccount);
             if (filterStatus !== 'all') {
                 if (filterStatus === 'paid') query = query.eq('paid', true);
                 if (filterStatus === 'pending') query = query.eq('paid', false);
@@ -219,61 +219,140 @@ export default function ExpensesPage() {
             ? centers.find((c: any) => c.id === filterCD)?.name
             : 'Todos os CDs';
 
-        const startY = await addPdfBranding(doc, centerName);
+        let currentY = await addPdfBranding(doc, centerName);
 
         doc.setFontSize(14);
-        doc.text('Relatório de Despesas', 14, startY + 5);
+        doc.text('Relatório Detalhado de Despesas', 14, currentY + 5);
 
         doc.setFontSize(10);
-        doc.text(`Período: ${format(new Date(dateStart + 'T12:00:00'), 'dd/MM/yyyy')} a ${format(new Date(dateEnd + 'T12:00:00'), 'dd/MM/yyyy')}`, 14, startY + 12);
+        doc.text(`Período: ${format(new Date(dateStart + 'T12:00:00'), 'dd/MM/yyyy')} a ${format(new Date(dateEnd + 'T12:00:00'), 'dd/MM/yyyy')}`, 14, currentY + 12);
 
-        // Increased spacing to avoid overlap (was startY + 14)
-        doc.text(`Total: ${formatBRL(totalExpenses)}`, 14, startY + 17);
+        currentY += 20;
 
-        const tableData = expenses.map((e: any) => [
-            format(new Date(e.expense_date + 'T12:00:00'), 'dd/MM/yyyy'),
-            typeConfig[e.expense_type]?.label || e.expense_type,
-            e.paid ? 'Pago' : 'Pendente',
-            e.distribution_center?.name || '-',
-            e.purpose,
-            e.cost_center?.name || '-',
-            e.chart_account?.name || '-',
-            formatBRL(Number(e.amount)),
-        ]);
-
-        autoTable(doc, {
-            head: [['Data', 'Tipo', 'Status', 'CD', 'Finalidade', 'Centro Custos', 'Plano Contas', 'Valor']],
-            body: tableData,
-            startY: startY + 18,
-            styles: { fontSize: 8 },
-            headStyles: { fillColor: [124, 58, 237] },
-            columnStyles: { 7: { halign: 'right' } },
+        // Grouping data
+        const groups: Record<string, any[]> = { fixed: [], variable: [], investment: [] };
+        (expenses || []).forEach((e: any) => {
+            const type = e.expense_type || 'fixed'; // fallback
+            if (groups[type]) groups[type].push(e);
+            else {
+                // handle unrecognized types if necessary, or push to fixed/variable
+                if (!groups['other']) groups['other'] = [];
+                groups['other'].push(e);
+            }
         });
 
-        doc.save(`despesas_${dateStart}_${dateEnd}.pdf`);
+        const typeLabels: Record<string, string> = { fixed: 'Despesas Fixas', variable: 'Despesas Variáveis', investment: 'Investimentos', other: 'Outros' };
+        let grandTotal = 0;
+        let grandCount = 0;
+
+        const typesToPrint = ['fixed', 'variable', 'investment', 'other'];
+
+        for (const type of typesToPrint) {
+            const groupRecords = groups[type];
+            if (!groupRecords || groupRecords.length === 0) continue;
+
+            const subTotal = groupRecords.reduce((sum, e) => sum + Number(e.amount), 0);
+            grandTotal += subTotal;
+            grandCount += groupRecords.length;
+
+            // Section Header
+            doc.setFontSize(11);
+            doc.setTextColor(0, 0, 0); // black
+            doc.text(`${typeLabels[type]} (${groupRecords.length} lançamentos)`, 14, currentY + 5);
+            currentY += 7;
+
+            const tableData = groupRecords.map((e: any) => [
+                format(new Date(e.expense_date + 'T12:00:00'), 'dd/MM/yyyy'),
+                e.paid ? 'Pago' : 'Pendente',
+                e.distribution_center?.name || '-',
+                e.purpose,
+                e.cost_center?.name || '-',
+                e.chart_account?.name || '-',
+                formatBRL(Number(e.amount)),
+            ]);
+
+            autoTable(doc, {
+                head: [['Data', 'Status', 'CD', 'Finalidade', 'Centro Custos', 'Plano Contas', 'Valor']],
+                body: tableData,
+                startY: currentY,
+                styles: { fontSize: 8 },
+                headStyles: { fillColor: type === 'fixed' ? [0, 0, 150] : type === 'variable' ? [200, 100, 0] : [100, 0, 100] }, // Different colors for types? Or just standard. Let's stick to standard or dynamic.
+                columnStyles: { 6: { halign: 'right' } },
+                margin: { left: 14, right: 14 },
+            });
+
+            currentY = (doc as any).lastAutoTable.finalY + 2;
+
+            // Subtotal
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'bold');
+            doc.text(`Subtotal ${typeLabels[type]}: ${formatBRL(subTotal)}`, 14, currentY + 5);
+            currentY += 10;
+        }
+
+        // Grand Total
+        currentY += 5;
+        doc.setDrawColor(200, 200, 200);
+        doc.line(14, currentY, 196, currentY);
+        currentY += 7;
+
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`TOTAL GERAL (${grandCount} lançamentos): ${formatBRL(grandTotal)}`, 14, currentY);
+
+        doc.save(`despesas_detalhado_${dateStart}_${dateEnd}.pdf`);
     };
 
     /* ── Export Excel (CSV) ── */
     const handleExportExcel = () => {
-        const headers = ['Data', 'Tipo', 'Status', 'CD', 'Finalidade', 'Centro Custos', 'Plano Contas', 'Valor'];
-        const rows = expenses.map((e: any) => [
-            format(new Date(e.expense_date + 'T12:00:00'), 'dd/MM/yyyy'),
-            typeConfig[e.expense_type]?.label || e.expense_type,
-            e.paid ? 'Pago' : 'Pendente',
-            e.distribution_center?.name || '',
-            e.purpose,
-            e.cost_center?.name || '',
-            e.chart_account?.name || '',
-            Number(e.amount).toFixed(2),
-        ]);
+        const groups: Record<string, any[]> = { fixed: [], variable: [], investment: [] };
+        (expenses || []).forEach((e: any) => {
+            const type = e.expense_type || 'fixed';
+            if (groups[type]) groups[type].push(e);
+            else {
+                if (!groups['other']) groups['other'] = [];
+                groups['other'].push(e);
+            }
+        });
 
-        let csvContent = 'data:text/csv;charset=utf-8,'
-            + headers.join(';') + '\n'
-            + rows.map((r) => r.join(';')).join('\n');
+        const typeLabels: Record<string, string> = { fixed: 'DESPESAS FIXAS', variable: 'DESPESAS VARIÁVEIS', investment: 'INVESTIMENTOS', other: 'OUTROS' };
+        let csvContent = 'data:text/csv;charset=utf-8,';
+        let grandTotal = 0;
+        let grandCount = 0;
+        const typesToPrint = ['fixed', 'variable', 'investment', 'other'];
+
+        for (const type of typesToPrint) {
+            const groupRecords = groups[type];
+            if (!groupRecords || groupRecords.length === 0) continue;
+
+            const subTotal = groupRecords.reduce((sum, e) => sum + Number(e.amount), 0);
+            grandTotal += subTotal;
+            grandCount += groupRecords.length;
+
+            csvContent += `\n${typeLabels[type]}\n`;
+            csvContent += 'Data;Status;CD;Finalidade;Centro Custos;Plano Contas;Valor\n';
+
+            groupRecords.forEach((e: any) => {
+                const row = [
+                    format(new Date(e.expense_date + 'T12:00:00'), 'dd/MM/yyyy'),
+                    e.paid ? 'Pago' : 'Pendente',
+                    e.distribution_center?.name || '',
+                    e.purpose,
+                    e.cost_center?.name || '',
+                    e.chart_account?.name || '',
+                    Number(e.amount).toFixed(2),
+                ];
+                csvContent += row.join(';') + '\n';
+            });
+
+            csvContent += `;;;;;SUBTOTAL ${typeLabels[type]};${Number(subTotal).toFixed(2)}\n`;
+        }
+
+        csvContent += `\n;;;;;TOTAL GERAL (${grandCount} items);${Number(grandTotal).toFixed(2)}\n`;
 
         const link = document.createElement('a');
         link.setAttribute('href', encodeURI(csvContent));
-        link.setAttribute('download', `despesas_${dateStart}_${dateEnd}.csv`);
+        link.setAttribute('download', `despesas_detalhado_${dateStart}_${dateEnd}.csv`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -544,6 +623,17 @@ export default function ExpensesPage() {
                                                 {formatBRL(Number(exp.amount))}
                                             </td>
                                             <td className="px-5 py-3.5 text-right flex items-center justify-end gap-2">
+                                                {exp.receipt_url && (
+                                                    <a
+                                                        href={exp.receipt_url}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="inline-flex items-center justify-center h-8 w-8 rounded-md text-violet-500 hover:text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-900/20"
+                                                        title="Ver Comprovante"
+                                                    >
+                                                        <Paperclip className="h-4 w-4" />
+                                                    </a>
+                                                )}
                                                 {!exp.paid && (
                                                     <Button size="sm" variant="ghost" title="Confirmar Pagamento" onClick={() => openConfirmDialog('pay', exp.id)} className="text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-900/20">
                                                         <Banknote className="h-4 w-4" />
@@ -560,6 +650,19 @@ export default function ExpensesPage() {
                                     );
                                 })}
                             </tbody>
+                            {expenses.length > 0 && (
+                                <tfoot className="border-t-2 border-gray-100 dark:border-white/[0.05] bg-gray-50/50 dark:bg-white/[0.02] font-bold">
+                                    <tr>
+                                        <td className="px-5 py-4 text-gray-900 dark:text-white uppercase text-xs" colSpan={7}>
+                                            Total Geral no Período
+                                        </td>
+                                        <td className="px-5 py-4 text-right text-red-600 dark:text-red-400">
+                                            {formatBRL(totalExpenses)}
+                                        </td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            )}
                         </table>
                     </div>
                 </CardContent>

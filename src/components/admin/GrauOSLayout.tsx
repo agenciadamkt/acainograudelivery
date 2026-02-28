@@ -1,9 +1,10 @@
-import { ReactNode } from 'react';
+import { ReactNode, useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStore } from '@/contexts/StoreContext';
 import { Button } from '@/components/ui/button';
 import { Theme } from '@/components/ui/theme';
+import { useIsMobile } from '@/hooks/use-mobile';
 import {
     ArrowLeft,
     LogOut,
@@ -43,6 +44,12 @@ export function GrauOSLayout({ children }: GrauOSLayoutProps) {
     const location = useLocation();
     const { signOut, user } = useAuth();
     const { currentStore } = useStore();
+    const isMobile = useIsMobile();
+    const [isMounted, setIsMounted] = useState(false);
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     const userPoints = 2350;
     const level = LEVELS.find(l => userPoints >= l.min && userPoints <= l.max) || LEVELS[0];
@@ -50,6 +57,7 @@ export function GrauOSLayout({ children }: GrauOSLayoutProps) {
 
     const currentModule = moduleConfig[location.pathname] || moduleConfig['/admin/universidade'];
     const ModuleIcon = currentModule.icon;
+    if (!isMounted) return null;
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-[#0F0F14] text-gray-900 dark:text-white transition-colors duration-300">

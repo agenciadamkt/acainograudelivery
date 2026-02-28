@@ -31,7 +31,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Paperclip, X, FileText, Image as ImageIcon } from 'lucide-react';
 import DistributionCenterSelect from './DistributionCenterSelect';
 import CostCenterSelect from './CostCenterSelect';
 import ChartOfAccountsSelect from './ChartOfAccountsSelect';
@@ -49,6 +49,7 @@ const formSchema = z.object({
     notes: z.string().optional(),
     paid_with_cash_balance: z.boolean().default(false),
     paid: z.boolean().default(false),
+    receipt_url: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -76,8 +77,11 @@ export default function ExpenseFormDialog({ open, onOpenChange, record, onSucces
             notes: '',
             paid_with_cash_balance: false,
             paid: false,
+            receipt_url: '',
         },
     });
+
+    const [isUploading, setIsUploading] = useState(false);
 
     // Watch for cascading resets
     const watchCD = form.watch('distribution_center_id');
@@ -96,6 +100,7 @@ export default function ExpenseFormDialog({ open, onOpenChange, record, onSucces
                 notes: record.notes || '',
                 paid_with_cash_balance: record.paid_with_cash_balance || false,
                 paid: record.paid || false,
+                receipt_url: record.receipt_url || '',
             });
         } else {
             form.reset({
@@ -109,6 +114,7 @@ export default function ExpenseFormDialog({ open, onOpenChange, record, onSucces
                 notes: '',
                 paid_with_cash_balance: false,
                 paid: false,
+                receipt_url: '',
             });
         }
     }, [record, form, open]);
@@ -150,6 +156,43 @@ export default function ExpenseFormDialog({ open, onOpenChange, record, onSucces
         mutation.mutate(values);
     };
 
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Validations
+        const maxMB = 10;
+        if (file.size > maxMB * 1024 * 1024) {
+            toast.error(`Arquivo muito grande. Máximo ${maxMB}MB.`);
+            return;
+        }
+
+        try {
+            setIsUploading(true);
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
+            const filePath = `receipts/${fileName}`;
+
+            const { data, error } = await supabase.storage
+                .from('financial_receipts')
+                .upload(filePath, file);
+
+            if (error) throw error;
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('financial_receipts')
+                .getPublicUrl(filePath);
+
+            form.setValue('receipt_url', publicUrl);
+            toast.success('Comprovante anexado com sucesso!');
+        } catch (error: any) {
+            console.error('Upload error:', error);
+            toast.error('Erro no upload: ' + error.message);
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
     const typeLabels: Record<string, string> = {
         fixed: 'Fixa',
         variable: 'Variável',
@@ -158,7 +201,7 @@ export default function ExpenseFormDialog({ open, onOpenChange, record, onSucces
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[520px] bg-white dark:bg-[#1A1A1A] border-gray-200 dark:border-white/10">
+            <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto bg-white dark:bg-[#1A1A1A] border-gray-200 dark:border-white/10">
                 <DialogHeader>
                     <DialogTitle className="text-gray-900 dark:text-white">
                         {record ? 'Editar Despesa' : 'Nova Despesa'}
@@ -370,6 +413,70 @@ export default function ExpenseFormDialog({ open, onOpenChange, record, onSucces
                                             {...field}
                                         />
                                     </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        {/* Receipt Upload */}
+                        <FormField
+                            control={form.control}
+                            name="receipt_url"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Comprovante (Opcional)</FormLabel>
+                                    <div className="space-y-2">
+                                        {!field.value ? (
+                                            <div className="relative">
+                                                <Input
+                                                    type="file"
+                                                    onChange={handleFileUpload}
+                                                    disabled={isUploading}
+                                                    className="hidden"
+                                                    id="receipt-upload"
+                                                    accept="image/*,application/pdf"
+                                                />
+                                                <label
+                                                    htmlFor="receipt-upload"
+                                                    className="flex items-center justify-center gap-2 w-full p-4 border-2 border-dashed border-gray-200 dark:border-white/10 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer transition-all text-sm text-gray-500 dark:text-white/40"
+                                                >
+                                                    {isUploading ? (
+                                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                                    ) : (
+                                                        <Paperclip className="h-4 w-4" />
+                                                    )}
+                                                    {isUploading ? 'Enviando...' : 'Anexar comprovante'}
+                                                </label>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center justify-between p-3 bg-violet-50 dark:bg-violet-500/10 border border-violet-100 dark:border-violet-500/20 rounded-xl">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-lg bg-white dark:bg-white/10 flex items-center justify-center">
+                                                        {field.value.includes('.pdf') ? (
+                                                            <FileText className="h-4 w-4 text-violet-600" />
+                                                        ) : (
+                                                            <ImageIcon className="h-4 w-4 text-violet-600" />
+                                                        )}
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-xs font-bold text-violet-700 dark:text-violet-300">Comprovante anexado</p>
+                                                        <a href={field.value} target="_blank" rel="noreferrer" className="text-[10px] text-violet-500 hover:underline">
+                                                            Visualizar anexo
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => form.setValue('receipt_url', '')}
+                                                    className="h-8 w-8 p-0 text-violet-400 hover:text-red-500"
+                                                >
+                                                    <X className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        )}
+                                    </div>
                                     <FormMessage />
                                 </FormItem>
                             )}

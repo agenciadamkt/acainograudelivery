@@ -16,8 +16,10 @@ import { format, startOfWeek, endOfWeek, addWeeks, subWeeks } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 interface CashFlowFiltersProps {
-    date: Date;
-    setDate: (date: Date) => void;
+    dateStart: string;
+    setDateStart: (d: string) => void;
+    dateEnd: string;
+    setDateEnd: (d: string) => void;
     filterCD: string;
     setFilterCD: (cd: string) => void;
     filterType: 'all' | 'inflow' | 'outflow';
@@ -29,8 +31,10 @@ interface CashFlowFiltersProps {
 }
 
 export default function CashFlowFilters({
-    date,
-    setDate,
+    dateStart,
+    setDateStart,
+    dateEnd,
+    setDateEnd,
     filterCD,
     setFilterCD,
     filterType,
@@ -40,11 +44,6 @@ export default function CashFlowFilters({
     onGenerate,
     isGenerating
 }: CashFlowFiltersProps) {
-    const start = startOfWeek(date, { weekStartsOn: 1 });
-    const end = endOfWeek(date, { weekStartsOn: 1 });
-
-    const handlePreviousWeek = () => setDate(subWeeks(date, 1));
-    const handleNextWeek = () => setDate(addWeeks(date, 1));
 
     return (
         <Card className="bg-white dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] shadow-sm">
@@ -56,21 +55,25 @@ export default function CashFlowFilters({
                         <DistributionCenterSelect value={filterCD} onChange={setFilterCD} placeholder="Todos os CDs" />
                     </div>
 
-                    {/* Week Selection */}
-                    <div className="space-y-2 lg:col-span-2">
-                        <Label className="text-xs text-gray-500 dark:text-white/40">Período (Semana)</Label>
-                        <div className="flex items-center gap-2 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-md p-1">
-                            <Button variant="ghost" size="sm" onClick={handlePreviousWeek} className="h-7 w-7 p-0">
-                                {'<'}
-                            </Button>
-                            <div className="flex-1 text-center text-sm font-medium flex items-center justify-center gap-2">
-                                <CalendarIcon className="h-4 w-4 text-gray-400" />
-                                <span>{format(start, 'dd/MM')} - {format(end, 'dd/MM/yyyy')}</span>
-                            </div>
-                            <Button variant="ghost" size="sm" onClick={handleNextWeek} className="h-7 w-7 p-0">
-                                {'>'}
-                            </Button>
-                        </div>
+                    {/* Period Selection */}
+                    <div className="space-y-2">
+                        <Label className="text-xs text-gray-500 dark:text-white/40">Início</Label>
+                        <Input
+                            type="date"
+                            value={dateStart}
+                            onChange={(e) => setDateStart(e.target.value)}
+                            className="bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10"
+                        />
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label className="text-xs text-gray-500 dark:text-white/40">Fim</Label>
+                        <Input
+                            type="date"
+                            value={dateEnd}
+                            onChange={(e) => setDateEnd(e.target.value)}
+                            className="bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10"
+                        />
                     </div>
 
                     {/* Type & Status Filters Row */}
