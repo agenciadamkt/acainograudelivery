@@ -43,6 +43,28 @@ const CHART_COLORS = [
     '#EC4899', '#8B5CF6', '#06B6D4', '#F97316', '#84CC16',
 ];
 
+const ChartTooltip = ({ active, payload, label }: any) => {
+    if (!active || !payload || !payload.length) return null;
+    return (
+        <div className="bg-white/80 dark:bg-black/60 backdrop-blur-xl border border-gray-200/50 dark:border-white/10 rounded-xl shadow-2xl p-4 min-w-[200px]">
+            <p className="font-bold text-gray-900 dark:text-white mb-2 text-sm border-b border-gray-100 dark:border-white/5 pb-1">{label}</p>
+            <div className="space-y-1.5 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                {payload.map((entry: any, i: number) => (
+                    <div key={i} className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: entry.color || entry.fill }} />
+                            <span className="text-[11px] font-medium text-gray-600 dark:text-gray-300 truncate max-w-[150px]">{entry.name}</span>
+                        </div>
+                        <span className="text-[11px] font-bold text-gray-900 dark:text-white whitespace-nowrap">
+                            {(entry.value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                        </span>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
 export default function ExpensesPage() {
     const now = new Date();
     const [dateStart, setDateStart] = useState(format(startOfMonth(now), 'yyyy-MM-dd'));
@@ -488,16 +510,7 @@ export default function ExpensesPage() {
                                             tick={{ fontSize: 11, fill: '#9CA3AF' }}
                                             tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`}
                                         />
-                                        <Tooltip
-                                            formatter={(value: number) => formatBRL(value)}
-                                            contentStyle={{
-                                                backgroundColor: '#1A1A24',
-                                                border: '1px solid rgba(255,255,255,0.1)',
-                                                borderRadius: 8,
-                                                color: '#fff',
-                                                fontSize: 12,
-                                            }}
-                                        />
+                                        <Tooltip content={<ChartTooltip />} />
                                         <Legend wrapperStyle={{ fontSize: 11 }} />
                                         {chartData.accountList.map((account, i) => (
                                             <Bar
@@ -534,23 +547,26 @@ export default function ExpensesPage() {
                                             innerRadius={50}
                                             dataKey="value"
                                             nameKey="name"
-                                            label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                                            labelLine={{ stroke: '#9CA3AF', strokeWidth: 1 }}
+                                            label={({ name, percent, x, y, cx }) => (
+                                                <text
+                                                    x={x}
+                                                    y={y}
+                                                    fill="#4B5563"
+                                                    textAnchor={x > cx ? 'start' : 'end'}
+                                                    dominantBaseline="central"
+                                                    fontSize="11"
+                                                    fontWeight="bold"
+                                                >
+                                                    {`${name} (${(percent * 100).toFixed(0)}%)`}
+                                                </text>
+                                            )}
+                                            labelLine={{ stroke: '#9CA3AF', strokeWidth: 1.5 }}
                                         >
                                             {chartData.pieData.map((entry, index) => (
-                                                <Cell key={`cell-${index}`} fill={entry.fill} />
+                                                <Cell key={`cell-${index}`} fill={entry.fill} stroke="rgba(255,255,255,0.2)" strokeWidth={2} />
                                             ))}
                                         </Pie>
-                                        <Tooltip
-                                            formatter={(value: number) => formatBRL(value)}
-                                            contentStyle={{
-                                                backgroundColor: '#1A1A24',
-                                                border: '1px solid rgba(255,255,255,0.1)',
-                                                borderRadius: 8,
-                                                color: '#fff',
-                                                fontSize: 12,
-                                            }}
-                                        />
+                                        <Tooltip content={<ChartTooltip />} />
                                     </PieChart>
                                 </ResponsiveContainer>
                             </div>

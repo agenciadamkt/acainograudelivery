@@ -155,43 +155,81 @@ export default function RevenueExpenseReportPage() {
         doc.setFontSize(10);
         doc.text(`Período: ${format(parseISO(dateStart), 'dd/MM/yyyy')} a ${format(parseISO(dateEnd), 'dd/MM/yyyy')}`, 14, startY + 12);
 
-        const tableHead = [
-            ['DISCRIMINAÇÃO', ...dates.map(d => format(d, 'eee - dd', { locale: ptBR })), 'TOTAL']
-        ];
+        // Splitting into chunks of 7 days (weekly) to avoid squashed columns
+        const CHUNK_SIZE = 7;
+        let currentY = startY + 20;
 
-        const tableBody = rows.map(r => {
-            if (r.isHeader) {
-                return [{ content: r.label, colSpan: dates.length + 2, styles: { fillColor: [240, 240, 240], fontStyle: 'bold' } }];
-            }
-            return [
-                r.label,
-                ...dates.map(d => {
-                    const val = r.values[format(d, 'yyyy-MM-dd')];
-                    return val ? val.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '-';
-                }),
-                r.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })
+        for (let i = 0; i < dates.length; i += CHUNK_SIZE) {
+            const chunk = dates.slice(i, i + CHUNK_SIZE);
+            const isLastRange = (i + CHUNK_SIZE) >= dates.length;
+            const totalCols = chunk.length + (isLastRange ? 2 : 1);
+
+            const tableHead = [
+                ['DISCRIMINAÇÃO', ...chunk.map(d => format(d, 'eee - dd', { locale: ptBR })), ...(isLastRange ? ['TOTAL'] : [])]
             ];
-        });
 
-        autoTable(doc, {
-            head: tableHead,
-            body: tableBody as any,
-            startY: startY + 20,
-            styles: { fontSize: 7, cellPadding: 2 },
-            headStyles: { fillColor: [60, 60, 60] },
-            columnStyles: { 0: { fontStyle: 'bold', cellWidth: 40 } },
-            didParseCell: (data) => {
-                const rowIndex = data.row.index;
-                const rowData = rows[rowIndex];
-                if (rowData?.isFooter || rowData?.isGrandTotal) {
-                    data.cell.styles.fontStyle = 'bold';
-                    if (rowData.isGrandTotal) {
-                        data.cell.styles.fillColor = [230, 240, 255];
-                        data.cell.styles.textColor = [0, 102, 204];
-                    }
+            const tableBody = rows.map(r => {
+                if (r.isHeader) {
+                    return [{
+                        content: r.label,
+                        colSpan: totalCols,
+                        styles: { fillColor: [240, 240, 240], fontStyle: 'bold', halign: 'left' }
+                    }];
+                }
+                return [
+                    r.label,
+                    ...chunk.map(d => {
+                        const val = r.values[format(d, 'yyyy-MM-dd')];
+                        return val ? val.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '-';
+                    }),
+                    ...(isLastRange ? [r.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })] : [])
+                ];
+            });
+
+            // Page break check if the previous table was large
+            if (i > 0) {
+                const prevY = (doc as any).lastAutoTable?.finalY || currentY;
+                if (prevY > 160) {
+                    doc.addPage('a4', 'l');
+                    currentY = await addPdfBranding(doc, filterCD ? 'Relatório Filtrado' : 'Consolidado');
+                    // Repeat report header on new page
+                    doc.setFontSize(11);
+                    doc.setFont(doc.getFont().fontName, 'bold');
+                    doc.text('RECEITAS X DESPESAS (CONTINUAÇÃO)', 14, currentY + 5);
+                    currentY += 12;
+                } else {
+                    currentY = prevY + 12;
                 }
             }
-        });
+
+            autoTable(doc, {
+                head: tableHead,
+                body: tableBody as any,
+                startY: currentY,
+                styles: { fontSize: 7, cellPadding: 2, halign: 'center' },
+                headStyles: { fillColor: [60, 60, 60] },
+                columnStyles: {
+                    0: { fontStyle: 'bold', cellWidth: 35, halign: 'left' },
+                    [totalCols - 1]: { halign: 'right', fontStyle: 'bold' }
+                },
+                theme: 'grid',
+                didParseCell: (data) => {
+                    const rowIndex = data.row.index;
+                    const rowData = rows[rowIndex];
+                    if (rowData?.isFooter || rowData?.isGrandTotal || rowData?.isHeader) {
+                        data.cell.styles.fontStyle = 'bold';
+                        if (rowData.isGrandTotal) {
+                            data.cell.styles.fillColor = [230, 240, 255];
+                            data.cell.styles.textColor = [0, 102, 204];
+                        }
+                    }
+                    if (data.column.index > 0 && data.column.index < totalCols - (isLastRange ? 1 : 0)) {
+                        // Days columns alignment
+                        data.cell.styles.halign = 'center';
+                    }
+                }
+            });
+        }
 
         doc.save(`relatorio_receitas_despesas_${dateStart}.pdf`);
     };

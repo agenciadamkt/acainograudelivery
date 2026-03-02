@@ -202,13 +202,21 @@ export default function FinancialDashboard() {
     const CustomTooltip = ({ active, payload, label }: any) => {
         if (!active || !payload) return null;
         return (
-            <div className="bg-white dark:bg-[#1E1E28] border border-gray-200 dark:border-white/10 rounded-lg shadow-lg px-3 py-2 text-xs">
-                <p className="font-medium text-gray-900 dark:text-white mb-1">{label}</p>
-                {payload.map((entry: any, i: number) => (
-                    <p key={i} style={{ color: entry.color }}>
-                        {entry.name}: {formatBRL(entry.value)}
-                    </p>
-                ))}
+            <div className="bg-white/80 dark:bg-black/60 backdrop-blur-xl border border-gray-200/50 dark:border-white/10 rounded-xl shadow-2xl p-4 min-w-[160px]">
+                <p className="font-bold text-gray-900 dark:text-white mb-2 text-sm border-b border-gray-100 dark:border-white/5 pb-1">{label}</p>
+                <div className="space-y-1.5">
+                    {payload.map((entry: any, i: number) => (
+                        <div key={i} className="flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
+                                <span className="text-xs font-medium text-gray-600 dark:text-gray-300">{entry.name}</span>
+                            </div>
+                            <span className="text-xs font-bold text-gray-900 dark:text-white">
+                                {formatBRL(entry.value)}
+                            </span>
+                        </div>
+                    ))}
+                </div>
             </div>
         );
     };
@@ -462,14 +470,16 @@ export default function FinancialDashboard() {
                                         />
                                         <Tooltip
                                             contentStyle={{
-                                                backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                                                backdropFilter: 'blur(8px)',
-                                                border: '1px solid rgba(255, 255, 255, 0.2)',
+                                                backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                                                backdropFilter: 'blur(12px)',
+                                                border: '1px solid rgba(0,0,0,0.1)',
                                                 borderRadius: '12px',
+                                                boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                                                color: '#111827',
                                                 fontSize: '11px',
-                                                fontWeight: 'bold',
-                                                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+                                                fontWeight: 'bold'
                                             }}
+                                            itemStyle={{ color: '#111827' }}
                                         />
                                         <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={28}>
                                             {expenseBreakdown.map((entry, index) => (
