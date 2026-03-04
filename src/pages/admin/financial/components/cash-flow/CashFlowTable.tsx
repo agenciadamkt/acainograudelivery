@@ -190,7 +190,7 @@ export default function CashFlowTable({ days, data, loading, onExportPDF, onExpo
                                 })}
                                 <td className="py-3 px-4 bg-purple-100 dark:bg-purple-900/20 text-right font-bold text-purple-800 dark:text-purple-300">
                                     {/* Final balance of the week */}
-                                    {formatCurrency(data?.accumulated?.[format(days[6], 'yyyy-MM-dd')] || 0)}
+                                    {days.length > 0 ? formatCurrency(data?.accumulated?.[format(days[days.length - 1], 'yyyy-MM-dd')] || 0) : '-'}
                                 </td>
                             </tr>
 

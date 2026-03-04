@@ -43,7 +43,7 @@ export default function FinancialDashboard() {
     const today = new Date();
     const [selectedCD, setSelectedCD] = useState('');
 
-    const thirtyDaysAgo = format(subDays(today, 30), 'yyyy-MM-dd');
+    const startOfMonthDate = format(new Date(today.getFullYear(), today.getMonth(), 1), 'yyyy-MM-dd');
 
     /* ── Fetch cash closings (last 30 days) ── */
     const { data: closings } = useQuery({
@@ -56,7 +56,7 @@ export default function FinancialDashboard() {
                     distribution_center:distribution_centers!distribution_center_id(name),
                     operator:cash_operators!operator_id(name)
                 `)
-                .gte('closing_date', thirtyDaysAgo)
+                .gte('closing_date', startOfMonthDate)
                 .order('closing_date', { ascending: false });
 
             if (selectedCD) {
@@ -79,7 +79,7 @@ export default function FinancialDashboard() {
             let query = supabase
                 .from('expenses' as any)
                 .select('amount, expense_type, expense_date, paid_with_cash_balance, paid')
-                .gte('expense_date', thirtyDaysAgo);
+                .gte('expense_date', startOfMonthDate);
 
             if (selectedCD) {
                 query = query.eq('distribution_center_id', selectedCD);
@@ -307,7 +307,7 @@ export default function FinancialDashboard() {
                         <p className="text-3xl font-black text-gray-900 dark:text-white tracking-tight mb-1">
                             {formatBRL(kpis.totalExpenses)}
                         </p>
-                        <p className="text-[10px] text-red-500/60 font-medium">Últimos 30 dias</p>
+                        <p className="text-[10px] text-red-500/60 font-medium">Total do mês corrente</p>
                     </CardContent>
                 </Card>
 
@@ -323,7 +323,7 @@ export default function FinancialDashboard() {
                         <p className="text-3xl font-black text-gray-900 dark:text-white tracking-tight mb-1">
                             {formatBRL(kpis.totalIncome)}
                         </p>
-                        <p className="text-[10px] text-emerald-600/60 font-medium">Vendas no período</p>
+                        <p className="text-[10px] text-emerald-600/60 font-medium">Total do mês corrente</p>
                     </CardContent>
                 </Card>
             </div>

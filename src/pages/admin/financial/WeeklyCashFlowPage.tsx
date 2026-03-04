@@ -37,10 +37,14 @@ export default function WeeklyCashFlowPage() {
 
     const days = useMemo(() => {
         try {
-            return eachDayOfInterval({
-                start: parseISO(dateStart),
-                end: parseISO(dateEnd)
-            });
+            const start = parseISO(dateStart);
+            const end = parseISO(dateEnd);
+
+            if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) {
+                return [];
+            }
+
+            return eachDayOfInterval({ start, end });
         } catch (e) {
             return [];
         }
@@ -143,10 +147,12 @@ export default function WeeklyCashFlowPage() {
         }
 
         // --- Outflows (Expenses) ---
+        const daysKeys = new Set(days.map(d => format(d, 'yyyy-MM-dd')));
+
         if (filterType !== 'inflow') {
             expenses.forEach((e: any) => {
                 const k = e.expense_date;
-                if (!days.some(d => format(d, 'yyyy-MM-dd') === k)) return;
+                if (!daysKeys.has(k)) return;
 
                 const cat = e.cost_center?.name || 'Outros';
                 const val = Number(e.amount || 0);
@@ -169,20 +175,20 @@ export default function WeeklyCashFlowPage() {
         });
 
         let cumVariable = 0;
-        let cumInflow = 0;
+        let cumInflowLine = 0;
         const breakEvenPoints = days.map(d => {
             const k = format(d, 'yyyy-MM-dd');
-            const dayVariable = expenses
+            const dayVariable = (expenses || [])
                 .filter((e: any) => e.expense_date === k && e.expense_type !== 'fixed')
                 .reduce((s, e) => s + Number(e.amount || 0), 0);
 
             cumVariable += dayVariable;
-            cumInflow += (inflows[k] || 0);
+            cumInflowLine += (inflows[k] || 0);
 
             return {
                 label: format(d, 'dd/MM'),
                 date: k,
-                receita: cumInflow,
+                receita: cumInflowLine,
                 custos: totalFixed + cumVariable,
             };
         });
@@ -240,7 +246,7 @@ export default function WeeklyCashFlowPage() {
                     <div key={i} className="flex items-center justify-between gap-4 mb-1">
                         <span style={{ color: entry.color }} className="font-medium">{entry.name}:</span>
                         <span className="font-bold">
-                            {entry.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                            {(entry.value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                         </span>
                     </div>
                 ))}
@@ -368,136 +374,138 @@ export default function WeeklyCashFlowPage() {
             />
 
             {/* --- Break-even Chart --- */}
-            <Card className="bg-white/60 dark:bg-white/[0.03] backdrop-blur-xl border-gray-200/50 dark:border-white/10 shadow-lg overflow-hidden relative">
-                <CardHeader className="pb-4 border-b border-gray-100 dark:border-white/5">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2.5 bg-orange-500/10 rounded-xl">
-                                <Target className="h-5 w-5 text-orange-600" />
+            {days.length > 0 && reportData.breakEvenPoints.length > 0 && (
+                <Card className="bg-white/60 dark:bg-white/[0.03] backdrop-blur-xl border-gray-200/50 dark:border-white/10 shadow-lg overflow-hidden relative">
+                    <CardHeader className="pb-4 border-b border-gray-100 dark:border-white/5">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2.5 bg-orange-500/10 rounded-xl">
+                                    <Target className="h-5 w-5 text-orange-600" />
+                                </div>
+                                <div>
+                                    <CardTitle className="text-lg font-bold tracking-tight">Ponto de Equilíbrio (Break-even)</CardTitle>
+                                    <p className="text-xs text-gray-500 dark:text-white/40">Crossover entre Receita Acumulada e Gastos Totais</p>
+                                </div>
                             </div>
-                            <div>
-                                <CardTitle className="text-lg font-bold tracking-tight">Ponto de Equilíbrio (Break-even)</CardTitle>
-                                <p className="text-xs text-gray-500 dark:text-white/40">Crossover entre Receita Acumulada e Gastos Totais</p>
-                            </div>
+                            {reportData.intersection && (
+                                <div className="bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/20 flex items-center gap-2">
+                                    <TrendingUp className="h-3.5 w-3.5 text-emerald-600" />
+                                    <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">
+                                        Atingido em: {reportData.intersection.label}
+                                    </span>
+                                </div>
+                            )}
                         </div>
-                        {reportData.intersection && (
-                            <div className="bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/20 flex items-center gap-2">
-                                <TrendingUp className="h-3.5 w-3.5 text-emerald-600" />
-                                <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">
-                                    Atingido em: {reportData.intersection.label}
+                    </CardHeader>
+                    <CardContent className="pt-8 px-2 sm:px-6">
+                        <div className="h-[380px] w-full">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <ComposedChart data={reportData.breakEvenPoints} margin={{ top: 20, right: 30, left: 10, bottom: 20 }}>
+                                    <defs>
+                                        <linearGradient id="profitGrad" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#10B981" stopOpacity={0.15} />
+                                            <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
+                                        </linearGradient>
+                                        <linearGradient id="lossGrad" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#EF4444" stopOpacity={0.15} />
+                                            <stop offset="95%" stopColor="#EF4444" stopOpacity={0} />
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
+                                    <XAxis
+                                        dataKey="label"
+                                        tick={{ fontSize: 11, fill: '#9CA3AF', fontWeight: 500 }}
+                                        axisLine={false}
+                                        tickLine={false}
+                                        dy={10}
+                                    />
+                                    <YAxis
+                                        tick={{ fontSize: 11, fill: '#9CA3AF', fontWeight: 500 }}
+                                        axisLine={false}
+                                        tickLine={false}
+                                        tickFormatter={(v) => `R$ ${v / 1000}k`}
+                                    />
+                                    <Tooltip content={<ChartTooltip />} />
+                                    <Legend verticalAlign="top" height={40} iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 'bold', paddingTop: '10px' }} />
+
+                                    <Line
+                                        type="monotone"
+                                        dataKey="receita"
+                                        name="Receita Total"
+                                        stroke="#3B82F6"
+                                        strokeWidth={4}
+                                        dot={false}
+                                        activeDot={{ r: 6, strokeWidth: 0 }}
+                                        animationDuration={1500}
+                                    />
+                                    <Line
+                                        type="monotone"
+                                        dataKey="custos"
+                                        name="Custos Totais"
+                                        stroke="#10B981"
+                                        strokeWidth={4}
+                                        dot={false}
+                                        activeDot={{ r: 6, strokeWidth: 0 }}
+                                        animationDuration={1500}
+                                    />
+
+                                    {reportData.intersection && reportData.intersection.label && (
+                                        <ReferenceDot
+                                            x={reportData.intersection.label}
+                                            y={reportData.intersection.receita}
+                                            r={6}
+                                            fill="#FFF"
+                                            stroke="#10B981"
+                                            strokeWidth={3}
+                                        >
+                                            <RechartsLabel
+                                                value="Ponto de Equilíbrio"
+                                                position="top"
+                                                offset={15}
+                                                fill="#10B981"
+                                                fontSize={12}
+                                                fontWeight="bold"
+                                            />
+                                        </ReferenceDot>
+                                    )}
+                                </ComposedChart>
+                            </ResponsiveContainer>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8 border-t border-gray-100 dark:border-white/5 pt-6">
+                            <div className="flex flex-col gap-1 items-center md:items-start">
+                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Base de Custos Fixos</span>
+                                <span className="text-sm font-black text-gray-900 dark:text-white">
+                                    {(reportData.totalFixed || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                 </span>
                             </div>
-                        )}
-                    </div>
-                </CardHeader>
-                <CardContent className="pt-8 px-2 sm:px-6">
-                    <div className="h-[380px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <ComposedChart data={reportData.breakEvenPoints} margin={{ top: 20, right: 30, left: 10, bottom: 20 }}>
-                                <defs>
-                                    <linearGradient id="profitGrad" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#10B981" stopOpacity={0.15} />
-                                        <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
-                                    </linearGradient>
-                                    <linearGradient id="lossGrad" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#EF4444" stopOpacity={0.15} />
-                                        <stop offset="95%" stopColor="#EF4444" stopOpacity={0} />
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
-                                <XAxis
-                                    dataKey="label"
-                                    tick={{ fontSize: 11, fill: '#9CA3AF', fontWeight: 500 }}
-                                    axisLine={false}
-                                    tickLine={false}
-                                    dy={10}
-                                />
-                                <YAxis
-                                    tick={{ fontSize: 11, fill: '#9CA3AF', fontWeight: 500 }}
-                                    axisLine={false}
-                                    tickLine={false}
-                                    tickFormatter={(v) => `R$ ${v / 1000}k`}
-                                />
-                                <Tooltip content={<ChartTooltip />} />
-                                <Legend verticalAlign="top" height={40} iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 'bold', paddingTop: '10px' }} />
-
-                                <Line
-                                    type="monotone"
-                                    dataKey="receita"
-                                    name="Receita Total"
-                                    stroke="#3B82F6"
-                                    strokeWidth={4}
-                                    dot={false}
-                                    activeDot={{ r: 6, strokeWidth: 0 }}
-                                    animationDuration={1500}
-                                />
-                                <Line
-                                    type="monotone"
-                                    dataKey="custos"
-                                    name="Custos Totais"
-                                    stroke="#10B981"
-                                    strokeWidth={4}
-                                    dot={false}
-                                    activeDot={{ r: 6, strokeWidth: 0 }}
-                                    animationDuration={1500}
-                                />
-
-                                {reportData.intersection && (
-                                    <ReferenceDot
-                                        x={reportData.intersection.label}
-                                        y={reportData.intersection.receita}
-                                        r={6}
-                                        fill="#FFF"
-                                        stroke="#10B981"
-                                        strokeWidth={3}
-                                    >
-                                        <RechartsLabel
-                                            value="Ponto de Equilíbrio"
-                                            position="top"
-                                            offset={15}
-                                            fill="#10B981"
-                                            fontSize={12}
-                                            fontWeight="bold"
-                                        />
-                                    </ReferenceDot>
-                                )}
-                            </ComposedChart>
-                        </ResponsiveContainer>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8 border-t border-gray-100 dark:border-white/5 pt-6">
-                        <div className="flex flex-col gap-1 items-center md:items-start">
-                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Base de Custos Fixos</span>
-                            <span className="text-sm font-black text-gray-900 dark:text-white">
-                                {reportData.totalFixed.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                            </span>
-                        </div>
-                        <div className="flex flex-col gap-1 items-center">
-                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Status do Período</span>
-                            <div className="flex items-center gap-2">
-                                {reportData.totals.result >= 0 ? (
-                                    <span className="flex items-center gap-1.5 text-emerald-600 font-bold text-sm">
-                                        <TrendingUp className="h-4 w-4" /> Lucro Operacional
-                                    </span>
-                                ) : (
-                                    <span className="flex items-center gap-1.5 text-red-500 font-bold text-sm">
-                                        <AlertTriangle className="h-4 w-4" /> Operando em Prejuízo
-                                    </span>
-                                )}
+                            <div className="flex flex-col gap-1 items-center">
+                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Status do Período</span>
+                                <div className="flex items-center gap-2">
+                                    {reportData.totals.result >= 0 ? (
+                                        <span className="flex items-center gap-1.5 text-emerald-600 font-bold text-sm">
+                                            <TrendingUp className="h-4 w-4" /> Lucro Operacional
+                                        </span>
+                                    ) : (
+                                        <span className="flex items-center gap-1.5 text-red-500 font-bold text-sm">
+                                            <AlertTriangle className="h-4 w-4" /> Operando em Prejuízo
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="flex flex-col gap-1 items-center md:items-end">
+                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Saldo Final Projetado</span>
+                                <span className={cn(
+                                    "text-sm font-black",
+                                    reportData.finalBalance >= 0 ? "text-emerald-600" : "text-red-500"
+                                )}>
+                                    {(reportData.finalBalance || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                </span>
                             </div>
                         </div>
-                        <div className="flex flex-col gap-1 items-center md:items-end">
-                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Saldo Final Projetado</span>
-                            <span className={cn(
-                                "text-sm font-black",
-                                reportData.finalBalance >= 0 ? "text-emerald-600" : "text-red-500"
-                            )}>
-                                {reportData.finalBalance.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                            </span>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
+                    </CardContent>
+                </Card>
+            )}
 
             <CashFlowStats
                 inflows={reportData.totals.inflows}
