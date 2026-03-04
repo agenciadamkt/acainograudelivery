@@ -37,6 +37,7 @@ import CostCenterSelect from './CostCenterSelect';
 import ChartOfAccountsSelect from './ChartOfAccountsSelect';
 import CurrencyInput from './CurrencyInput';
 import { Checkbox } from '@/components/ui/checkbox';
+import SupplierSelect from './SupplierSelect';
 
 const formSchema = z.object({
     distribution_center_id: z.string().min(1, 'Selecione o CD'),
@@ -46,6 +47,7 @@ const formSchema = z.object({
     purpose: z.string().min(1, 'Informe a finalidade'),
     cost_center_id: z.string().min(1, 'Selecione o centro de custos'),
     chart_of_accounts_id: z.string().min(1, 'Selecione o plano de contas'),
+    supplier_id: z.string().optional().nullable(),
     notes: z.string().optional(),
     paid_with_cash_balance: z.boolean().default(false),
     paid: z.boolean().default(false),
@@ -74,6 +76,7 @@ export default function ExpenseFormDialog({ open, onOpenChange, record, onSucces
             purpose: '',
             cost_center_id: '',
             chart_of_accounts_id: '',
+            supplier_id: '',
             notes: '',
             paid_with_cash_balance: false,
             paid: false,
@@ -97,6 +100,7 @@ export default function ExpenseFormDialog({ open, onOpenChange, record, onSucces
                 purpose: record.purpose || '',
                 cost_center_id: record.cost_center_id || '',
                 chart_of_accounts_id: record.chart_of_accounts_id || '',
+                supplier_id: record.supplier_id || '',
                 notes: record.notes || '',
                 paid_with_cash_balance: record.paid_with_cash_balance || false,
                 paid: record.paid || false,
@@ -355,6 +359,25 @@ export default function ExpenseFormDialog({ open, onOpenChange, record, onSucces
                                 )}
                             />
                         </div>
+
+                        {/* Supplier Selection */}
+                        <FormField
+                            control={form.control}
+                            name="supplier_id"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Fornecedor (Obrigatório para registro)</FormLabel>
+                                    <FormControl>
+                                        <SupplierSelect
+                                            value={field.value || ''}
+                                            onChange={field.onChange}
+                                            placeholder="Selecione ou cadastre o fornecedor..."
+                                        />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
 
                         {/* Cost Center */}
                         <FormField

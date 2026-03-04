@@ -39,6 +39,8 @@ export default function DetailedExpensesReportPage() {
     const { data: expenses = [], isLoading } = useQuery({
         queryKey: ['detailed_expenses_report', dateStart, dateEnd, filterCD],
         queryFn: async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+
             let query = supabase
                 .from('expenses' as any)
                 .select(`
@@ -47,13 +49,18 @@ export default function DetailedExpensesReportPage() {
                     purpose,
                     chart_account:chart_of_accounts!chart_of_accounts_id(name),
                     cost_center:cost_centers!cost_center_id(name),
-                    distribution_center:distribution_centers!distribution_center_id(name)
+                    distribution_center:distribution_centers!inner(name, franchisee_user_id)
                 `)
                 .gte('expense_date', dateStart)
                 .lte('expense_date', dateEnd)
                 .order('expense_date', { ascending: true });
 
-            if (filterCD) query = query.eq('distribution_center_id', filterCD);
+            if (filterCD) {
+                query = query.eq('distribution_center_id', filterCD);
+            } else {
+                query = query.eq('distribution_center.franchisee_user_id', user?.id);
+            }
+
             const { data, error } = await query;
             if (error) throw error;
             return data as any[];

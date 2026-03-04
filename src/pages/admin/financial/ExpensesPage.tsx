@@ -83,39 +83,66 @@ export default function ExpensesPage() {
     });
 
     const { data: centers = [] } = useQuery({
-        queryKey: ['distribution_centers'],
+        queryKey: ['distribution_centers_expenses'],
         queryFn: async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+
             const { data, error } = await supabase
                 .from('distribution_centers' as any)
                 .select('*')
                 .eq('active', true)
+                .eq('franchisee_user_id', user?.id)
                 .order('name');
+
             if (error) throw error;
             return data as any[];
         },
     });
 
     const { data: costCenters = [] } = useQuery({
-        queryKey: ['cost_centers_list'],
+        queryKey: ['cost_centers_list', filterCD],
         queryFn: async () => {
-            const { data, error } = await supabase
+            const { data: { user } } = await supabase.auth.getUser();
+
+            let query = supabase
                 .from('cost_centers' as any)
-                .select('id, name')
-                .eq('active', true)
-                .order('name');
+                .select('id, name, distribution_center:distribution_centers!inner(franchisee_user_id)')
+                .eq('active', true);
+
+            if (filterCD) {
+                query = query.eq('distribution_center_id', filterCD);
+            } else {
+                query = query.eq('distribution_center.franchisee_user_id', user?.id);
+            }
+
+            const { data, error } = await query.order('name');
             if (error) throw error;
             return data as any[];
         },
     });
 
     const { data: chartAccounts = [] } = useQuery({
-        queryKey: ['chart_accounts_list'],
+        queryKey: ['chart_accounts_list', filterCostCenter],
         queryFn: async () => {
-            const { data, error } = await supabase
+            const { data: { user } } = await supabase.auth.getUser();
+
+            let query = supabase
                 .from('chart_of_accounts' as any)
-                .select('id, name')
-                .eq('active', true)
-                .order('name');
+                .select(`
+                    id, name, 
+                    cost_center:cost_centers!inner(
+                        distribution_center:distribution_centers!inner(franchisee_user_id)
+                    )
+                `)
+                .eq('active', true);
+
+            if (filterCostCenter) {
+                query = query.eq('cost_center_id', filterCostCenter);
+            } else {
+                query = query.eq('cost_center.distribution_center.franchisee_user_id', user?.id);
+            }
+
+            const { data, error } = await query.order('name');
             if (error) throw error;
             return data as any[];
         },
@@ -124,19 +151,27 @@ export default function ExpensesPage() {
     const { data: expenses = [], isLoading, refetch } = useQuery({
         queryKey: ['expenses', dateStart, dateEnd, filterCD, filterType, filterStatus, filterCostCenter, filterChartAccount],
         queryFn: async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+
             let query = supabase
                 .from('expenses' as any)
                 .select(`
                     *,
-                    distribution_center:distribution_centers!distribution_center_id(name),
+                    distribution_center:distribution_centers!inner(name, franchisee_user_id),
                     cost_center:cost_centers!cost_center_id(name),
-                    chart_account:chart_of_accounts!chart_of_accounts_id(name)
+                    chart_account:chart_of_accounts!chart_of_accounts_id(name),
+                    supplier:financial_suppliers!supplier_id(name)
                 `)
                 .gte('expense_date', dateStart)
                 .lte('expense_date', dateEnd)
                 .order('expense_date', { ascending: false });
 
-            if (filterCD) query = query.eq('distribution_center_id', filterCD);
+            if (filterCD) {
+                query = query.eq('distribution_center_id', filterCD);
+            } else {
+                query = query.eq('distribution_center.franchisee_user_id', user?.id);
+            }
+
             if (filterType) query = query.eq('expense_type', filterType);
             if (filterCostCenter) query = query.eq('cost_center_id', filterCostCenter);
             if (filterChartAccount) query = query.eq('chart_of_accounts_id', filterChartAccount);
@@ -352,7 +387,7 @@ export default function ExpensesPage() {
             grandCount += groupRecords.length;
 
             csvContent += `\n${typeLabels[type]}\n`;
-            csvContent += 'Data;Status;CD;Finalidade;Centro Custos;Plano Contas;Valor\n';
+            csvContent += 'Data;Status;CD;Finalidade;Fornecedor;Centro Custos;Plano Contas;Valor\n';
 
             groupRecords.forEach((e: any) => {
                 const row = [
@@ -360,6 +395,7 @@ export default function ExpensesPage() {
                     e.paid ? 'Pago' : 'Pendente',
                     e.distribution_center?.name || '',
                     e.purpose,
+                    e.supplier?.name || '',
                     e.cost_center?.name || '',
                     e.chart_account?.name || '',
                     Number(e.amount).toFixed(2),
@@ -586,7 +622,7 @@ export default function ExpensesPage() {
                                     <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 dark:text-white/40 uppercase tracking-wider">Tipo</th>
                                     <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 dark:text-white/40 uppercase tracking-wider">Status</th>
                                     <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 dark:text-white/40 uppercase tracking-wider">CD</th>
-                                    <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 dark:text-white/40 uppercase tracking-wider">Finalidade</th>
+                                    <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 dark:text-white/40 uppercase tracking-wider">Finalidade / Fornecedor</th>
                                     <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 dark:text-white/40 uppercase tracking-wider">Centro Custos</th>
                                     <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 dark:text-white/40 uppercase tracking-wider">Plano Contas</th>
                                     <th className="text-right px-5 py-3 text-xs font-medium text-gray-500 dark:text-white/40 uppercase tracking-wider">Valor</th>

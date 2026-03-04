@@ -46,10 +46,12 @@ export default function DREReportPage() {
     const { data: centers = [] } = useQuery({
         queryKey: ['distribution_centers'],
         queryFn: async () => {
+            const { data: { user } } = await supabase.auth.getUser();
             const { data, error } = await supabase
                 .from('distribution_centers' as any)
                 .select('*')
                 .eq('active', true)
+                .eq('franchisee_user_id', user?.id)
                 .order('name');
             if (error) throw error;
             return data as any[];
@@ -60,12 +62,19 @@ export default function DREReportPage() {
     const { data: closings = [] } = useQuery({
         queryKey: ['dre_closings', dateStart, dateEnd, selectedCD],
         queryFn: async () => {
+            const { data: { user } } = await supabase.auth.getUser();
             let query = supabase
                 .from('cash_closings' as any)
-                .select('total_sales, total_expenses, total_cash, title_settlement, cash_settlement')
+                .select('total_sales, total_expenses, total_cash, title_settlement, cash_settlement, distribution_center:distribution_centers!inner(franchisee_user_id)')
                 .gte('closing_date', dateStart)
                 .lte('closing_date', dateEnd);
-            if (selectedCD) query = query.eq('distribution_center_id', selectedCD);
+
+            if (selectedCD) {
+                query = query.eq('distribution_center_id', selectedCD);
+            } else {
+                query = query.eq('distribution_center.franchisee_user_id', user?.id);
+            }
+
             const { data, error } = await query;
             if (error) throw error;
             return data as any[];
@@ -76,16 +85,24 @@ export default function DREReportPage() {
     const { data: expenses = [] } = useQuery({
         queryKey: ['dre_expenses', dateStart, dateEnd, selectedCD],
         queryFn: async () => {
+            const { data: { user } } = await supabase.auth.getUser();
             let query = supabase
                 .from('expenses' as any)
                 .select(`
                     amount, expense_type, purpose,
                     cost_center:cost_centers!cost_center_id(name),
-                    chart_account:chart_of_accounts!chart_of_accounts_id(name)
+                    chart_account:chart_of_accounts!chart_of_accounts_id(name),
+                    distribution_center:distribution_centers!inner(franchisee_user_id)
                 `)
                 .gte('expense_date', dateStart)
                 .lte('expense_date', dateEnd);
-            if (selectedCD) query = query.eq('distribution_center_id', selectedCD);
+
+            if (selectedCD) {
+                query = query.eq('distribution_center_id', selectedCD);
+            } else {
+                query = query.eq('distribution_center.franchisee_user_id', user?.id);
+            }
+
             const { data, error } = await query;
             if (error) throw error;
             return data as any[];

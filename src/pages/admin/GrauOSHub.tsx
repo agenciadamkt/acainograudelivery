@@ -104,7 +104,7 @@ export default function GrauOSHub() {
         initialData: authUser as any // Fallback/Initial
     });
 
-    const isAdmin = user?.email === 'agenciadamkt@gmail.com';
+    const isAdmin = user?.email === 'agenciadamkt@gmail.com' || user?.email === 'acainograuwagner@gmail.com';
 
     // Fetch dynamic notifications
     const { data: notifications, isLoading: loadingNotifications } = useHubNotifications();

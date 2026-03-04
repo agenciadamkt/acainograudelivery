@@ -34,27 +34,29 @@ export default function CashClosingsPage() {
     const [calStartOpen, setCalStartOpen] = useState(false);
     const [calEndOpen, setCalEndOpen] = useState(false);
 
-    const { data: closings = [], isLoading } = useQuery({
+    const { data: closings = [], isLoading, isError, error } = useQuery({
         queryKey: ['cash_closings', dateStart, dateEnd, filterCD],
         queryFn: async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            // Use inner join to enforce franchisee filtering.
+            // This ensures each user ONLY sees data from their own CDs.
+            const selectStr = `*, distribution_center:distribution_centers!inner(name, franchisee_user_id), operator:cash_operators!operator_id(name), checked_by:cash_operators!checked_by_id(name)`;
+
             let query = supabase
                 .from('cash_closings' as any)
-                .select(`
-                    *,
-                    distribution_center:distribution_centers!distribution_center_id(name),
-                    operator:cash_operators!operator_id(name),
-                    checked_by:cash_operators!checked_by_id(name)
-                `)
+                .select(selectStr)
                 .gte('closing_date', dateStart)
                 .lte('closing_date', dateEnd)
                 .order('closing_date', { ascending: false });
 
             if (filterCD) {
                 query = query.eq('distribution_center_id', filterCD);
+            } else {
+                query = query.eq('distribution_center.franchisee_user_id', user?.id);
             }
 
-            const { data, error } = await query;
-            if (error) throw error;
+            const { data, error: queryError } = await query;
+            if (queryError) throw queryError;
             return data as any[];
         },
     });
@@ -179,7 +181,17 @@ export default function CashClosingsPage() {
                                         <td colSpan={8} className="px-4 py-8 text-center text-gray-400">Carregando...</td>
                                     </tr>
                                 )}
-                                {!isLoading && closings.length === 0 && (
+                                {isError && (
+                                    <tr>
+                                        <td colSpan={8} className="px-4 py-8 text-center text-red-500 bg-red-50 dark:bg-red-900/10 rounded-xl">
+                                            <p className="font-bold flex items-center justify-center gap-2">
+                                                Erro ao carregar dados
+                                            </p>
+                                            <p className="text-[10px] opacity-70">{(error as any)?.message || 'Erro de conexão ou RLS'}</p>
+                                        </td>
+                                    </tr>
+                                )}
+                                {!isLoading && !isError && closings.length === 0 && (
                                     <tr>
                                         <td colSpan={8} className="px-4 py-8 text-center text-gray-400 dark:text-white/30">
                                             Nenhum fechamento encontrado

@@ -38,13 +38,18 @@ export default function RevenueExpenseReportPage() {
     const { data: closings = [] } = useQuery({
         queryKey: ['report_grid_closings', dateStart, dateEnd, filterCD],
         queryFn: async () => {
+            const { data: { user } } = await supabase.auth.getUser();
             let query = supabase
                 .from('cash_closings' as any)
-                .select('closing_date, total_cash, distribution_center_id')
+                .select('closing_date, total_cash, distribution_center:distribution_centers!inner(franchisee_user_id)')
                 .gte('closing_date', dateStart)
                 .lte('closing_date', dateEnd);
 
-            if (filterCD) query = query.eq('distribution_center_id', filterCD);
+            if (filterCD) {
+                query = query.eq('distribution_center_id', filterCD);
+            } else {
+                query = query.eq('distribution_center.franchisee_user_id', user?.id);
+            }
 
             const { data, error } = await query;
             if (error) throw error;
@@ -55,18 +60,23 @@ export default function RevenueExpenseReportPage() {
     const { data: expenses = [] } = useQuery({
         queryKey: ['report_grid_expenses', dateStart, dateEnd, filterCD],
         queryFn: async () => {
+            const { data: { user } } = await supabase.auth.getUser();
             let query = supabase
                 .from('expenses' as any)
                 .select(`
                     expense_date, 
                     amount, 
                     chart_account:chart_of_accounts!chart_of_accounts_id(name),
-                    distribution_center_id
+                    distribution_center:distribution_centers!inner(franchisee_user_id)
                 `)
                 .gte('expense_date', dateStart)
                 .lte('expense_date', dateEnd);
 
-            if (filterCD) query = query.eq('distribution_center_id', filterCD);
+            if (filterCD) {
+                query = query.eq('distribution_center_id', filterCD);
+            } else {
+                query = query.eq('distribution_center.franchisee_user_id', user?.id);
+            }
 
             const { data, error } = await query;
             if (error) throw error;

@@ -90,10 +90,14 @@ export default function MetasPage() {
     const { data: goals = [], isLoading } = useQuery({
         queryKey: ['financial_goals'],
         queryFn: async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+
             const { data, error } = await supabase
                 .from('financial_goals' as any)
-                .select('*, distribution_center:distribution_centers!distribution_center_id(name)')
+                .select('*, distribution_center:distribution_centers!distribution_center_id(name, franchisee_user_id)')
+                .or(`franchisee_user_id.eq.${user?.id},distribution_center.franchisee_user_id.eq.${user?.id}`)
                 .order('created_at', { ascending: false });
+
             if (error) throw error;
             return data as any[];
         },
@@ -181,11 +185,14 @@ export default function MetasPage() {
         setIsCreateOpen(true);
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!title || !targetValue) {
             toast.error('Preencha título e valor da meta');
             return;
         }
+
+        const { data: { user } } = await supabase.auth.getUser();
+
         saveMutation.mutate({
             title,
             description: description || null,
@@ -195,6 +202,7 @@ export default function MetasPage() {
             start_date: startDate,
             end_date: endDate,
             distribution_center_id: selectedCD || null,
+            franchisee_user_id: user?.id,
             updated_at: new Date().toISOString(),
         });
     };

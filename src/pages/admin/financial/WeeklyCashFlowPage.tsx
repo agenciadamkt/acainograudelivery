@@ -54,15 +54,24 @@ export default function WeeklyCashFlowPage() {
     const { data: previousBalance = 0, refetch: refetchBalance } = useQuery({
         queryKey: ['cash_flow_previous_balance', dateStart, filterCD],
         queryFn: async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+
+            // Enforce franchisee isolation via inner join
+            const selectStr = 'balance, closing_date, distribution_center:distribution_centers!inner(franchisee_user_id)';
+
             // Find the last closing BEFORE the start date
             let query = supabase
                 .from('cash_closings' as any)
-                .select('balance, closing_date')
+                .select(selectStr)
                 .lt('closing_date', dateStart)
                 .order('closing_date', { ascending: false })
                 .limit(1);
 
-            if (filterCD) query = query.eq('distribution_center_id', filterCD);
+            if (filterCD) {
+                query = query.eq('distribution_center_id', filterCD);
+            } else {
+                query = query.eq('distribution_center.franchisee_user_id', user?.id);
+            }
 
             const { data, error } = await query;
             if (error) throw error;
@@ -75,13 +84,22 @@ export default function WeeklyCashFlowPage() {
     const { data: closings = [], isLoading: loadingClosings, refetch: refetchClosings } = useQuery({
         queryKey: ['cash_flow_closings', dateStart, dateEnd, filterCD],
         queryFn: async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+
+            // Enforce franchisee isolation via inner join
+            const selectStr = '*, distribution_center:distribution_centers!inner(franchisee_user_id)';
+
             let query = supabase
                 .from('cash_closings' as any)
-                .select('*')
+                .select(selectStr)
                 .gte('closing_date', dateStart)
                 .lte('closing_date', dateEnd);
 
-            if (filterCD) query = query.eq('distribution_center_id', filterCD);
+            if (filterCD) {
+                query = query.eq('distribution_center_id', filterCD);
+            } else {
+                query = query.eq('distribution_center.franchisee_user_id', user?.id);
+            }
 
             const { data, error } = await query;
             if (error) throw error;
@@ -93,16 +111,21 @@ export default function WeeklyCashFlowPage() {
     const { data: expenses = [], isLoading: loadingExpenses, refetch: refetchExpenses } = useQuery({
         queryKey: ['cash_flow_expenses', dateStart, dateEnd, filterCD, filterStatus],
         queryFn: async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            const selectStr = '*, cost_center:cost_centers!cost_center_id(name), distribution_center:distribution_centers!inner(franchisee_user_id)';
+
             let query = supabase
                 .from('expenses' as any)
-                .select(`
-                    *,
-                    cost_center:cost_centers!cost_center_id(name)
-                `)
+                .select(selectStr)
                 .gte('expense_date', dateStart)
                 .lte('expense_date', dateEnd);
 
-            if (filterCD) query = query.eq('distribution_center_id', filterCD);
+            if (filterCD) {
+                query = query.eq('distribution_center_id', filterCD);
+            } else {
+                query = query.eq('distribution_center.franchisee_user_id', user?.id);
+            }
+
 
             // Filter Status
             if (filterStatus === 'realized') query = query.eq('paid', true);

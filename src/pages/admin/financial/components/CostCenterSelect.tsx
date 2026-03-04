@@ -26,17 +26,20 @@ export default function CostCenterSelect({ value, onChange, distributionCenterId
     const { data: items = [] } = useQuery({
         queryKey: ['cost_centers', distributionCenterId],
         queryFn: async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+
             let query = supabase
                 .from('cost_centers' as any)
-                .select('*')
-                .eq('active', true)
-                .order('name');
+                .select('*, distribution_center:distribution_centers!inner(franchisee_user_id)')
+                .eq('active', true);
 
             if (distributionCenterId) {
                 query = query.eq('distribution_center_id', distributionCenterId);
+            } else {
+                query = query.eq('distribution_center.franchisee_user_id', user?.id);
             }
 
-            const { data, error } = await query;
+            const { data, error } = await query.order('name');
             if (error) throw error;
             return (data || []) as any[];
         },

@@ -35,11 +35,15 @@ export default function DistributionCenterSelect({ value, onChange, placeholder 
     const { data: centers = [], isLoading } = useQuery({
         queryKey: ['distribution_centers'],
         queryFn: async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+
             const { data, error } = await supabase
                 .from('distribution_centers' as any)
                 .select('*')
                 .eq('active', true)
+                .or(`franchisee_user_id.eq.${user?.id},franchisee_user_id.is.null`)
                 .order('name');
+
             if (error) throw error;
             return data as any[];
         },
@@ -47,9 +51,10 @@ export default function DistributionCenterSelect({ value, onChange, placeholder 
 
     const createMutation = useMutation({
         mutationFn: async (name: string) => {
+            const { data: { user } } = await supabase.auth.getUser();
             const { data, error } = await supabase
                 .from('distribution_centers' as any)
-                .insert({ name })
+                .insert({ name, franchisee_user_id: user?.id })
                 .select()
                 .single();
             if (error) throw error;

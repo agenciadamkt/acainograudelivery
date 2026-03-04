@@ -113,11 +113,6 @@ export default function FluxoCaixaPage() {
                 .eq('email', user.email)
                 .single();
 
-            // Master admin always has access
-            if (user.email === MASTER_EMAIL) {
-                return { authorized: true, isAdmin: true, role: 'admin', name: 'Master Admin' };
-            }
-
             if (access) {
                 const accessData = access as any;
                 return {
@@ -127,17 +122,25 @@ export default function FluxoCaixaPage() {
                 };
             }
 
+            // Fallback for known admins if not in table yet (but still authorized)
+            const isKnownAdmin = user.email === 'agenciadamkt@gmail.com' || user.email === 'acainograuwagner@gmail.com';
+            if (isKnownAdmin) {
+                return { authorized: true, isAdmin: true, role: 'admin', name: 'Administrador' };
+            }
+
             return null;
         }
     });
 
     const { data: centers = [] } = useQuery({
-        queryKey: ['distribution_centers'],
+        queryKey: ['distribution_centers_fluxo'],
         queryFn: async () => {
+            const { data: { user } } = await supabase.auth.getUser();
             const { data, error } = await supabase
                 .from('distribution_centers' as any)
                 .select('*')
                 .eq('active', true)
+                .eq('franchisee_user_id', user?.id)
                 .order('name');
             if (error) throw error;
             return data as any[];
@@ -152,11 +155,14 @@ export default function FluxoCaixaPage() {
     const { data: records, isLoading, refetch } = useQuery({
         queryKey: ['financial_records', statusFilter, typeFilter, dateStart, dateEnd, selectedCD],
         queryFn: async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+
             let query = supabase
                 .from('financial_records' as any)
                 .select(`
                     *,
-                    financial_clients (name)
+                    financial_clients (name),
+                    distribution_center:distribution_centers!inner(franchisee_user_id)
                 `)
                 .order('transaction_date', { ascending: false });
 
@@ -165,7 +171,12 @@ export default function FluxoCaixaPage() {
             if (typeFilter !== 'all') query = query.eq('transaction_type', typeFilter);
             if (dateStart) query = query.gte('transaction_date', dateStart);
             if (dateEnd) query = query.lte('transaction_date', dateEnd);
-            if (selectedCD) query = query.eq('distribution_center_id', selectedCD);
+
+            if (selectedCD) {
+                query = query.eq('distribution_center_id', selectedCD);
+            } else {
+                query = query.eq('distribution_center.franchisee_user_id', user?.id);
+            }
 
             const { data, error } = await query;
             if (error) throw error;

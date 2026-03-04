@@ -44,10 +44,12 @@ export default function CaixaPage() {
     const { data: accounts, isLoading: loadingAccounts } = useQuery({
         queryKey: ['financial_accounts'],
         queryFn: async () => {
+            const { data: { user } } = await supabase.auth.getUser();
             const { data, error } = await supabase
                 .from('financial_accounts' as any)
                 .select('*')
                 .eq('active', true)
+                .eq('franchisee_user_id', user?.id)
                 .order('name');
             if (error) throw error;
             return data as any[];
@@ -58,14 +60,16 @@ export default function CaixaPage() {
     const { data: transfers, isLoading: loadingTransfers } = useQuery({
         queryKey: ['financial_transfers_statement'],
         queryFn: async () => {
+            const { data: { user } } = await supabase.auth.getUser();
             const { data, error } = await supabase
                 .from('financial_transfers' as any)
                 .select(`
                     *,
-                    origin:financial_accounts!from_account_id(name),
-                    destination:financial_accounts!to_account_id(name)
+                    origin:financial_accounts!from_account_id(name, franchisee_user_id),
+                    destination:financial_accounts!to_account_id(name, franchisee_user_id)
                 `)
                 .order('created_at', { ascending: false })
+                .eq('origin.franchisee_user_id', user?.id)
                 .limit(20);
             if (error) throw error;
             return data as any[];

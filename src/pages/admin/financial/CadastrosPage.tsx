@@ -27,7 +27,8 @@ import {
     Users,
     Wallet,
     Landmark,
-    PiggyBank
+    PiggyBank,
+    Truck
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -58,9 +59,11 @@ function CrudSection({
     const { data: items = [], isLoading } = useQuery({
         queryKey: [queryKey],
         queryFn: async () => {
+            const { data: { user } } = await supabase.auth.getUser();
             const { data, error } = await supabase
                 .from(tableName as any)
                 .select('*')
+                .or(`franchisee_user_id.eq.${user?.id},franchisee_user_id.is.null`)
                 .order('name');
             if (error) throw error;
             return data as any[];
@@ -69,7 +72,8 @@ function CrudSection({
 
     const saveMutation = useMutation({
         mutationFn: async () => {
-            const payload: any = { name };
+            const { data: { user } } = await supabase.auth.getUser();
+            const payload: any = { name, franchisee_user_id: user?.id };
             if (hasAddress) payload.address = address;
 
             if (editItem) {
@@ -281,9 +285,12 @@ function FkCrudSection({
     const { data: items = [], isLoading } = useQuery({
         queryKey: [queryKey, filterParent],
         queryFn: async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+
             let query = supabase
                 .from(tableName as any)
                 .select('*, parent_rel:' + parentFkColumn + '(name)')
+                .or(`franchisee_user_id.eq.${user?.id},franchisee_user_id.is.null`)
                 .order('name');
 
             if (filterParent) {
@@ -298,7 +305,8 @@ function FkCrudSection({
 
     const saveMutation = useMutation({
         mutationFn: async () => {
-            const payload: any = { name, [parentFkColumn]: parentId };
+            const { data: { user } } = await supabase.auth.getUser();
+            const payload: any = { name, [parentFkColumn]: parentId, franchisee_user_id: user?.id };
 
             if (editItem) {
                 const { error } = await supabase
@@ -582,6 +590,7 @@ export default function CadastrosPage() {
                         />
                         <AccountsSection />
                         <ClientsSection />
+                        <SuppliersSection />
                     </div>
                 </TabsContent>
 
@@ -609,10 +618,14 @@ function ClientsSection() {
     const { data: items = [], isLoading } = useQuery({
         queryKey: ['financial_clients'],
         queryFn: async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+
             const { data, error } = await supabase
                 .from('financial_clients' as any)
                 .select('*')
+                .or(`created_by.eq.${user?.id},created_by.is.null`)
                 .order('name');
+
             if (error) throw error;
             return data as any[];
         },
@@ -759,10 +772,14 @@ function AccountsSection() {
     const { data: items = [], isLoading } = useQuery({
         queryKey: ['financial_accounts'],
         queryFn: async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+
             const { data, error } = await supabase
                 .from('financial_accounts' as any)
                 .select('*')
+                .or(`franchisee_user_id.eq.${user?.id},franchisee_user_id.is.null`)
                 .order('name');
+
             if (error) throw error;
             return data as any[];
         },
@@ -779,9 +796,10 @@ function AccountsSection() {
                     .eq('id', editItem.id);
                 if (error) throw error;
             } else {
+                const { data: { user } } = await supabase.auth.getUser();
                 const { error } = await supabase
                     .from('financial_accounts' as any)
-                    .insert(payload);
+                    .insert({ ...payload, franchisee_user_id: user?.id });
                 if (error) throw error;
             }
         },
@@ -921,6 +939,160 @@ function AccountsSection() {
                                     </button>
                                 ))}
                             </div>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+                        <Button
+                            onClick={() => saveMutation.mutate()}
+                            disabled={!name.trim() || saveMutation.isPending}
+                            className="bg-purple-600 hover:bg-purple-700 text-white"
+                        >
+                            {saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            {editItem ? 'Salvar' : 'Cadastrar'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </Card>
+    );
+}
+
+function SuppliersSection() {
+    const queryClient = useQueryClient();
+    const [dialogOpen, setDialogOpen] = useState(false);
+    const [editItem, setEditItem] = useState<any>(null);
+    const [name, setName] = useState('');
+    const [phone, setPhone] = useState('');
+
+    const { data: items = [], isLoading } = useQuery({
+        queryKey: ['financial_suppliers'],
+        queryFn: async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+
+            const { data, error } = await supabase
+                .from('financial_suppliers' as any)
+                .select('*')
+                .eq('franchisee_user_id', user?.id)
+                .order('name');
+
+            if (error) throw error;
+            return data as any[];
+        },
+    });
+
+    const saveMutation = useMutation({
+        mutationFn: async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            const payload: any = { name, phone };
+            if (!user) throw new Error('User not found');
+
+            if (editItem) {
+                const { error } = await supabase
+                    .from('financial_suppliers' as any)
+                    .update(payload)
+                    .eq('id', editItem.id);
+                if (error) throw error;
+            } else {
+                const { error } = await supabase
+                    .from('financial_suppliers' as any)
+                    .insert({ ...payload, created_by: user.id, franchisee_user_id: user.id });
+                if (error) throw error;
+            }
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['financial_suppliers'] });
+            toast.success(editItem ? 'Atualizado!' : 'Cadastrado!');
+            setDialogOpen(false);
+            setEditItem(null);
+            setName('');
+            setPhone('');
+        },
+        onError: (e: any) => toast.error('Erro: ' + e.message),
+    });
+
+    const openNew = () => {
+        setEditItem(null);
+        setName('');
+        setPhone('');
+        setDialogOpen(true);
+    };
+
+    const openEdit = (item: any) => {
+        setEditItem(item);
+        setName(item.name);
+        setPhone(item.phone || '');
+        setDialogOpen(true);
+    };
+
+    return (
+        <Card className="bg-white dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] shadow-sm">
+            <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2 text-base font-semibold text-gray-900 dark:text-white">
+                        <Truck className="h-5 w-5 text-purple-500" />
+                        Fornecedores
+                    </CardTitle>
+                    <Button
+                        size="sm"
+                        onClick={openNew}
+                        className="bg-purple-600 hover:bg-purple-700 text-white h-8"
+                    >
+                        <Plus className="mr-1 h-3.5 w-3.5" />
+                        Novo
+                    </Button>
+                </div>
+            </CardHeader>
+            <CardContent className="p-0">
+                <div className="divide-y divide-gray-50 dark:divide-white/[0.03]">
+                    {isLoading && <div className="px-4 py-6 text-center text-gray-400 font-medium">Carregando...</div>}
+                    {!isLoading && items.length === 0 && <div className="px-4 py-6 text-center text-gray-400">Nenhum fornecedor encontrado</div>}
+                    {items.slice(0, 10).map((item: any) => (
+                        <div key={item.id} className="flex items-center justify-between px-4 py-3 hover:bg-gray-50/50 dark:hover:bg-white/[0.02] transition-colors">
+                            <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-lg bg-orange-100 dark:bg-orange-900/20 flex items-center justify-center">
+                                    <Truck className="h-4 w-4 text-orange-600" />
+                                </div>
+                                <div className="flex flex-col">
+                                    <p className="text-sm font-medium text-gray-900 dark:text-white">{item.name}</p>
+                                    <p className="text-[11px] text-gray-400 dark:text-white/30">{item.phone || 'Sem telefone'}</p>
+                                </div>
+                            </div>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => openEdit(item)}>
+                                <Edit2 className="h-3.5 w-3.5 text-gray-400" />
+                            </Button>
+                        </div>
+                    ))}
+                    {items.length > 10 && (
+                        <div className="px-4 py-2 text-center">
+                            <p className="text-[10px] text-gray-400 italic">E mais {items.length - 10} fornecedores...</p>
+                        </div>
+                    )}
+                </div>
+            </CardContent>
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                <DialogContent className="sm:max-w-[400px] bg-white dark:bg-[#1A1A24] border-gray-200 dark:border-white/10">
+                    <DialogHeader>
+                        <DialogTitle>{editItem ? 'Editar Fornecedor' : 'Novo Fornecedor'}</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-2">
+                        <div>
+                            <label className="text-sm font-medium text-gray-700 dark:text-white/70 mb-1.5 block">Nome</label>
+                            <Input
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                placeholder="Nome do fornecedor"
+                                className="bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium text-gray-700 dark:text-white/70 mb-1.5 block">Telefone</label>
+                            <Input
+                                value={phone}
+                                onChange={(e) => setPhone(e.target.value)}
+                                placeholder="Telefone (opcional)"
+                                className="bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10"
+                            />
                         </div>
                     </div>
                     <DialogFooter>

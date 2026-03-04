@@ -49,18 +49,21 @@ export default function FinancialDashboard() {
     const { data: closings } = useQuery({
         queryKey: ['financial_dashboard', selectedCD],
         queryFn: async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+
+            // Enforce franchisee isolation via inner join
+            const selectStr = `*, distribution_center:distribution_centers!inner(name, franchisee_user_id), operator:cash_operators!operator_id(name)`;
+
             let query = supabase
                 .from('cash_closings' as any)
-                .select(`
-                    *,
-                    distribution_center:distribution_centers!distribution_center_id(name),
-                    operator:cash_operators!operator_id(name)
-                `)
+                .select(selectStr)
                 .gte('closing_date', startOfMonthDate)
                 .order('closing_date', { ascending: false });
 
             if (selectedCD) {
                 query = query.eq('distribution_center_id', selectedCD);
+            } else {
+                query = query.eq('distribution_center.franchisee_user_id', user?.id);
             }
 
             const { data, error } = await query;
@@ -76,13 +79,20 @@ export default function FinancialDashboard() {
     const { data: expensesData } = useQuery({
         queryKey: ['financial_dashboard_expenses', selectedCD],
         queryFn: async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+
+            // Enforce franchisee isolation via inner join
+            const selectStr = `amount, expense_type, expense_date, paid_with_cash_balance, paid, distribution_center:distribution_centers!inner(franchisee_user_id)`;
+
             let query = supabase
                 .from('expenses' as any)
-                .select('amount, expense_type, expense_date, paid_with_cash_balance, paid')
+                .select(selectStr)
                 .gte('expense_date', startOfMonthDate);
 
             if (selectedCD) {
                 query = query.eq('distribution_center_id', selectedCD);
+            } else {
+                query = query.eq('distribution_center.franchisee_user_id', user?.id);
             }
 
             const { data, error } = await query;
@@ -95,6 +105,7 @@ export default function FinancialDashboard() {
     const { data: activeGoal } = useQuery({
         queryKey: ['active_revenue_goal', selectedCD],
         queryFn: async () => {
+            const { data: { user } } = await supabase.auth.getUser();
             const now = new Date();
             const startOfMonthDate = format(new Date(now.getFullYear(), now.getMonth(), 1), 'yyyy-MM-dd');
             const endOfMonthDate = format(new Date(now.getFullYear(), now.getMonth() + 1, 0), 'yyyy-MM-dd');
@@ -104,6 +115,7 @@ export default function FinancialDashboard() {
                 .select('*')
                 .eq('status', 'active')
                 .eq('goal_type', 'revenue')
+                .eq('franchisee_user_id', user?.id)
                 .lte('start_date', endOfMonthDate)
                 .gte('end_date', startOfMonthDate)
                 .order('created_at', { ascending: false })
@@ -123,10 +135,14 @@ export default function FinancialDashboard() {
     const { data: accounts } = useQuery({
         queryKey: ['financial_accounts_dashboard'],
         queryFn: async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+
             const { data, error } = await supabase
                 .from('financial_accounts' as any)
                 .select('name, balance')
-                .eq('active', true);
+                .eq('active', true)
+                .eq('franchisee_user_id', user?.id);
+
             if (error) throw error;
             return data as any[];
         },
