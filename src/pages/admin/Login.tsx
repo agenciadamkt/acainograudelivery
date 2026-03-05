@@ -131,13 +131,6 @@ export default function Login() {
             </Button>
           </form>
 
-          {/* Footer */}
-          <div className="text-center text-gray-600 font-medium">
-            Primeiro acesso? {' '}
-            <Link to="/admin/signup" className="text-[#6E56CF] hover:underline font-bold">
-              Criar conta
-            </Link>
-          </div>
 
         </div>
       </div>
