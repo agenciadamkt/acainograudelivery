@@ -29,7 +29,7 @@ import logoCircular from '@/assets/logo-circular.png';
 /* ─── Sidebar Navigation Items ─── */
 const navItems = [
     { label: 'Dashboard', path: '/admin/financeiro', icon: LayoutDashboard, end: true },
-    { label: 'Lançamentos', path: '/admin/financeiro/lancamentos', icon: Receipt },
+    { label: 'PixPag', path: '/admin/financeiro/lancamentos', icon: Receipt },
     { label: 'Cadastros', path: '/admin/financeiro/cadastros', icon: FolderOpen },
     { label: 'Fechamento de Caixa', path: '/admin/financeiro/fluxo', icon: TrendingUp },
     { label: 'Fluxo Semanal', path: '/admin/financeiro/fluxo-semanal', icon: CalendarRange },
@@ -204,7 +204,9 @@ export default function FinancialLayout() {
                 {/* Desktop Header */}
                 {!isMobile && (
                     <header className="flex items-center justify-between px-8 h-16 bg-white/60 dark:bg-[#16161D]/60 backdrop-blur-xl border-b border-gray-200 dark:border-white/[0.06] sticky top-0 z-20">
-                        <h1 className="text-xl font-bold text-gray-900 dark:text-white">{currentPageTitle}</h1>
+                        <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+                            {currentPageTitle === 'PixPag' ? 'Lançamentos PixPag' : currentPageTitle}
+                        </h1>
                         <div className="flex items-center gap-4">
                             <button className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
                                 <Search className="h-5 w-5 text-gray-400" />
