@@ -404,7 +404,7 @@ export default function FluxoCaixaPage() {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
                     <div>
                         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Lançamentos PixPag</h1>
-                        <p className="text-sm text-gray-500 dark:text-white/40">Gestão financeira e lançamentos PixPag</p>
+                        <p className="text-sm text-gray-500 dark:text-white/40">Lançamentos PixPag Gestão financeira e lançamentos</p>
                     </div>
                     <div className="flex items-center gap-3">
 
