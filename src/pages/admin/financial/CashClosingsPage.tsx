@@ -14,6 +14,7 @@ import {
     Edit2,
     FileText,
     ImageIcon,
+    Download,
 } from 'lucide-react';
 import { format, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -21,6 +22,9 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import CashClosingFormDialog from './components/CashClosingFormDialog';
 import DistributionCenterSelect from './components/DistributionCenterSelect';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { addPdfBranding } from './utils/pdfBranding';
 
 const formatBRL = (val: number) =>
     val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -84,6 +88,106 @@ export default function CashClosingsPage() {
         setIsFormOpen(true);
     };
 
+    const handleExportPDF = async () => {
+        const doc = new jsPDF();
+        let currentY = await addPdfBranding(doc);
+
+        // Título
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Relatório de Fechamento de Caixa', 14, currentY + 5);
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(107, 114, 128);
+        doc.text(
+            `Período: ${format(new Date(dateStart + 'T12:00:00'), 'dd/MM/yyyy')} a ${format(new Date(dateEnd + 'T12:00:00'), 'dd/MM/yyyy')}`,
+            14,
+            currentY + 12
+        );
+        doc.setTextColor(0, 0, 0);
+        currentY += 20;
+
+        if (closings.length === 0) {
+            doc.setFontSize(11);
+            doc.text('Nenhum fechamento encontrado no período.', 14, currentY + 5);
+            doc.save('fechamento-de-caixa.pdf');
+            return;
+        }
+
+        // Tabela principal
+        const tableData = closings.map((c: any) => [
+            format(new Date(c.closing_date + 'T12:00:00'), 'dd/MM/yyyy'),
+            c.distribution_center?.name || '—',
+            formatBRL(Number(c.total_sales || 0)),
+            formatBRL(Number(c.total_cash || 0)),
+            formatBRL(Number(c.total_expenses || 0)),
+            formatBRL(Number(c.balance || 0)),
+            c.operator?.name || '—',
+        ]);
+
+        autoTable(doc, {
+            head: [['Data', 'CD', 'Vendas', 'Dinheiro', 'Saídas', 'Saldo', 'Operador']],
+            body: tableData,
+            startY: currentY,
+            theme: 'grid',
+            styles: { fontSize: 8, cellPadding: 3 },
+            headStyles: { fillColor: [107, 76, 154], textColor: 255, fontStyle: 'bold' },
+            alternateRowStyles: { fillColor: [248, 247, 252] },
+            columnStyles: {
+                2: { halign: 'right', textColor: [5, 150, 105] },
+                3: { halign: 'right' },
+                4: { halign: 'right', textColor: [239, 68, 68] },
+                5: { halign: 'right', fontStyle: 'bold' },
+            },
+            margin: { left: 14, right: 14 },
+        });
+
+        currentY = (doc as any).lastAutoTable.finalY + 6;
+
+        // Totais
+        doc.setDrawColor(200, 200, 200);
+        doc.line(14, currentY, doc.internal.pageSize.getWidth() - 14, currentY);
+        currentY += 7;
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text('TOTAIS NO PERÍODO', 14, currentY);
+        currentY += 6;
+
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        const totalLines = [
+            ['Total Vendas:', formatBRL(totals.sales), [5, 150, 105]],
+            ['Total Dinheiro:', formatBRL(totals.cash), [0, 0, 0]],
+            ['Total Saídas:', formatBRL(totals.expenses), [239, 68, 68]],
+            ['Saldo Final:', formatBRL(totals.balance), totals.balance >= 0 ? [5, 150, 105] : [239, 68, 68]],
+        ];
+
+        totalLines.forEach(([label, value, color]: any) => {
+            doc.setTextColor(100, 100, 100);
+            doc.text(label, 14, currentY);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(color[0], color[1], color[2]);
+            doc.text(value, 70, currentY);
+            doc.setFont('helvetica', 'normal');
+            currentY += 5;
+        });
+
+        // Rodapé
+        currentY += 5;
+        doc.setFontSize(7);
+        doc.setTextColor(160, 160, 160);
+        doc.text(
+            `Gerado em ${format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })} • GrauOS — Sistema Operacional da Franquia`,
+            14,
+            currentY
+        );
+
+        doc.setTextColor(0, 0, 0);
+        doc.save(`fechamento-caixa-${dateStart}-a-${dateEnd}.pdf`);
+    };
+
     return (
         <div className="p-4 lg:p-8 space-y-6">
             {/* Header */}
@@ -92,13 +196,24 @@ export default function CashClosingsPage() {
                     <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Fechamento de Caixa</h1>
                     <p className="text-sm text-gray-500 dark:text-white/40">Fechamentos de caixa consolidados</p>
                 </div>
-                <Button
-                    onClick={handleNew}
-                    className="bg-purple-600 hover:bg-purple-700 text-white"
-                >
-                    <Plus className="mr-2 h-4 w-4" />
-                    Novo Fechamento
-                </Button>
+                <div className="flex items-center gap-3">
+                    <Button
+                        onClick={handleExportPDF}
+                        variant="outline"
+                        disabled={closings.length === 0}
+                        className="gap-2 bg-white dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-700 dark:text-white hover:bg-purple-50 dark:hover:bg-purple-500/10 hover:text-purple-700 dark:hover:text-purple-400 hover:border-purple-200 dark:hover:border-purple-500/20 transition-colors"
+                    >
+                        <Download className="h-4 w-4" />
+                        Exportar PDF
+                    </Button>
+                    <Button
+                        onClick={handleNew}
+                        className="bg-purple-600 hover:bg-purple-700 text-white"
+                    >
+                        <Plus className="mr-2 h-4 w-4" />
+                        Novo Fechamento
+                    </Button>
+                </div>
             </div>
 
             {/* Filters */}
