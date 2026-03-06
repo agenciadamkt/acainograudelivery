@@ -247,7 +247,14 @@ serve(async (req) => {
       parts: [{ text: (index === messages.length - 1 && contextPrefix) ? msg.content + contextPrefix : msg.content }]
     }));
 
-    const callGemini = async (contents: any[], useTools = true) => {
+    // Modelos em ordem de preferência (cada um tem cota separada)
+    const MODELS = [
+      'gemini-2.0-flash',
+      'gemini-2.0-flash-lite',
+      'gemini-2.5-flash-lite-preview-06-17',
+    ];
+
+    const callGeminiWithModel = async (model: string, contents: any[], useTools: boolean): Promise<Response> => {
       const body: any = {
         system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
         contents,
@@ -259,21 +266,56 @@ serve(async (req) => {
         body.tool_config = { function_calling_config: { mode: "AUTO" } };
       }
 
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key=${geminiApiKey}`,
+      return fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body)
         }
       );
+    };
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Gemini API error:", errorText);
-        throw new Error(`Erro na API do Gemini (${response.status}): ${errorText}`);
+    const callGemini = async (contents: any[], useTools = true): Promise<any> => {
+      let lastError = '';
+
+      for (const model of MODELS) {
+        try {
+          console.log(`Tentando modelo: ${model}`);
+          const response = await callGeminiWithModel(model, contents, useTools);
+
+          if (response.status === 429) {
+            console.warn(`Rate limit para ${model}, tentando próximo modelo...`);
+            lastError = `Modelo ${model} com cota esgotada.`;
+            continue; // tenta o próximo modelo
+          }
+
+          if (response.status === 404) {
+            console.warn(`Modelo ${model} não encontrado, tentando próximo...`);
+            continue;
+          }
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`Erro ${model}:`, errorText);
+            lastError = errorText;
+            continue;
+          }
+
+          console.log(`Sucesso com modelo: ${model}`);
+          return response.json();
+        } catch (e: any) {
+          console.error(`Exceção com ${model}:`, e.message);
+          lastError = e.message;
+          continue;
+        }
       }
-      return response.json();
+
+      // Todos os modelos falharam
+      throw new Error(
+        'Nosso cérebro está descansando! 🧠💤 Muitas consultas foram feitas em pouco tempo. ' +
+        'Aguarde 1 minuto e tente novamente. (' + lastError + ')'
+      );
     };
 
     // ── Primeira chamada ──
