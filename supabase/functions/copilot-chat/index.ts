@@ -54,8 +54,8 @@ serve(async (req) => {
       parts: [{ text: msg.content }]
     }));
 
-    // Chamada REST para a API do Gemini 1.5 Flash (Tier rápido e gratuito para testes)
-    const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
+    // Chamada REST para a API do Gemini Flash Lite (Tier rápido e gratuito para testes)
+    const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key=${geminiApiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
