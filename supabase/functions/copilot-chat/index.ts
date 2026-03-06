@@ -6,17 +6,17 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// System Prompt Base
 const SYSTEM_PROMPT = `
 Você é o Gerente Virtual do sistema GrauOS — Açaí no Grau.
-Sua missão é atuar de forma analítica, prestativa e estratégica, ajudando o franqueado a entender seus dados financeiros, de estoque e de vendas.
+Você tem acesso DIRETO ao banco de dados da loja por meio de ferramentas (tools).
 
-REGRAS GERAIS:
-1. NUNCA invente dados de caixa, vendas ou estoque. Use as ferramentas (tools) disponíveis para checar a informação real do banco de dados quando necessário. Se a ferramenta não retornar o dado, informe que não tem acesso a esse dado no momento.
-2. Seu tom de voz é profissional mas acessível, encorajador e consultivo.
-3. Responda de forma clara, preferencialmente usando parágrafos curtos e marcadores (bullet points) para dados numéricos.
-4. Quando perguntado sobre valores financeiros reais obtidos pelas tools, formate como moeda (R$ 0,00).
-5. Como você se chama apenas "Gerente Virtual", não precisa ficar se apresentando a cada resposta.
+INSTRUÇÕES CRÍTICAS:
+1. Quando o usuário perguntar QUALQUER coisa sobre saldo, caixa, financeiro, despesas, receitas, contas a receber, balanço ou dinheiro, você DEVE chamar a ferramenta get_financial_kpis IMEDIATAMENTE. Nunca pergunte antes — apenas chame a ferramenta.
+2. NUNCA invente valores. Use SOMENTE os dados retornados pelas ferramentas.
+3. Seu tom é profissional, acessível e consultivo.
+4. Formate valores financeiros como moeda brasileira (R$ 0,00).
+5. Use parágrafos curtos e bullet points para organizar dados numéricos.
+6. Não se apresente a cada resposta.
 `;
 
 const tools = [
@@ -24,10 +24,11 @@ const tools = [
     functionDeclarations: [
       {
         name: "get_financial_kpis",
-        description: "Obtém os KPIs financeiros atuais: Balanço total, Saldo em caixa, Recebíveis pendentes e Despesas totais",
+        description: "Busca os KPIs financeiros atuais do banco de dados da loja: saldo total em contas, despesas pendentes e contas a receber pendentes. SEMPRE use esta ferramenta quando o usuário perguntar sobre saldo, caixa, financeiro, despesas, receitas ou dinheiro.",
         parameters: {
           type: "OBJECT",
-          properties: {}
+          properties: {},
+          required: []
         }
       }
     ]
@@ -55,96 +56,139 @@ serve(async (req) => {
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
     if (!geminiApiKey) throw new Error("GEMINI_API_KEY não configurada.");
 
-    let geminiContents = messages.map((msg: any) => ({
+    const geminiContents = messages.map((msg: any) => ({
       role: msg.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: msg.content }]
     }));
 
     // Função auxiliar para chamar o Gemini
-    const callGemini = async (contents: any[]) => {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key=${geminiApiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          system_instruction: { parts: { text: SYSTEM_PROMPT } },
-          contents,
-          tools,
-          generationConfig: { temperature: 0.2, maxOutputTokens: 800 }
-        })
-      });
+    const callGemini = async (contents: any[], useTools = true) => {
+      const body: any = {
+        system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+        contents,
+        generationConfig: { temperature: 0.2, maxOutputTokens: 1024 }
+      };
+
+      if (useTools) {
+        body.tools = tools;
+        // Força o modelo a preferir usar tools quando disponíveis
+        body.tool_config = { function_calling_config: { mode: "AUTO" } };
+      }
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key=${geminiApiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        }
+      );
 
       if (!response.ok) {
-        throw new Error(`Erro na API do Gemini: ${response.status} - ${await response.text()}`);
+        const errorText = await response.text();
+        console.error("Gemini API error:", errorText);
+        throw new Error(`Erro na API do Gemini (${response.status}): ${errorText}`);
       }
       return response.json();
     };
 
+    // ── Primeira chamada ao Gemini ──
     let geminiData = await callGemini(geminiContents);
     let candidate = geminiData.candidates?.[0]?.content;
-    let assistantPart = candidate?.parts?.[0];
+    let parts = candidate?.parts || [];
 
-    // Se o Gemini decidir usar a ferramenta
-    if (assistantPart?.functionCall) {
-      const functionName = assistantPart.functionCall.name;
+    // Verificar se alguma part contém functionCall
+    const functionCallPart = parts.find((p: any) => p.functionCall);
 
-      let functionResponseData = {};
+    if (functionCallPart) {
+      const functionName = functionCallPart.functionCall.name;
+      console.log(`Tool chamada: ${functionName}`);
+
+      let toolResult: any = {};
 
       if (functionName === "get_financial_kpis") {
-        // Consultar dados do Supabase
-        const { data: accounts } = await supabaseClient.from('accounts').select('balance');
-        const { data: expenses } = await supabaseClient.from('expenses').select('amount').eq('status', 'PENDING');
-        const { data: receivables } = await supabaseClient.from('accounts_receivable').select('amount').eq('status', 'PENDING');
+        const { data: accounts, error: e1 } = await supabaseClient
+          .from('financial_accounts')
+          .select('name, balance');
 
-        const totalBalance = (accounts || []).reduce((acc, obj) => acc + Number(obj.balance || 0), 0);
-        const totalPendingExpenses = (expenses || []).reduce((acc, obj) => acc + Number(obj.amount || 0), 0);
-        const totalPendingReceivables = (receivables || []).reduce((acc, obj) => acc + Number(obj.amount || 0), 0);
+        const { data: expenses, error: e2 } = await supabaseClient
+          .from('expenses')
+          .select('amount')
+          .eq('paid', false);
 
-        functionResponseData = {
-          total_balance: totalBalance,
-          total_pending_expenses: totalPendingExpenses,
-          total_pending_receivables: totalPendingReceivables,
+        const { data: receivables, error: e3 } = await supabaseClient
+          .from('accounts_receivable')
+          .select('amount')
+          .eq('paid', false);
+
+        if (e1) console.error("Erro accounts:", e1.message);
+        if (e2) console.error("Erro expenses:", e2.message);
+        if (e3) console.error("Erro receivables:", e3.message);
+
+        const totalBalance = (accounts || []).reduce((s: number, a: any) => s + Number(a.balance || 0), 0);
+        const totalPendingExpenses = (expenses || []).reduce((s: number, e: any) => s + Number(e.amount || 0), 0);
+        const totalPendingReceivables = (receivables || []).reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+
+        // Lista de contas individuais
+        const accountsList = (accounts || []).map((a: any) => ({
+          nome: a.name,
+          saldo: Number(a.balance || 0)
+        }));
+
+        toolResult = {
+          saldo_total_em_contas: totalBalance,
+          despesas_pendentes: totalPendingExpenses,
+          contas_a_receber_pendentes: totalPendingReceivables,
+          contas_detalhadas: accountsList,
+          data_consulta: new Date().toISOString()
         };
-      } else {
-        functionResponseData = { error: "Unknown function" };
       }
 
-      // Adicionamos a chamada na conversa do bot
-      geminiContents.push({
-        role: "model",
-        parts: [{ functionCall: assistantPart.functionCall }]
-      });
+      // Montar a conversa com a resposta da tool
+      const updatedContents = [
+        ...geminiContents,
+        {
+          role: "model",
+          parts: [{ functionCall: functionCallPart.functionCall }]
+        },
+        {
+          role: "user",
+          parts: [{
+            functionResponse: {
+              name: functionName,
+              response: toolResult
+            }
+          }]
+        }
+      ];
 
-      // E adicionamos a resposta do sistema com o resultado real do bd
-      geminiContents.push({
-        role: "function",
-        parts: [{
-          functionResponse: {
-            name: functionName,
-            response: { name: functionName, content: functionResponseData }
-          }
-        }]
-      });
-
-      // Segunda chamada ao Gemini para ele interpretar os dados
-      geminiData = await callGemini(geminiContents);
+      // Segunda chamada: Gemini interpreta os dados
+      geminiData = await callGemini(updatedContents, false);
       candidate = geminiData.candidates?.[0]?.content;
-      assistantPart = candidate?.parts?.[0];
+      parts = candidate?.parts || [];
     }
 
-    const finalResponse = {
-      role: 'assistant',
-      content: assistantPart?.text || "Desculpe, não consegui processar essa informação."
-    };
+    // Extrair texto da resposta final
+    const textPart = parts.find((p: any) => p.text);
 
-    return new Response(JSON.stringify(finalResponse), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200,
-    });
+    return new Response(
+      JSON.stringify({
+        role: 'assistant',
+        content: textPart?.text || "Desculpe, não consegui processar essa informação."
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      }
+    );
   } catch (error: any) {
     console.error("Erro no Copilot:", error.message);
-    return new Response(JSON.stringify({ error: error.message }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 400,
-    });
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
+      }
+    );
   }
 });

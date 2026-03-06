@@ -57,19 +57,39 @@ export default function CopilotPanel() {
         setInputValue('');
 
         try {
-            // Chama a Edge Function 'copilot-chat' passando o histórico
-            const { data, error } = await supabase.functions.invoke('copilot-chat', {
-                body: {
-                    messages: conversationHistory
-                }
+            // Chamada direta via fetch para controle total de erro e autenticação
+            const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+            const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+            // Pega o token de sessão do usuário logado (se existir)
+            const { data: sessionData } = await supabase.auth.getSession();
+            const accessToken = sessionData?.session?.access_token;
+
+            const response = await fetch(`${supabaseUrl}/functions/v1/copilot-chat`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'apikey': supabaseKey,
+                    ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {})
+                },
+                body: JSON.stringify({
+                    messages: conversationHistory.map(m => ({
+                        role: m.role,
+                        content: m.content
+                    }))
+                })
             });
 
-            if (error) throw error; // Captura erro da edge function caso a API Key do Gemini não responda, entre outros
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data?.error || `Erro do servidor (${response.status})`);
+            }
 
             if (data && data.content) {
                 const assistantMessage: CopilotMessage = {
                     id: Date.now().toString(),
-                    role: 'assistant', // ou a role que vier do backend
+                    role: 'assistant',
                     content: data.content,
                     timestamp: new Date()
                 };
@@ -80,7 +100,7 @@ export default function CopilotPanel() {
             const errorMessage: CopilotMessage = {
                 id: Date.now().toString(),
                 role: 'assistant',
-                content: 'Houve um erro de conexão com o meu cérebro (Motor de IA). Verifique as chaves e os logs do Supabase. Erro: ' + (err?.message || 'Erro Desconhecido'),
+                content: 'Houve um erro de conexão com o meu cérebro (Motor de IA). Detalhe: ' + (err?.message || 'Erro Desconhecido'),
                 timestamp: new Date()
             };
             setMessages(prev => [...prev, errorMessage]);
