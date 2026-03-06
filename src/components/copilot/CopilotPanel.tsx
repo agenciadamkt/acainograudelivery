@@ -172,120 +172,130 @@ function useSpeechRecognition() {
     return { isListening, transcript, startListening, stopListening };
 }
 
-// ─── Seletor inteligente de voz feminina pt-BR ───
-// Pré-carrega vozes (necessário em alguns browsers)
-if ('speechSynthesis' in window) {
-    window.speechSynthesis.getVoices();
-    window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
-}
+// ─── TTS Neural: Voz feminina humana (Microsoft Francisca Neural) ───
+// Usa a API gratuita de TTS neural da Microsoft via StreamElements
+// Voz: pt-BR-FranciscaNeural — a mais humana disponível em pt-BR
 
-function getBestFemaleVoice(): SpeechSynthesisVoice | null {
-    const voices = window.speechSynthesis.getVoices();
-    if (!voices.length) return null;
+let currentAudio: HTMLAudioElement | null = null;
 
-    // Nomes conhecidos de vozes femininas premium em pt-BR (por browser/OS)
-    const preferredNames = [
-        // macOS / iOS — vozes premium Apple
-        'Luciana',           // pt-BR feminina (macOS)
-        'Fernanda',          // pt-BR feminina premium
-        // Microsoft Edge — vozes neurais
-        'Francisca',         // pt-BR Neural feminina (Edge)
-        'FranciscaNeural',
-        'Microsoft Francisca Online',
-        'Thalita',           // pt-BR Neural feminina (Edge)
-        'ThalitaNeural',
-        // Google Chrome
-        'Google português do Brasil',
-        // Genéricas femininas
-        'Raquel',
-        'Vitoria',
-        'Joana',
-    ];
-
-    // Score: quanto maior, melhor a voz
-    const scoreVoice = (v: SpeechSynthesisVoice): number => {
-        let score = 0;
-        const name = v.name.toLowerCase();
-        const lang = v.lang.toLowerCase();
-
-        // Deve ser pt-BR ou pt
-        if (lang === 'pt-br') score += 50;
-        else if (lang.startsWith('pt')) score += 20;
-        else return -1; // ignora vozes não-português
-
-        // Vozes "premium" / "enhanced" / "neural"
-        if (name.includes('neural')) score += 40;
-        if (name.includes('premium')) score += 35;
-        if (name.includes('enhanced')) score += 30;
-        if (name.includes('online')) score += 15;
-
-        // Vozes com nomes femininos conhecidos
-        for (const pref of preferredNames) {
-            if (name.includes(pref.toLowerCase())) {
-                score += 60;
-                break;
-            }
-        }
-
-        // Vozes femininas (heurística: nomes femininos comuns terminam em 'a')
-        const voiceFirstName = v.name.split(/[\s\-_()]/)[0].toLowerCase();
-        const femaleIndicators = ['a', 'ana', 'ela', 'ina', 'cia', 'ita'];
-        if (femaleIndicators.some(suf => voiceFirstName.endsWith(suf))) score += 25;
-
-        // Penaliza vozes masculinas conhecidas
-        const maleNames = ['daniel', 'antonio', 'hortencio', 'jorge'];
-        if (maleNames.some(m => name.includes(m))) score -= 50;
-
-        // Bonus por ser localVoice (não necessita rede)
-        if (v.localService) score += 5;
-
-        return score;
-    };
-
-    const scored = voices
-        .map(v => ({ voice: v, score: scoreVoice(v) }))
-        .filter(v => v.score > 0)
-        .sort((a, b) => b.score - a.score);
-
-    return scored.length > 0 ? scored[0].voice : null;
-}
-
-function speakText(text: string, onEnd?: () => void) {
-    if (!('speechSynthesis' in window)) return;
-    window.speechSynthesis.cancel();
-
-    // Limpa markdown e formatação para fala natural
-    const cleanText = text
-        .replace(/\*\*(.+?)\*\*/g, '$1')
-        .replace(/\*(.+?)\*/g, '$1')
-        .replace(/^[\*\-]\s+/gm, '. ')
-        .replace(/^\d+\.\s+/gm, '. ')
-        .replace(/R\$\s*/g, 'reais ')
-        .replace(/\n{2,}/g, '. ')
-        .replace(/\n/g, '. ')
+function cleanTextForSpeech(text: string): string {
+    return text
+        .replace(/\*\*(.+?)\*\*/g, '$1')       // Remove bold markdown
+        .replace(/\*(.+?)\*/g, '$1')            // Remove italic markdown
+        .replace(/^[\*\-]\s+/gm, '')            // Remove bullet points
+        .replace(/^\d+\.\s+/gm, '')             // Remove numbered lists
+        .replace(/R\$\s*/g, 'R$ ')              // Normaliza "R$"
+        .replace(/\n{2,}/g, '. ')               // Quebras duplas → pausa
+        .replace(/\n/g, '. ')                   // Quebra simples → pausa
+        .replace(/\s{2,}/g, ' ')                // Remove espaços extras
         .trim();
+}
 
-    // Quebra em sentenças para fala mais natural (pausa entre frases)
-    const sentences = cleanText.split(/(?<=[.!?])\s+/).filter(s => s.trim());
+// Quebra texto longo em chunks de até 200 caracteres (limite da API)
+function chunkText(text: string, maxLen = 195): string[] {
+    if (text.length <= maxLen) return [text];
 
-    const bestVoice = getBestFemaleVoice();
+    const chunks: string[] = [];
+    const sentences = text.split(/(?<=[.!?;,:])\s+/);
+    let current = '';
 
-    sentences.forEach((sentence, i) => {
-        const utterance = new SpeechSynthesisUtterance(sentence.trim());
-        utterance.lang = 'pt-BR';
-        utterance.rate = 1.0;    // velocidade natural
-        utterance.pitch = 1.1;   // levemente agudo = feminino
-        utterance.volume = 1.0;
+    for (const sentence of sentences) {
+        if ((current + ' ' + sentence).trim().length > maxLen) {
+            if (current.trim()) chunks.push(current.trim());
+            // Se a sentença sozinha é maior que maxLen, divide por palavras
+            if (sentence.length > maxLen) {
+                const words = sentence.split(' ');
+                let wordChunk = '';
+                for (const word of words) {
+                    if ((wordChunk + ' ' + word).trim().length > maxLen) {
+                        if (wordChunk.trim()) chunks.push(wordChunk.trim());
+                        wordChunk = word;
+                    } else {
+                        wordChunk = (wordChunk + ' ' + word).trim();
+                    }
+                }
+                if (wordChunk.trim()) current = wordChunk;
+                else current = '';
+            } else {
+                current = sentence;
+            }
+        } else {
+            current = (current + ' ' + sentence).trim();
+        }
+    }
+    if (current.trim()) chunks.push(current.trim());
+    return chunks;
+}
 
-        if (bestVoice) utterance.voice = bestVoice;
+async function speakWithNeuralVoice(text: string, onEnd?: () => void): Promise<boolean> {
+    try {
+        const chunks = chunkText(text);
 
-        // onEnd no último chunk
-        if (i === sentences.length - 1 && onEnd) {
-            utterance.onend = onEnd;
+        for (let i = 0; i < chunks.length; i++) {
+            const chunk = chunks[i];
+            const encodedText = encodeURIComponent(chunk);
+            const url = `https://api.streamelements.com/kappa/v2/speech?voice=pt-BR-FranciscaNeural&text=${encodedText}`;
+
+            const audio = new Audio(url);
+            currentAudio = audio;
+
+            await new Promise<void>((resolve, reject) => {
+                audio.onended = () => resolve();
+                audio.onerror = () => reject(new Error('Audio playback failed'));
+                audio.play().catch(reject);
+            });
         }
 
-        window.speechSynthesis.speak(utterance);
-    });
+        onEnd?.();
+        return true;
+    } catch (e) {
+        console.warn('Neural TTS falhou, usando fallback:', e);
+        return false;
+    }
+}
+
+// Fallback: Web Speech API com melhor voz disponível
+function speakWithWebSpeech(text: string, onEnd?: () => void) {
+    if (!('speechSynthesis' in window)) return;
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'pt-BR';
+    utterance.rate = 1.0;
+    utterance.pitch = 1.1;
+
+    const voices = window.speechSynthesis.getVoices();
+    const femaleVoice = voices.find(v =>
+        v.lang.toLowerCase().includes('pt-br') &&
+        /luciana|fernanda|francisca|thalita/i.test(v.name)
+    ) || voices.find(v => v.lang.toLowerCase().includes('pt'));
+
+    if (femaleVoice) utterance.voice = femaleVoice;
+    if (onEnd) utterance.onend = onEnd;
+
+    window.speechSynthesis.speak(utterance);
+}
+
+async function speakText(text: string, onEnd?: () => void) {
+    stopSpeaking();
+    const cleanText = cleanTextForSpeech(text);
+    if (!cleanText) return;
+
+    // Tenta voz neural primeiro → fallback para Web Speech
+    const neuralWorked = await speakWithNeuralVoice(cleanText, onEnd);
+    if (!neuralWorked) {
+        speakWithWebSpeech(cleanText, onEnd);
+    }
+}
+
+function stopSpeaking() {
+    if (currentAudio) {
+        currentAudio.pause();
+        currentAudio.src = '';
+        currentAudio = null;
+    }
+    if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+    }
 }
 
 export default function CopilotPanel() {
@@ -487,7 +497,7 @@ export default function CopilotPanel() {
                                     className={`h-8 w-8 rounded-full ${ttsEnabled ? 'text-indigo-600 bg-indigo-50 dark:bg-indigo-500/20' : 'text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10'}`}
                                     onClick={() => {
                                         setTtsEnabled(!ttsEnabled);
-                                        if (ttsEnabled) window.speechSynthesis.cancel();
+                                        if (ttsEnabled) stopSpeaking();
                                     }}
                                     title={ttsEnabled ? 'Desativar voz' : 'Ativar resposta por voz'}
                                 >
@@ -507,7 +517,7 @@ export default function CopilotPanel() {
                                     className="h-8 w-8 text-gray-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/20 rounded-full"
                                     onClick={() => {
                                         setIsOpen(false);
-                                        window.speechSynthesis.cancel();
+                                        stopSpeaking();
                                     }}
                                 >
                                     <X className="h-4 w-4" />
