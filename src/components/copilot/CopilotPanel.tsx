@@ -172,29 +172,120 @@ function useSpeechRecognition() {
     return { isListening, transcript, startListening, stopListening };
 }
 
+// ─── Seletor inteligente de voz feminina pt-BR ───
+// Pré-carrega vozes (necessário em alguns browsers)
+if ('speechSynthesis' in window) {
+    window.speechSynthesis.getVoices();
+    window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+}
+
+function getBestFemaleVoice(): SpeechSynthesisVoice | null {
+    const voices = window.speechSynthesis.getVoices();
+    if (!voices.length) return null;
+
+    // Nomes conhecidos de vozes femininas premium em pt-BR (por browser/OS)
+    const preferredNames = [
+        // macOS / iOS — vozes premium Apple
+        'Luciana',           // pt-BR feminina (macOS)
+        'Fernanda',          // pt-BR feminina premium
+        // Microsoft Edge — vozes neurais
+        'Francisca',         // pt-BR Neural feminina (Edge)
+        'FranciscaNeural',
+        'Microsoft Francisca Online',
+        'Thalita',           // pt-BR Neural feminina (Edge)
+        'ThalitaNeural',
+        // Google Chrome
+        'Google português do Brasil',
+        // Genéricas femininas
+        'Raquel',
+        'Vitoria',
+        'Joana',
+    ];
+
+    // Score: quanto maior, melhor a voz
+    const scoreVoice = (v: SpeechSynthesisVoice): number => {
+        let score = 0;
+        const name = v.name.toLowerCase();
+        const lang = v.lang.toLowerCase();
+
+        // Deve ser pt-BR ou pt
+        if (lang === 'pt-br') score += 50;
+        else if (lang.startsWith('pt')) score += 20;
+        else return -1; // ignora vozes não-português
+
+        // Vozes "premium" / "enhanced" / "neural"
+        if (name.includes('neural')) score += 40;
+        if (name.includes('premium')) score += 35;
+        if (name.includes('enhanced')) score += 30;
+        if (name.includes('online')) score += 15;
+
+        // Vozes com nomes femininos conhecidos
+        for (const pref of preferredNames) {
+            if (name.includes(pref.toLowerCase())) {
+                score += 60;
+                break;
+            }
+        }
+
+        // Vozes femininas (heurística: nomes femininos comuns terminam em 'a')
+        const voiceFirstName = v.name.split(/[\s\-_()]/)[0].toLowerCase();
+        const femaleIndicators = ['a', 'ana', 'ela', 'ina', 'cia', 'ita'];
+        if (femaleIndicators.some(suf => voiceFirstName.endsWith(suf))) score += 25;
+
+        // Penaliza vozes masculinas conhecidas
+        const maleNames = ['daniel', 'antonio', 'hortencio', 'jorge'];
+        if (maleNames.some(m => name.includes(m))) score -= 50;
+
+        // Bonus por ser localVoice (não necessita rede)
+        if (v.localService) score += 5;
+
+        return score;
+    };
+
+    const scored = voices
+        .map(v => ({ voice: v, score: scoreVoice(v) }))
+        .filter(v => v.score > 0)
+        .sort((a, b) => b.score - a.score);
+
+    return scored.length > 0 ? scored[0].voice : null;
+}
+
 function speakText(text: string, onEnd?: () => void) {
     if (!('speechSynthesis' in window)) return;
-    window.speechSynthesis.cancel(); // para qualquer fala em andamento
+    window.speechSynthesis.cancel();
 
-    // Limpa markdown do texto para fala natural
+    // Limpa markdown e formatação para fala natural
     const cleanText = text
         .replace(/\*\*(.+?)\*\*/g, '$1')
         .replace(/\*(.+?)\*/g, '$1')
-        .replace(/^[\*\-]\s+/gm, '')
-        .replace(/^\d+\.\s+/gm, '');
+        .replace(/^[\*\-]\s+/gm, '. ')
+        .replace(/^\d+\.\s+/gm, '. ')
+        .replace(/R\$\s*/g, 'reais ')
+        .replace(/\n{2,}/g, '. ')
+        .replace(/\n/g, '. ')
+        .trim();
 
-    const utterance = new SpeechSynthesisUtterance(cleanText);
-    utterance.lang = 'pt-BR';
-    utterance.rate = 1.05;
-    utterance.pitch = 1;
-    if (onEnd) utterance.onend = onEnd;
+    // Quebra em sentenças para fala mais natural (pausa entre frases)
+    const sentences = cleanText.split(/(?<=[.!?])\s+/).filter(s => s.trim());
 
-    // Tenta pegar uma voz brasileira
-    const voices = window.speechSynthesis.getVoices();
-    const ptVoice = voices.find(v => v.lang.startsWith('pt'));
-    if (ptVoice) utterance.voice = ptVoice;
+    const bestVoice = getBestFemaleVoice();
 
-    window.speechSynthesis.speak(utterance);
+    sentences.forEach((sentence, i) => {
+        const utterance = new SpeechSynthesisUtterance(sentence.trim());
+        utterance.lang = 'pt-BR';
+        utterance.rate = 1.0;    // velocidade natural
+        utterance.pitch = 1.1;   // levemente agudo = feminino
+        utterance.volume = 1.0;
+
+        if (bestVoice) utterance.voice = bestVoice;
+
+        // onEnd no último chunk
+        if (i === sentences.length - 1 && onEnd) {
+            utterance.onend = onEnd;
+        }
+
+        window.speechSynthesis.speak(utterance);
+    });
 }
 
 export default function CopilotPanel() {
