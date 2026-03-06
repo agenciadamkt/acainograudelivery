@@ -42,7 +42,8 @@ import SupplierSelect from './SupplierSelect';
 const formSchema = z.object({
     distribution_center_id: z.string().min(1, 'Selecione o CD'),
     expense_type: z.enum(['fixed', 'variable', 'investment']),
-    expense_date: z.string().min(1, 'Data é obrigatória'),
+    expense_date: z.string().min(1, 'Data do lançamento é obrigatória'),
+    due_date: z.string().min(1, 'Data de vencimento é obrigatória'),
     amount: z.coerce.number().positive('Valor deve ser maior que 0'),
     purpose: z.string().min(1, 'Informe a finalidade'),
     cost_center_id: z.string().min(1, 'Selecione o centro de custos'),
@@ -72,6 +73,7 @@ export default function ExpenseFormDialog({ open, onOpenChange, record, onSucces
             distribution_center_id: '',
             expense_type: 'fixed',
             expense_date: new Date().toISOString().split('T')[0],
+            due_date: new Date().toISOString().split('T')[0],
             amount: 0,
             purpose: '',
             cost_center_id: '',
@@ -96,6 +98,7 @@ export default function ExpenseFormDialog({ open, onOpenChange, record, onSucces
                 distribution_center_id: record.distribution_center_id || '',
                 expense_type: record.expense_type || 'fixed',
                 expense_date: record.expense_date || new Date().toISOString().split('T')[0],
+                due_date: record.due_date || record.expense_date || new Date().toISOString().split('T')[0],
                 amount: Number(record.amount) || 0,
                 purpose: record.purpose || '',
                 cost_center_id: record.cost_center_id || '',
@@ -111,10 +114,12 @@ export default function ExpenseFormDialog({ open, onOpenChange, record, onSucces
                 distribution_center_id: '',
                 expense_type: 'fixed',
                 expense_date: new Date().toISOString().split('T')[0],
+                due_date: new Date().toISOString().split('T')[0],
                 amount: 0,
                 purpose: '',
                 cost_center_id: '',
                 chart_of_accounts_id: '',
+                supplier_id: '',
                 notes: '',
                 paid_with_cash_balance: false,
                 paid: false,
@@ -239,7 +244,7 @@ export default function ExpenseFormDialog({ open, onOpenChange, record, onSucces
                         />
 
                         {/* Type + Date */}
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <FormField
                                 control={form.control}
                                 name="expense_type"
@@ -267,7 +272,20 @@ export default function ExpenseFormDialog({ open, onOpenChange, record, onSucces
                                 name="expense_date"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Data</FormLabel>
+                                        <FormLabel>Data Lanç.</FormLabel>
+                                        <FormControl>
+                                            <Input type="date" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="due_date"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Vencimento</FormLabel>
                                         <FormControl>
                                             <Input type="date" {...field} />
                                         </FormControl>

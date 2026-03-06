@@ -11,9 +11,11 @@ import {
     ArrowUpRight,
     TrendingUp,
     Target,
-    ChevronRight,
     Building2,
     Banknote,
+    Clock,
+    ChevronRight,
+    AlertTriangle,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -131,6 +133,78 @@ export default function FinancialDashboard() {
         },
     });
 
+    /* ── Fetch accounts receivable (pending) ── */
+    const { data: receivables } = useQuery({
+        queryKey: ['financial_dashboard_receivables', selectedCD],
+        queryFn: async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            let query = supabase
+                .from('accounts_receivable' as any)
+                .select('amount, paid')
+                .eq('paid', false);
+
+            if (selectedCD) {
+                query = query.eq('distribution_center_id', selectedCD);
+            } else {
+                query = query.eq('franchisee_user_id', user?.id);
+            }
+
+            const { data, error } = await query;
+            if (error) throw error;
+            return data as any[];
+        },
+    });
+
+    /* ── Fetch overdue expenses ── */
+    const { data: overdueExpenses = [] } = useQuery({
+        queryKey: ['financial_dashboard_overdue_expenses', selectedCD],
+        queryFn: async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            const todayStr = format(new Date(), 'yyyy-MM-dd');
+
+            let query = supabase
+                .from('expenses' as any)
+                .select('id, amount, due_date, purpose, distribution_center:distribution_centers!inner(franchisee_user_id)')
+                .eq('paid', false)
+                .lt('due_date', todayStr);
+
+            if (selectedCD) {
+                query = query.eq('distribution_center_id', selectedCD);
+            } else {
+                query = query.eq('distribution_center.franchisee_user_id', user?.id);
+            }
+
+            const { data, error } = await query;
+            if (error) throw error;
+            return data as any[];
+        },
+    });
+
+    /* ── Fetch overdue receivables ── */
+    const { data: overdueReceivables = [] } = useQuery({
+        queryKey: ['financial_dashboard_overdue_receivables', selectedCD],
+        queryFn: async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            const todayStr = format(new Date(), 'yyyy-MM-dd');
+
+            let query = supabase
+                .from('accounts_receivable' as any)
+                .select('id, amount, due_date, description')
+                .eq('paid', false)
+                .lt('due_date', todayStr);
+
+            if (selectedCD) {
+                query = query.eq('distribution_center_id', selectedCD);
+            } else {
+                query = query.eq('franchisee_user_id', user?.id);
+            }
+
+            const { data, error } = await query;
+            if (error) throw error;
+            return data as any[];
+        },
+    });
+
     /* ── Fetch all active accounts ── */
     const { data: accounts } = useQuery({
         queryKey: ['financial_accounts_dashboard'],
@@ -160,13 +234,17 @@ export default function FinancialDashboard() {
         const caixaGeralAccount = (accounts || []).find(a => a.name === 'Caixa Geral');
         const totalCash = caixaGeralAccount ? Number(caixaGeralAccount.balance) : 0;
 
+        // Total Pending Receivables
+        const totalPendingReceivables = (receivables || []).reduce((sum: number, r: any) => sum + Number(r.amount), 0);
+
         return {
             balance: totalAccountsBalance,
             totalExpenses,
             totalIncome,
             totalCash,
+            totalPendingReceivables,
         };
-    }, [closings, expensesData, accounts]);
+    }, [closings, expensesData, accounts, receivables]);
 
     const goalTarget = activeGoal ? Number(activeGoal.target_value) : 0;
     const goalProgress = goalTarget > 0 ? (kpis.totalIncome / goalTarget) * 100 : 0;
@@ -276,8 +354,57 @@ export default function FinancialDashboard() {
                 </div>
             </div>
 
+            {/* ─── Alerts & Notifications ─── */}
+            {(overdueExpenses.length > 0 || overdueReceivables.length > 0) && (
+                <div className="flex flex-col gap-3">
+                    {overdueExpenses.length > 0 && (
+                        <div className="bg-red-50/80 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 backdrop-blur-md p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-red-100 dark:bg-red-500/20 rounded-lg">
+                                    <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-bold text-red-900 dark:text-red-300">Atenção: Existem {overdueExpenses.length} {overdueExpenses.length === 1 ? 'despesa vencida' : 'despesas vencidas'}!</p>
+                                    <p className="text-xs text-red-700 dark:text-red-400">Regularize as pendências para evitar juros e perda de fornecimento.</p>
+                                </div>
+                            </div>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => navigate('/admin/financeiro/despesas')}
+                                className="border-red-200 text-red-700 hover:bg-red-100 dark:border-red-500/30 dark:text-red-400 dark:hover:bg-red-500/20 w-full sm:w-auto"
+                            >
+                                Ver Despesas
+                            </Button>
+                        </div>
+                    )}
+
+                    {overdueReceivables.length > 0 && (
+                        <div className="bg-amber-50/80 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 backdrop-blur-md p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-amber-100 dark:bg-amber-500/20 rounded-lg">
+                                    <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-bold text-amber-900 dark:text-amber-300">Aviso: {overdueReceivables.length} {overdueReceivables.length === 1 ? 'recebimento em atraso' : 'recebimentos em atraso'}!</p>
+                                    <p className="text-xs text-amber-700 dark:text-amber-400">Verifique os clientes com faturas ou pagamentos pendentes.</p>
+                                </div>
+                            </div>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => navigate('/admin/financeiro/receber')}
+                                className="border-amber-200 text-amber-700 hover:bg-amber-100 dark:border-amber-500/30 dark:text-amber-400 dark:hover:bg-amber-500/20 w-full sm:w-auto"
+                            >
+                                Ver Recebimentos
+                            </Button>
+                        </div>
+                    )}
+                </div>
+            )}
+
             {/* ─── KPI Cards Row ─── */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
                 {/* Saldo Total em Contas */}
                 <Card className="bg-gradient-to-br from-purple-600 to-indigo-700 border-0 shadow-xl shadow-purple-600/20 text-white overflow-hidden relative group">
                     <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
@@ -340,6 +467,22 @@ export default function FinancialDashboard() {
                             {formatBRL(kpis.totalIncome)}
                         </p>
                         <p className="text-[10px] text-emerald-600/60 font-medium">Total do mês corrente</p>
+                    </CardContent>
+                </Card>
+
+                {/* Previsão a Receber */}
+                <Card className="bg-white/60 dark:bg-white/[0.03] backdrop-blur-xl border-gray-200/50 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-blue-500/5 transition-all">
+                    <CardContent className="p-6">
+                        <div className="flex items-center gap-4 mb-4">
+                            <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center">
+                                <Clock className="h-6 w-6 text-blue-500" />
+                            </div>
+                            <p className="text-sm font-bold text-gray-400 dark:text-white/40 uppercase tracking-widest">A Receber</p>
+                        </div>
+                        <p className="text-3xl font-black text-gray-900 dark:text-white tracking-tight mb-1">
+                            {formatBRL(kpis.totalPendingReceivables)}
+                        </p>
+                        <p className="text-[10px] text-blue-500/60 font-medium">Contas pendentes de recebimento</p>
                     </CardContent>
                 </Card>
             </div>

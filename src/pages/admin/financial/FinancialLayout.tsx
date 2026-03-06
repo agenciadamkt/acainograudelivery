@@ -23,23 +23,24 @@ import {
     Wallet,
     BarChart3,
     CalendarRange,
+    Banknote,
 } from 'lucide-react';
 import logoCircular from '@/assets/logo-circular.png';
 
 /* ─── Sidebar Navigation Items ─── */
 const navItems = [
     { label: 'Dashboard', path: '/admin/financeiro', icon: LayoutDashboard, end: true },
-    { label: 'PixPag', path: '/admin/financeiro/lancamentos', icon: Receipt },
-    { label: 'Cadastros', path: '/admin/financeiro/cadastros', icon: FolderOpen },
+    { label: 'Caixa & Contas', path: '/admin/financeiro/caixa', icon: Landmark },
     { label: 'Fechamento de Caixa', path: '/admin/financeiro/fluxo', icon: TrendingUp },
     { label: 'Fluxo Semanal', path: '/admin/financeiro/fluxo-semanal', icon: CalendarRange },
+    { label: 'PixPag', path: '/admin/financeiro/lancamentos', icon: Receipt },
+    { label: 'Contas a Receber', path: '/admin/financeiro/receber', icon: Banknote },
     { label: 'Despesas', path: '/admin/financeiro/despesas', icon: Wallet },
-    { label: 'Caixa & Contas', path: '/admin/financeiro/caixa', icon: Landmark },
     { label: 'DRE', path: '/admin/financeiro/dre', icon: BarChart3 },
     { label: 'Relatórios', path: '/admin/financeiro/relatorios', icon: FileBarChart },
     { label: 'Receitas x Despesas', path: '/admin/financeiro/receitas-despesas', icon: LayoutDashboard },
     { label: 'Despesas Detalhadas', path: '/admin/financeiro/despesas-detalhadas', icon: BarChart3 },
-
+    { label: 'Cadastros', path: '/admin/financeiro/cadastros', icon: FolderOpen },
     { label: 'Configurações', path: '/admin/financeiro/configuracoes', icon: Settings },
 ];
 

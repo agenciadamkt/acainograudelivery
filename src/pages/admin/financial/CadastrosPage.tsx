@@ -622,7 +622,10 @@ function ClientsSection() {
 
             const { data, error } = await supabase
                 .from('financial_clients' as any)
-                .select('*')
+                .select(`
+                    *,
+                    accounts_receivable(amount, paid)
+                `)
                 .or(`created_by.eq.${user?.id},created_by.is.null`)
                 .order('name');
 
@@ -708,9 +711,16 @@ function ClientsSection() {
                                     <p className="text-[11px] text-gray-400 dark:text-white/30">{item.phone || 'Sem telefone'}</p>
                                 </div>
                             </div>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => openEdit(item)}>
-                                <Edit2 className="h-3.5 w-3.5 text-gray-400" />
-                            </Button>
+                            <div className="flex flex-col items-end gap-1">
+                                {item.accounts_receivable && item.accounts_receivable.some((r: any) => !r.paid) && (
+                                    <span className="text-[10px] font-bold text-amber-600 bg-amber-50 dark:bg-amber-500/10 px-2 py-0.5 rounded-md">
+                                        R$ {item.accounts_receivable.filter((r: any) => !r.paid).reduce((acc: number, r: any) => acc + Number(r.amount), 0).toFixed(2)} a receber
+                                    </span>
+                                )}
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => openEdit(item)}>
+                                    <Edit2 className="h-3.5 w-3.5 text-gray-400" />
+                                </Button>
+                            </div>
                         </div>
                     ))}
                     {items.length > 10 && (
@@ -972,7 +982,10 @@ function SuppliersSection() {
 
             const { data, error } = await supabase
                 .from('financial_suppliers' as any)
-                .select('*')
+                .select(`
+                    *,
+                    expenses(amount, paid)
+                `)
                 .eq('franchisee_user_id', user?.id)
                 .order('name');
 
@@ -1058,9 +1071,16 @@ function SuppliersSection() {
                                     <p className="text-[11px] text-gray-400 dark:text-white/30">{item.phone || 'Sem telefone'}</p>
                                 </div>
                             </div>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => openEdit(item)}>
-                                <Edit2 className="h-3.5 w-3.5 text-gray-400" />
-                            </Button>
+                            <div className="flex flex-col items-end gap-1">
+                                {item.expenses && item.expenses.some((e: any) => !e.paid) && (
+                                    <span className="text-[10px] font-bold text-red-500 bg-red-50 dark:bg-red-500/10 px-2 py-0.5 rounded-md">
+                                        R$ {item.expenses.filter((e: any) => !e.paid).reduce((acc: number, e: any) => acc + Number(e.amount), 0).toFixed(2)} a pagar
+                                    </span>
+                                )}
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => openEdit(item)}>
+                                    <Edit2 className="h-3.5 w-3.5 text-gray-400" />
+                                </Button>
+                            </div>
                         </div>
                     ))}
                     {items.length > 10 && (

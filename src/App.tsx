@@ -92,6 +92,7 @@ import MetasPage from "./pages/admin/financial/MetasPage";
 import CaixaPage from "./pages/admin/financial/CaixaPage";
 import RevenueExpenseReportPage from "./pages/admin/financial/RevenueExpenseReportPage";
 import DetailedExpensesReportPage from "./pages/admin/financial/DetailedExpensesReportPage";
+import AccountsReceivablePage from "./pages/admin/financial/AccountsReceivablePage";
 
 import { ThemeProvider } from "next-themes";
 
@@ -226,6 +227,7 @@ const App = () => (
                         <Route path="receitas-despesas" element={<RevenueExpenseReportPage />} />
                         <Route path="despesas-detalhadas" element={<DetailedExpensesReportPage />} />
                         <Route path="caixa" element={<CaixaPage />} />
+                        <Route path="receber" element={<AccountsReceivablePage />} />
 
                         <Route path="configuracoes" element={<div className="p-8 text-center text-gray-400">Configurações — Em breve</div>} />
                       </Route>

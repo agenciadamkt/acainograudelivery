@@ -620,6 +620,7 @@ export default function ExpensesPage() {
                                 <tr className="border-b border-gray-100 dark:border-white/[0.05]">
                                     <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 dark:text-white/40 uppercase tracking-wider">Data</th>
                                     <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 dark:text-white/40 uppercase tracking-wider">Tipo</th>
+                                    <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 dark:text-white/40 uppercase tracking-wider">Venc.?</th>
                                     <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 dark:text-white/40 uppercase tracking-wider">Status</th>
                                     <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 dark:text-white/40 uppercase tracking-wider">CD</th>
                                     <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 dark:text-white/40 uppercase tracking-wider">Finalidade / Fornecedor</th>
@@ -655,6 +656,14 @@ export default function ExpensesPage() {
                                                 <Badge className={`${config.color} border-0`}>
                                                     {config.label}
                                                 </Badge>
+                                            </td>
+                                            <td className="px-5 py-3.5 whitespace-nowrap">
+                                                <div className="flex flex-col">
+                                                    <span className={`font-medium ${!exp.paid && new Date(exp.due_date) < new Date(new Date().setHours(0, 0, 0, 0)) ? 'text-red-500' : 'text-gray-900 dark:text-white'}`}>
+                                                        {exp.due_date ? format(new Date(exp.due_date + 'T12:00:00'), 'dd/MM/yyyy') : '-'}
+                                                    </span>
+                                                    {!exp.paid && exp.due_date && new Date(exp.due_date) < new Date(new Date().setHours(0, 0, 0, 0)) && <span className="text-[10px] text-red-500 font-bold">Em atraso</span>}
+                                                </div>
                                             </td>
                                             <td className="px-5 py-3.5 whitespace-nowrap">
                                                 <Badge variant="outline" className={exp.paid ? 'text-green-600 border-green-200 bg-green-50' : 'text-amber-600 border-amber-200 bg-amber-50'}>

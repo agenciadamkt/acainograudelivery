@@ -109,10 +109,35 @@ export default function DREReportPage() {
         },
     });
 
+    /* ── Fetch accounts receivable ── */
+    const { data: receivables = [] } = useQuery({
+        queryKey: ['dre_receivables', dateStart, dateEnd, selectedCD],
+        queryFn: async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            let query = supabase
+                .from('accounts_receivable' as any)
+                .select('amount, due_date')
+                .gte('due_date', dateStart)
+                .lte('due_date', dateEnd);
+
+            if (selectedCD) {
+                query = query.eq('distribution_center_id', selectedCD);
+            } else {
+                query = query.eq('franchisee_user_id', user?.id);
+            }
+
+            const { data, error } = await query;
+            if (error) throw error;
+            return data as any[];
+        },
+    });
+
     /* ── DRE Calculations ── */
     const dre = useMemo(() => {
         // Revenue
-        const receitaBruta = closings.reduce((s: number, c: any) => s + Number(c.total_sales), 0);
+        const receitaVendas = closings.reduce((s: number, c: any) => s + Number(c.total_sales), 0);
+        const receitaFaturada = receivables.reduce((s: number, r: any) => s + Number(r.amount), 0);
+        const receitaBruta = receitaVendas + receitaFaturada;
         const deducoes = 0; // placeholder for future tax deductions
         const receitaLiquida = receitaBruta - deducoes;
 
@@ -145,7 +170,17 @@ export default function DREReportPage() {
         };
 
         const lines: DRELineItem[] = [
-            { label: 'RECEITA BRUTA', value: receitaBruta, type: 'revenue', bold: true },
+            {
+                label: 'RECEITA BRUTA',
+                value: receitaBruta,
+                type: 'revenue',
+                bold: true,
+                expandable: true,
+                children: [
+                    { label: 'Vendas (Caixa/Aplicativo)', value: receitaVendas },
+                    { label: 'Outras Receitas (Contas a Receber)', value: receitaFaturada }
+                ]
+            },
             { label: '(-) Deduções', value: deducoes, type: 'deduction', indent: true },
             { label: 'RECEITA LÍQUIDA', value: receitaLiquida, type: 'result', bold: true },
             { label: '(-) Despesas Fixas', value: despesasFixas, type: 'expense', expandable: true, children: getChildren('fixed') },
@@ -156,7 +191,7 @@ export default function DREReportPage() {
         ];
 
         return { lines, resultadoLiquido };
-    }, [closings, expenses]);
+    }, [closings, expenses, receivables]);
 
     const toggleRow = (label: string) => {
         setExpandedRows(prev => {
