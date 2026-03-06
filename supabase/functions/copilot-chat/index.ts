@@ -9,14 +9,20 @@ const corsHeaders = {
 const SYSTEM_PROMPT = `
 Você é o Gerente Virtual do sistema GrauOS — Açaí no Grau.
 Você tem acesso DIRETO ao banco de dados da loja por meio de ferramentas (tools).
+Você também recebe o contexto da tela que o usuário está visualizando.
 
 INSTRUÇÕES CRÍTICAS:
-1. Quando o usuário perguntar QUALQUER coisa sobre saldo, caixa, financeiro, despesas, receitas, contas a receber, balanço ou dinheiro, você DEVE chamar a ferramenta get_financial_kpis IMEDIATAMENTE. Nunca pergunte antes — apenas chame a ferramenta.
-2. NUNCA invente valores. Use SOMENTE os dados retornados pelas ferramentas.
-3. Seu tom é profissional, acessível e consultivo.
-4. Formate valores financeiros como moeda brasileira (R$ 0,00).
-5. Use parágrafos curtos e bullet points para organizar dados numéricos.
-6. Não se apresente a cada resposta.
+1. Quando o usuário perguntar QUALQUER coisa sobre saldo, caixa, financeiro, despesas, receitas, contas a receber, balanço ou dinheiro → chame get_financial_kpis IMEDIATAMENTE.
+2. Quando perguntar sobre vendas, pedidos, faturamento do dia → chame get_sales_summary IMEDIATAMENTE.
+3. Quando perguntar sobre estoque, produtos, ingredientes, itens críticos → chame get_inventory_status IMEDIATAMENTE.
+4. Quando perguntar sobre clientes devedores ou inadimplência → chame get_debtors IMEDIATAMENTE.
+5. Quando perguntar "o que devo fazer nessa tela?" ou pedir orientação sobre a tela → use o campo CONTEXTO DA TELA que está na mensagem para dar orientações operacionais.
+6. NUNCA invente valores. Use SOMENTE os dados retornados pelas ferramentas.
+7. Seu tom é profissional, acessível e consultivo como um gerente experiente.
+8. Formate valores financeiros como moeda brasileira (R$ 0,00).
+9. Use parágrafos curtos e bullet points para organizar dados numéricos.
+10. Não se apresente a cada resposta — seja direto e eficiente.
+11. SEMPRE responda em português do Brasil.
 `;
 
 const tools = [
@@ -24,17 +30,191 @@ const tools = [
     functionDeclarations: [
       {
         name: "get_financial_kpis",
-        description: "Busca os KPIs financeiros atuais do banco de dados da loja: saldo total em contas, despesas pendentes e contas a receber pendentes. SEMPRE use esta ferramenta quando o usuário perguntar sobre saldo, caixa, financeiro, despesas, receitas ou dinheiro.",
-        parameters: {
-          type: "OBJECT",
-          properties: {},
-          required: []
-        }
+        description: "Busca KPIs financeiros: saldo total, despesas pendentes, contas a receber. Use quando o assunto for saldo, caixa, finanças, despesas ou receitas.",
+        parameters: { type: "OBJECT", properties: {}, required: [] }
+      },
+      {
+        name: "get_sales_summary",
+        description: "Busca resumo de vendas/pedidos do dia. Use quando o assunto for vendas, faturamento, pedidos ou receita de hoje.",
+        parameters: { type: "OBJECT", properties: {}, required: [] }
+      },
+      {
+        name: "get_inventory_status",
+        description: "Busca status do estoque, produtos com baixo estoque, alertas. Use quando o assunto for estoque, ingredientes ou produtos críticos.",
+        parameters: { type: "OBJECT", properties: {}, required: [] }
+      },
+      {
+        name: "get_debtors",
+        description: "Busca clientes devedores e contas a receber pendentes. Use quando o assunto for inadimplência, clientes que devem ou cobranças.",
+        parameters: { type: "OBJECT", properties: {}, required: [] }
       }
     ]
   }
 ];
 
+// ─── Funções de cada Tool ───
+async function executeGetFinancialKpis(supabaseClient: any) {
+  const { data: accounts, error: e1 } = await supabaseClient
+    .from('financial_accounts')
+    .select('name, balance');
+
+  const { data: expenses, error: e2 } = await supabaseClient
+    .from('expenses')
+    .select('amount, description, category, due_date')
+    .eq('paid', false);
+
+  const { data: receivables, error: e3 } = await supabaseClient
+    .from('accounts_receivable')
+    .select('amount, description, customer_name, due_date')
+    .eq('paid', false);
+
+  if (e1) console.error("Erro accounts:", e1.message);
+  if (e2) console.error("Erro expenses:", e2.message);
+  if (e3) console.error("Erro receivables:", e3.message);
+
+  const totalBalance = (accounts || []).reduce((s: number, a: any) => s + Number(a.balance || 0), 0);
+  const totalPendingExpenses = (expenses || []).reduce((s: number, e: any) => s + Number(e.amount || 0), 0);
+  const totalPendingReceivables = (receivables || []).reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+
+  return {
+    saldo_total_em_contas: totalBalance,
+    contas_detalhadas: (accounts || []).map((a: any) => ({ nome: a.name, saldo: Number(a.balance || 0) })),
+    despesas_pendentes: {
+      total: totalPendingExpenses,
+      quantidade: (expenses || []).length,
+      itens: (expenses || []).slice(0, 10).map((e: any) => ({
+        descricao: e.description,
+        categoria: e.category,
+        valor: Number(e.amount),
+        vencimento: e.due_date
+      }))
+    },
+    contas_a_receber: {
+      total: totalPendingReceivables,
+      quantidade: (receivables || []).length,
+      itens: (receivables || []).slice(0, 10).map((r: any) => ({
+        descricao: r.description,
+        cliente: r.customer_name,
+        valor: Number(r.amount),
+        vencimento: r.due_date
+      }))
+    },
+    data_consulta: new Date().toISOString()
+  };
+}
+
+async function executeGetSalesSummary(supabaseClient: any) {
+  const today = new Date().toISOString().split('T')[0];
+
+  // Pedidos do dia
+  const { data: orders, error: e1 } = await supabaseClient
+    .from('orders')
+    .select('id, total, status, created_at')
+    .gte('created_at', today + 'T00:00:00')
+    .lte('created_at', today + 'T23:59:59');
+
+  // Fechamentos de caixa de hoje
+  const { data: closings, error: e2 } = await supabaseClient
+    .from('cash_closings')
+    .select('total_sales, closing_date')
+    .gte('closing_date', today);
+
+  if (e1) console.error("Erro orders:", e1.message);
+  if (e2) console.error("Erro closings:", e2.message);
+
+  const totalSales = (orders || []).reduce((s: number, o: any) => s + Number(o.total || 0), 0);
+  const ordersByStatus: Record<string, number> = {};
+  (orders || []).forEach((o: any) => {
+    ordersByStatus[o.status || 'unknown'] = (ordersByStatus[o.status || 'unknown'] || 0) + 1;
+  });
+
+  return {
+    data: today,
+    total_pedidos: (orders || []).length,
+    faturamento_total: totalSales,
+    pedidos_por_status: ordersByStatus,
+    ticket_medio: (orders || []).length > 0 ? totalSales / (orders || []).length : 0,
+    fechamentos_caixa: (closings || []).map((c: any) => ({
+      total_vendas: Number(c.total_sales),
+      data: c.closing_date
+    }))
+  };
+}
+
+async function executeGetInventoryStatus(supabaseClient: any) {
+  // Produtos de estoque
+  const { data: inventory, error: e1 } = await supabaseClient
+    .from('inventory_items')
+    .select('id, name, current_stock, minimum_stock, unit')
+    .order('current_stock', { ascending: true });
+
+  if (e1) console.error("Erro inventory:", e1.message);
+
+  const items = inventory || [];
+  const critical = items.filter((i: any) => Number(i.current_stock) <= Number(i.minimum_stock));
+  const healthy = items.filter((i: any) => Number(i.current_stock) > Number(i.minimum_stock));
+
+  return {
+    total_itens: items.length,
+    itens_criticos: {
+      quantidade: critical.length,
+      lista: critical.slice(0, 15).map((i: any) => ({
+        nome: i.name,
+        estoque_atual: i.current_stock,
+        estoque_minimo: i.minimum_stock,
+        unidade: i.unit
+      }))
+    },
+    itens_saudaveis: healthy.length,
+    resumo: critical.length === 0
+      ? 'Estoque saudável — todos os itens acima do mínimo.'
+      : `ATENÇÃO: ${critical.length} item(ns) abaixo do estoque mínimo.`
+  };
+}
+
+async function executeGetDebtors(supabaseClient: any) {
+  const { data: receivables, error } = await supabaseClient
+    .from('accounts_receivable')
+    .select('id, customer_name, amount, description, due_date, paid')
+    .eq('paid', false)
+    .order('due_date', { ascending: true });
+
+  if (error) console.error("Erro debtors:", error.message);
+
+  const items = receivables || [];
+  const totalDebt = items.reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+  const today = new Date();
+
+  const overdue = items.filter((r: any) => r.due_date && new Date(r.due_date) < today);
+  const upcoming = items.filter((r: any) => !r.due_date || new Date(r.due_date) >= today);
+
+  return {
+    total_devedores: items.length,
+    total_em_divida: totalDebt,
+    vencidos: {
+      quantidade: overdue.length,
+      total: overdue.reduce((s: number, r: any) => s + Number(r.amount || 0), 0),
+      lista: overdue.slice(0, 10).map((r: any) => ({
+        cliente: r.customer_name,
+        valor: Number(r.amount),
+        descricao: r.description,
+        vencimento: r.due_date
+      }))
+    },
+    a_vencer: {
+      quantidade: upcoming.length,
+      total: upcoming.reduce((s: number, r: any) => s + Number(r.amount || 0), 0),
+      lista: upcoming.slice(0, 10).map((r: any) => ({
+        cliente: r.customer_name,
+        valor: Number(r.amount),
+        descricao: r.description,
+        vencimento: r.due_date
+      }))
+    }
+  };
+}
+
+// ─── Main Handler ───
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -47,7 +227,7 @@ serve(async (req) => {
       { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     );
 
-    const { messages } = await req.json();
+    const { messages, context } = await req.json();
 
     if (!messages || !Array.isArray(messages)) {
       throw new Error("Invalid request format: 'messages' array is required.");
@@ -56,22 +236,26 @@ serve(async (req) => {
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
     if (!geminiApiKey) throw new Error("GEMINI_API_KEY não configurada.");
 
-    const geminiContents = messages.map((msg: any) => ({
+    // Injeta contexto da tela na primeira mensagem do sistema
+    let contextPrefix = '';
+    if (context) {
+      contextPrefix = `\n\n[CONTEXTO DA TELA ATUAL]\nO usuário está na tela: ${context.current_screen || 'desconhecida'}\nRota: ${context.current_route || 'N/A'}\nTimestamp: ${context.timestamp || new Date().toISOString()}\n`;
+    }
+
+    const geminiContents = messages.map((msg: any, index: number) => ({
       role: msg.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: msg.content }]
+      parts: [{ text: (index === messages.length - 1 && contextPrefix) ? msg.content + contextPrefix : msg.content }]
     }));
 
-    // Função auxiliar para chamar o Gemini
     const callGemini = async (contents: any[], useTools = true) => {
       const body: any = {
         system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
         contents,
-        generationConfig: { temperature: 0.2, maxOutputTokens: 1024 }
+        generationConfig: { temperature: 0.2, maxOutputTokens: 2048 }
       };
 
       if (useTools) {
         body.tools = tools;
-        // Força o modelo a preferir usar tools quando disponíveis
         body.tool_config = { function_calling_config: { mode: "AUTO" } };
       }
 
@@ -92,12 +276,11 @@ serve(async (req) => {
       return response.json();
     };
 
-    // ── Primeira chamada ao Gemini ──
+    // ── Primeira chamada ──
     let geminiData = await callGemini(geminiContents);
     let candidate = geminiData.candidates?.[0]?.content;
     let parts = candidate?.parts || [];
 
-    // Verificar se alguma part contém functionCall
     const functionCallPart = parts.find((p: any) => p.functionCall);
 
     if (functionCallPart) {
@@ -106,69 +289,34 @@ serve(async (req) => {
 
       let toolResult: any = {};
 
-      if (functionName === "get_financial_kpis") {
-        const { data: accounts, error: e1 } = await supabaseClient
-          .from('financial_accounts')
-          .select('name, balance');
-
-        const { data: expenses, error: e2 } = await supabaseClient
-          .from('expenses')
-          .select('amount')
-          .eq('paid', false);
-
-        const { data: receivables, error: e3 } = await supabaseClient
-          .from('accounts_receivable')
-          .select('amount')
-          .eq('paid', false);
-
-        if (e1) console.error("Erro accounts:", e1.message);
-        if (e2) console.error("Erro expenses:", e2.message);
-        if (e3) console.error("Erro receivables:", e3.message);
-
-        const totalBalance = (accounts || []).reduce((s: number, a: any) => s + Number(a.balance || 0), 0);
-        const totalPendingExpenses = (expenses || []).reduce((s: number, e: any) => s + Number(e.amount || 0), 0);
-        const totalPendingReceivables = (receivables || []).reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
-
-        // Lista de contas individuais
-        const accountsList = (accounts || []).map((a: any) => ({
-          nome: a.name,
-          saldo: Number(a.balance || 0)
-        }));
-
-        toolResult = {
-          saldo_total_em_contas: totalBalance,
-          despesas_pendentes: totalPendingExpenses,
-          contas_a_receber_pendentes: totalPendingReceivables,
-          contas_detalhadas: accountsList,
-          data_consulta: new Date().toISOString()
-        };
+      switch (functionName) {
+        case 'get_financial_kpis':
+          toolResult = await executeGetFinancialKpis(supabaseClient);
+          break;
+        case 'get_sales_summary':
+          toolResult = await executeGetSalesSummary(supabaseClient);
+          break;
+        case 'get_inventory_status':
+          toolResult = await executeGetInventoryStatus(supabaseClient);
+          break;
+        case 'get_debtors':
+          toolResult = await executeGetDebtors(supabaseClient);
+          break;
+        default:
+          toolResult = { error: `Ferramenta desconhecida: ${functionName}` };
       }
 
-      // Montar a conversa com a resposta da tool
       const updatedContents = [
         ...geminiContents,
-        {
-          role: "model",
-          parts: [{ functionCall: functionCallPart.functionCall }]
-        },
-        {
-          role: "user",
-          parts: [{
-            functionResponse: {
-              name: functionName,
-              response: toolResult
-            }
-          }]
-        }
+        { role: "model", parts: [{ functionCall: functionCallPart.functionCall }] },
+        { role: "user", parts: [{ functionResponse: { name: functionName, response: toolResult } }] }
       ];
 
-      // Segunda chamada: Gemini interpreta os dados
       geminiData = await callGemini(updatedContents, false);
       candidate = geminiData.candidates?.[0]?.content;
       parts = candidate?.parts || [];
     }
 
-    // Extrair texto da resposta final
     const textPart = parts.find((p: any) => p.text);
 
     return new Response(
@@ -176,19 +324,13 @@ serve(async (req) => {
         role: 'assistant',
         content: textPart?.text || "Desculpe, não consegui processar essa informação."
       }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     );
   } catch (error: any) {
     console.error("Erro no Copilot:", error.message);
     return new Response(
       JSON.stringify({ error: error.message }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
-      }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
     );
   }
 });

@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { StoreProvider } from "@/contexts/StoreContext";
 import { CartProvider } from "@/contexts/CartContext";
@@ -13,6 +13,22 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 
 import { ProtectedRoute } from "@/components/customer/ProtectedRoute";
 import AppManager from "@/components/AppManager";
+import CopilotPanel from "@/components/copilot/CopilotPanel";
+
+// Helper that shows CopilotPanel only on admin pages
+function GlobalCopilot() {
+  const location = (window as any).__ROUTER_LOCATION__;
+  // We render it always but it requires useLocation, so we put it inside BrowserRouter
+  return <CopilotGlobalWrapper />;
+}
+
+function CopilotGlobalWrapper() {
+  const { pathname } = useLocation();
+  if (!pathname.startsWith('/admin/')) return null;
+  // Don't show on login/signup pages
+  if (pathname === '/admin/login' || pathname === '/admin/signup' || pathname === '/admin/reset-password') return null;
+  return <CopilotPanel />;
+}
 
 // Client pages
 import LocationState from "./pages/LocationState";
@@ -111,6 +127,7 @@ const App = () => (
               <StoreProvider>
                 <CartProvider>
                   <PrinterProvider>
+                    <CopilotGlobalWrapper />
                     <Routes>
                       {/* Client routes */}
                       <Route path="/" element={<LocationState />} />
