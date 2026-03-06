@@ -26,6 +26,7 @@ import {
     Banknote,
 } from 'lucide-react';
 import logoCircular from '@/assets/logo-circular.png';
+import CopilotPanel from '@/components/copilot/CopilotPanel';
 
 /* ─── Sidebar Navigation Items ─── */
 const navItems = [
@@ -235,6 +236,8 @@ export default function FinancialLayout() {
                     <Outlet />
                 </div>
             </main>
+
+            <CopilotPanel />
         </div>
     );
 }
