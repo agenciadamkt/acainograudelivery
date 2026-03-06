@@ -16,6 +16,83 @@ type CopilotMessage = {
     timestamp: Date;
 };
 
+/** Mini Markdown → JSX renderer (zero deps) */
+function renderMarkdown(text: string) {
+    const lines = text.split('\n');
+    const elements: React.ReactNode[] = [];
+    let listItems: React.ReactNode[] = [];
+    let listType: 'ul' | 'ol' | null = null;
+
+    const flushList = () => {
+        if (listItems.length > 0 && listType) {
+            const Tag = listType;
+            elements.push(
+                <Tag key={`list-${elements.length}`} className={`${listType === 'ul' ? 'list-disc' : 'list-decimal'} pl-4 space-y-0.5 my-1`}>
+                    {listItems}
+                </Tag>
+            );
+            listItems = [];
+            listType = null;
+        }
+    };
+
+    const inlineFormat = (str: string): React.ReactNode[] => {
+        // Split by bold (**text**) then italic (*text*)
+        const parts: React.ReactNode[] = [];
+        const regex = /(\*\*(.+?)\*\*|\*(.+?)\*)/g;
+        let lastIndex = 0;
+        let match: RegExpExecArray | null;
+
+        while ((match = regex.exec(str)) !== null) {
+            // Text before the match
+            if (match.index > lastIndex) {
+                parts.push(str.slice(lastIndex, match.index));
+            }
+            if (match[2]) {
+                // Bold
+                parts.push(<strong key={`b-${match.index}`} className="font-bold">{match[2]}</strong>);
+            } else if (match[3]) {
+                // Italic
+                parts.push(<em key={`i-${match.index}`}>{match[3]}</em>);
+            }
+            lastIndex = regex.lastIndex;
+        }
+        if (lastIndex < str.length) {
+            parts.push(str.slice(lastIndex));
+        }
+        return parts.length > 0 ? parts : [str];
+    };
+
+    lines.forEach((line, i) => {
+        const trimmed = line.trim();
+
+        // Bullet list: * item  or  - item
+        const bulletMatch = trimmed.match(/^[\*\-]\s+(.+)/);
+        // Numbered list: 1. item
+        const numMatch = trimmed.match(/^\d+\.\s+(.+)/);
+
+        if (bulletMatch) {
+            if (listType !== 'ul') flushList();
+            listType = 'ul';
+            listItems.push(<li key={`li-${i}`}>{inlineFormat(bulletMatch[1])}</li>);
+        } else if (numMatch) {
+            if (listType !== 'ol') flushList();
+            listType = 'ol';
+            listItems.push(<li key={`li-${i}`}>{inlineFormat(numMatch[1])}</li>);
+        } else {
+            flushList();
+            if (trimmed === '') {
+                elements.push(<div key={`br-${i}`} className="h-2" />);
+            } else {
+                elements.push(<p key={`p-${i}`} className="my-0.5">{inlineFormat(trimmed)}</p>);
+            }
+        }
+    });
+
+    flushList();
+    return <div className="space-y-0.5">{elements}</div>;
+}
+
 export default function CopilotPanel() {
     const [isOpen, setIsOpen] = useState(false);
     const [isExpanded, setIsExpanded] = useState(false);
@@ -217,7 +294,7 @@ export default function CopilotPanel() {
                                                     ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-tr-sm'
                                                     : 'bg-white dark:bg-white/10 text-gray-800 dark:text-gray-100 border border-gray-100 dark:border-white/5 rounded-tl-sm'
                                                     }`}>
-                                                    {msg.content}
+                                                    {isUser ? msg.content : renderMarkdown(msg.content)}
                                                 </div>
                                                 <span className="text-[10px] font-medium text-gray-400 dark:text-white/40 mt-1 px-1">
                                                     {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
