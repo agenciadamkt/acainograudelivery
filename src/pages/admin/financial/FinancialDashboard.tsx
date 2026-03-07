@@ -47,7 +47,9 @@ export default function FinancialDashboard() {
 
     const startOfMonthDate = format(new Date(today.getFullYear(), today.getMonth(), 1), 'yyyy-MM-dd');
 
-    /* ── Fetch cash closings (last 30 days) ── */
+    const todayStr = format(today, 'yyyy-MM-dd');
+
+    /* ── Fetch cash closings (mês corrente, até hoje) ── */
     const { data: closings } = useQuery({
         queryKey: ['financial_dashboard', selectedCD],
         queryFn: async () => {
@@ -60,6 +62,7 @@ export default function FinancialDashboard() {
                 .from('cash_closings' as any)
                 .select(selectStr)
                 .gte('closing_date', startOfMonthDate)
+                .lte('closing_date', todayStr)
                 .order('closing_date', { ascending: false });
 
             if (selectedCD) {
