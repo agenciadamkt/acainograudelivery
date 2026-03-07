@@ -249,8 +249,8 @@ export default function FinancialDashboard() {
 
     /* ── KPI Calculations ── */
     const kpis = useMemo(() => {
-        // Total Entradas = somatório dos lançamentos em financial_records (PixPag)
-        const totalIncome = (financialRecords || []).reduce((sum: number, r: any) => sum + Number(r.amount || 0), 0);
+        // Total Entradas = somatório de Vendas nos Fechamentos de Caixa do mês
+        const totalIncome = (closings || []).reduce((sum: number, c: any) => sum + Number(c.total_sales || 0), 0);
         const totalExpenses = (expensesData || []).reduce((sum: number, e: any) => sum + Number(e.amount), 0);
 
         // All-time balance from all accounts
@@ -270,7 +270,7 @@ export default function FinancialDashboard() {
             totalCash,
             totalPendingReceivables,
         };
-    }, [financialRecords, expensesData, accounts, receivables]);
+    }, [closings, expensesData, accounts, receivables]);
 
     const goalTarget = activeGoal ? Number(activeGoal.target_value) : 0;
     const goalProgress = goalTarget > 0 ? (kpis.totalIncome / goalTarget) * 100 : 0;
