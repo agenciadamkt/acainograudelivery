@@ -222,9 +222,35 @@ export default function FinancialDashboard() {
         },
     });
 
+    /* ── Fetch financial_records (lançamentos PixPag) for Total Entradas ── */
+    const { data: financialRecords } = useQuery({
+        queryKey: ['financial_records_dashboard', selectedCD],
+        queryFn: async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+
+            let query = supabase
+                .from('financial_records' as any)
+                .select('amount, status, transaction_type, distribution_center:distribution_centers!inner(franchisee_user_id)')
+                .gte('transaction_date', startOfMonthDate)
+                .neq('status', 'cancelled')
+                .neq('status', 'rejected');
+
+            if (selectedCD) {
+                query = query.eq('distribution_center_id', selectedCD);
+            } else {
+                query = query.eq('distribution_center.franchisee_user_id', user?.id);
+            }
+
+            const { data, error } = await query;
+            if (error) throw error;
+            return data as any[];
+        },
+    });
+
     /* ── KPI Calculations ── */
     const kpis = useMemo(() => {
-        const totalIncome = (closings || []).reduce((sum: number, c: any) => sum + Number(c.total_sales), 0);
+        // Total Entradas = somatório dos lançamentos em financial_records (PixPag)
+        const totalIncome = (financialRecords || []).reduce((sum: number, r: any) => sum + Number(r.amount || 0), 0);
         const totalExpenses = (expensesData || []).reduce((sum: number, e: any) => sum + Number(e.amount), 0);
 
         // All-time balance from all accounts
@@ -244,7 +270,7 @@ export default function FinancialDashboard() {
             totalCash,
             totalPendingReceivables,
         };
-    }, [closings, expensesData, accounts, receivables]);
+    }, [financialRecords, expensesData, accounts, receivables]);
 
     const goalTarget = activeGoal ? Number(activeGoal.target_value) : 0;
     const goalProgress = goalTarget > 0 ? (kpis.totalIncome / goalTarget) * 100 : 0;
