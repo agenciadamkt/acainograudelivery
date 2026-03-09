@@ -81,7 +81,7 @@ export default function FinancialLayout() {
                     <div className="flex items-center gap-3 px-6 py-5 border-b border-gray-100 dark:border-white/[0.06]">
                         <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/admin/hub')}>
                             <span className="text-xl font-bold text-gray-900 dark:text-white tracking-tight flex items-start">
-                                Grau<span className="text-purple-600 relative">OS<sup className="absolute -right-[0.55em] top-[0.1em] text-[0.4em] text-purple-600">®</sup></span>
+                                Grau<span className="text-[#7C3AED] relative">OS<sup className="absolute -right-[0.6em] top-[0.1em] text-[0.4em] text-[#7C3AED]">®</sup></span>
                             </span>
                             <img src={logoCircular} alt="Logo" className="h-6 w-6 rounded-full" />
                         </div>
@@ -160,7 +160,7 @@ export default function FinancialLayout() {
                     <aside className="relative w-72 bg-white dark:bg-[#16161D] flex flex-col shadow-2xl animate-in slide-in-from-left duration-300">
                         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-white/[0.06]">
                             <span className="text-lg font-bold text-gray-900 dark:text-white flex items-start">
-                                Grau<span className="text-purple-600 relative">OS<sup className="absolute -right-[0.55em] top-[0.1em] text-[0.4em] text-purple-600">®</sup></span>
+                                Grau<span className="text-[#7C3AED] relative">OS<sup className="absolute -right-[0.6em] top-[0.1em] text-[0.4em] text-[#7C3AED]">®</sup></span>
                             </span>
                             <button onClick={() => setMobileOpen(false)} className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5">
                                 <X className="h-5 w-5 text-gray-500" />

@@ -132,7 +132,9 @@ export function AdminSidebar() {
           <img src={logoCircular} alt="PedeGrau" className="h-10 w-10" />
           {!isCollapsed && (
             <div>
-              <h2 className="font-bold text-lg">PedeGrau</h2>
+              <h2 className="font-bold text-lg flex items-start">
+                Grau<span className="text-primary relative">OS<sup className="absolute -right-[0.55em] top-[0.1em] text-[0.4em] text-primary">®</sup></span>
+              </h2>
               <p className="text-xs text-muted-foreground">Admin</p>
             </div>
           )}
