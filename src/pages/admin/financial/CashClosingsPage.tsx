@@ -70,11 +70,12 @@ export default function CashClosingsPage() {
             (acc, curr) => {
                 acc.sales += Number(curr.total_sales || 0);
                 acc.cash += Number(curr.total_cash || 0);
+                acc.cashSettlement += Number(curr.cash_settlement || 0);
                 acc.expenses += Number(curr.total_expenses || 0);
                 acc.balance += Number(curr.balance || 0);
                 return acc;
             },
-            { sales: 0, cash: 0, expenses: 0, balance: 0 }
+            { sales: 0, cash: 0, cashSettlement: 0, expenses: 0, balance: 0 }
         );
     }, [closings]);
 
@@ -121,13 +122,14 @@ export default function CashClosingsPage() {
             c.distribution_center?.name || '—',
             formatBRL(Number(c.total_sales || 0)),
             formatBRL(Number(c.total_cash || 0)),
+            formatBRL(Number(c.cash_settlement || 0)),
             formatBRL(Number(c.total_expenses || 0)),
             formatBRL(Number(c.balance || 0)),
             c.operator?.name || '—',
         ]);
 
         autoTable(doc, {
-            head: [['Data', 'CD', 'Vendas', 'Dinheiro', 'Saídas', 'Saldo', 'Operador']],
+            head: [['Data', 'CD', 'Vendas', 'Dinheiro', 'Baixa Dinheiro', 'Saídas', 'Saldo', 'Operador']],
             body: tableData,
             startY: currentY,
             theme: 'grid',
@@ -137,8 +139,9 @@ export default function CashClosingsPage() {
             columnStyles: {
                 2: { halign: 'right', textColor: [5, 150, 105] },
                 3: { halign: 'right' },
-                4: { halign: 'right', textColor: [239, 68, 68] },
-                5: { halign: 'right', fontStyle: 'bold' },
+                4: { halign: 'right' },
+                5: { halign: 'right', textColor: [239, 68, 68] },
+                6: { halign: 'right', fontStyle: 'bold' },
             },
             margin: { left: 14, right: 14 },
         });
@@ -160,6 +163,7 @@ export default function CashClosingsPage() {
         const totalLines = [
             ['Total Vendas:', formatBRL(totals.sales), [5, 150, 105]],
             ['Total Dinheiro:', formatBRL(totals.cash), [0, 0, 0]],
+            ['Total B. Dinheiro:', formatBRL(totals.cashSettlement), [0, 0, 0]],
             ['Total Saídas:', formatBRL(totals.expenses), [239, 68, 68]],
             ['Saldo Final:', formatBRL(totals.balance), totals.balance >= 0 ? [5, 150, 105] : [239, 68, 68]],
         ];
@@ -284,6 +288,7 @@ export default function CashClosingsPage() {
                                     <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 dark:text-white/40 uppercase">CD</th>
                                     <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 dark:text-white/40 uppercase">Vendas</th>
                                     <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 dark:text-white/40 uppercase">Dinheiro</th>
+                                    <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 dark:text-white/40 uppercase">Baixa Dinheiro</th>
                                     <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 dark:text-white/40 uppercase">Saídas</th>
                                     <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 dark:text-white/40 uppercase">Saldo</th>
                                     <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 dark:text-white/40 uppercase">Operador</th>
@@ -293,12 +298,12 @@ export default function CashClosingsPage() {
                             <tbody className="divide-y divide-gray-50 dark:divide-white/[0.03]">
                                 {isLoading && (
                                     <tr>
-                                        <td colSpan={8} className="px-4 py-8 text-center text-gray-400">Carregando...</td>
+                                        <td colSpan={9} className="px-4 py-8 text-center text-gray-400">Carregando...</td>
                                     </tr>
                                 )}
                                 {isError && (
                                     <tr>
-                                        <td colSpan={8} className="px-4 py-8 text-center text-red-500 bg-red-50 dark:bg-red-900/10 rounded-xl">
+                                        <td colSpan={9} className="px-4 py-8 text-center text-red-500 bg-red-50 dark:bg-red-900/10 rounded-xl">
                                             <p className="font-bold flex items-center justify-center gap-2">
                                                 Erro ao carregar dados
                                             </p>
@@ -308,7 +313,7 @@ export default function CashClosingsPage() {
                                 )}
                                 {!isLoading && !isError && closings.length === 0 && (
                                     <tr>
-                                        <td colSpan={8} className="px-4 py-8 text-center text-gray-400 dark:text-white/30">
+                                        <td colSpan={9} className="px-4 py-8 text-center text-gray-400 dark:text-white/30">
                                             Nenhum fechamento encontrado
                                         </td>
                                     </tr>
@@ -329,6 +334,9 @@ export default function CashClosingsPage() {
                                         </td>
                                         <td className="px-4 py-3 text-gray-700 dark:text-white/70">
                                             {formatBRL(Number(c.total_cash))}
+                                        </td>
+                                        <td className="px-4 py-3 text-gray-700 dark:text-white/70">
+                                            {formatBRL(Number(c.cash_settlement || 0))}
                                         </td>
                                         <td className="px-4 py-3 text-red-500">
                                             {formatBRL(Number(c.total_expenses))}
@@ -362,6 +370,9 @@ export default function CashClosingsPage() {
                                     </td>
                                     <td className="px-4 py-3 text-gray-900 dark:text-white">
                                         {formatBRL(totals.cash)}
+                                    </td>
+                                    <td className="px-4 py-3 text-gray-900 dark:text-white">
+                                        {formatBRL(totals.cashSettlement)}
                                     </td>
                                     <td className="px-4 py-3 text-red-500">
                                         {formatBRL(totals.expenses)}

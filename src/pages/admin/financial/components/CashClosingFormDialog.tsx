@@ -90,9 +90,10 @@ export default function CashClosingFormDialog({ open, onOpenChange, editData }: 
 
     // Watch for auto-balance calculation
     const totalCash = form.watch('total_cash');
+    const cashSettlement = form.watch('cash_settlement');
     const totalExpenses = form.watch('total_expenses');
-    // Balance is just total_cash based on new requirement (expenses don't subtract)
-    const balance = Number(totalCash) || 0;
+    // Balance is total_cash + cash_settlement based on new requirement
+    const balance = (Number(totalCash) || 0) + (Number(cashSettlement) || 0);
 
     useEffect(() => {
         if (editData) {
