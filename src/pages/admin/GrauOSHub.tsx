@@ -155,8 +155,8 @@ export default function GrauOSHub() {
                         className="mb-8 lg:mb-10"
                     >
                         <div className="flex items-center gap-3 mb-1">
-                            <h1 className="text-4xl sm:text-5xl lg:text-[56px] font-extrabold tracking-tight text-gray-800 leading-none">
-                                Grau<span className="text-[#7B5EA7]">OS</span>
+                            <h1 className="text-4xl sm:text-5xl lg:text-[56px] font-extrabold tracking-tight text-gray-800 leading-none flex items-start">
+                                Grau<span className="text-[#7C3AED] relative">OS<sup className="absolute -right-[0.5em] top-[0.1em] text-[0.4em] text-[#7C3AED]">®</sup></span>
                             </h1>
                             <img
                                 src={logoCircular}
@@ -330,7 +330,7 @@ export default function GrauOSHub() {
                 <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-400">
                     <div className="flex items-center gap-2">
                         <img src={logoCircular} alt="" className="h-4 w-4 opacity-40" />
-                        <span>GrauOS v1.0 — Açaí no Grau</span>
+                        <span>GrauOS<sup className="text-[#7C3AED]">®</sup> v1.0 — Açaí no Grau</span>
                     </div>
                     <span>© {new Date().getFullYear()} Todos os direitos reservados</span>
                 </div>

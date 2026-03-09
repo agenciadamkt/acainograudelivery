@@ -134,7 +134,7 @@ export function GrauOSLayout({ children }: GrauOSLayoutProps) {
                         <div className="flex items-center justify-between text-[11px] text-gray-400 dark:text-white/20">
                             <div className="flex items-center gap-2">
                                 <img src={logoCircular} alt="" className="h-4 w-4 opacity-50 dark:opacity-30" />
-                                <span>GrauOS v1.0</span>
+                                <span>GrauOS<sup className="text-[#7C3AED]">®</sup> v1.0</span>
                             </div>
                             <span>© {new Date().getFullYear()} Açaí no Grau</span>
                         </div>

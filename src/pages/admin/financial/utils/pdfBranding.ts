@@ -96,6 +96,11 @@ export async function addPdfBranding(doc: jsPDF, centerName?: string): Promise<n
     doc.setTextColor(26, 26, 26); // #1A1A1A
     doc.text('Grau', textEndX - osWidth, textY, { align: 'right' });
 
+    // Trademark (®)
+    doc.setFontSize(8);
+    doc.setTextColor(124, 58, 237); // #7C3AED
+    doc.text('®', textEndX + 0.5, textY - 4, { align: 'left' });
+
     // Subtitle
     // Aligned to the right, matching the end of "OS" text (textEndX)
     doc.setFontSize(9);
