@@ -71,11 +71,14 @@ export default function CashClosingsPage() {
                 acc.sales += Number(curr.total_sales || 0);
                 acc.cash += Number(curr.total_cash || 0);
                 acc.cashSettlement += Number(curr.cash_settlement || 0);
+                acc.credit += Number(curr.credit_card_value || 0);
+                acc.debit += Number(curr.debit_card_value || 0);
+                acc.pix += Number(curr.pix_value || 0);
                 acc.expenses += Number(curr.total_expenses || 0);
                 acc.balance += Number(curr.balance || 0);
                 return acc;
             },
-            { sales: 0, cash: 0, cashSettlement: 0, expenses: 0, balance: 0 }
+            { sales: 0, cash: 0, cashSettlement: 0, credit: 0, debit: 0, pix: 0, expenses: 0, balance: 0 }
         );
     }, [closings]);
 
@@ -155,6 +158,36 @@ export default function CashClosingsPage() {
 
         doc.setFontSize(10);
         doc.setFont('helvetica', 'bold');
+        doc.text('FORMAS DE RECEBIMENTO', 14, currentY);
+        currentY += 6;
+
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        const paymentLines = [
+            ['Dinheiro (Local):', formatBRL(totals.cash), [0, 0, 0]],
+            ['Pix:', formatBRL(totals.pix), [0, 0, 0]],
+            ['Crédito:', formatBRL(totals.credit), [0, 0, 0]],
+            ['Débito:', formatBRL(totals.debit), [0, 0, 0]],
+            ['Baixa em Dinheiro:', formatBRL(totals.cashSettlement), [0, 0, 0]],
+        ];
+
+        paymentLines.forEach(([label, value, color]: any) => {
+            doc.setTextColor(100, 100, 100);
+            doc.text(label, 14, currentY);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(color[0], color[1], color[2]);
+            doc.text(value, 70, currentY);
+            doc.setFont('helvetica', 'normal');
+            currentY += 5;
+        });
+
+        currentY += 4;
+        doc.setDrawColor(230, 230, 230);
+        doc.line(14, currentY, doc.internal.pageSize.getWidth() - 14, currentY);
+        currentY += 6;
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
         doc.text('TOTAIS NO PERÍODO', 14, currentY);
         currentY += 6;
 
@@ -162,8 +195,6 @@ export default function CashClosingsPage() {
         doc.setFont('helvetica', 'normal');
         const totalLines = [
             ['Total Vendas:', formatBRL(totals.sales), [5, 150, 105]],
-            ['Total Dinheiro:', formatBRL(totals.cash), [0, 0, 0]],
-            ['Total B. Dinheiro:', formatBRL(totals.cashSettlement), [0, 0, 0]],
             ['Total Saídas:', formatBRL(totals.expenses), [239, 68, 68]],
             ['Saldo Final:', formatBRL(totals.balance), totals.balance >= 0 ? [5, 150, 105] : [239, 68, 68]],
         ];

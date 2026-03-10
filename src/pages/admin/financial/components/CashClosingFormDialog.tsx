@@ -51,6 +51,9 @@ const formSchema = z.object({
     total_expenses: z.coerce.number().min(0, 'Valor inválido'),
     title_settlement: z.coerce.number().min(0, 'Valor inválido'),
     cash_settlement: z.coerce.number().min(0, 'Valor inválido'),
+    credit_card_value: z.coerce.number().min(0, 'Valor inválido'),
+    debit_card_value: z.coerce.number().min(0, 'Valor inválido'),
+    pix_value: z.coerce.number().min(0, 'Valor inválido'),
     checked_by_id: z.string().min(1, 'Selecione quem conferiu'),
     account_id: z.string().optional(),
     notes: z.string().optional(),
@@ -82,6 +85,9 @@ export default function CashClosingFormDialog({ open, onOpenChange, editData }: 
             total_expenses: 0,
             title_settlement: 0,
             cash_settlement: 0,
+            credit_card_value: 0,
+            debit_card_value: 0,
+            pix_value: 0,
             checked_by_id: '',
             account_id: '',
             notes: '',
@@ -106,6 +112,9 @@ export default function CashClosingFormDialog({ open, onOpenChange, editData }: 
                 total_expenses: editData.total_expenses || 0,
                 title_settlement: editData.title_settlement || 0,
                 cash_settlement: editData.cash_settlement || 0,
+                credit_card_value: editData.credit_card_value || 0,
+                debit_card_value: editData.debit_card_value || 0,
+                pix_value: editData.pix_value || 0,
                 checked_by_id: editData.checked_by_id || '',
                 account_id: editData.account_id || '',
                 notes: editData.notes || '',
@@ -138,6 +147,9 @@ export default function CashClosingFormDialog({ open, onOpenChange, editData }: 
                 total_expenses: 0,
                 title_settlement: 0,
                 cash_settlement: 0,
+                credit_card_value: 0,
+                debit_card_value: 0,
+                pix_value: 0,
                 checked_by_id: '',
                 account_id: '',
                 notes: '',
@@ -443,7 +455,50 @@ export default function CashClosingFormDialog({ open, onOpenChange, editData }: 
                             />
                         </div>
 
-                        {/* Row 6: Upload de Documentos */}
+                        {/* Row 6: Formas de Recebimento */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <FormField
+                                control={form.control}
+                                name="credit_card_value"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Crédito</FormLabel>
+                                        <FormControl>
+                                            <BRLInput field={field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="debit_card_value"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Débito</FormLabel>
+                                        <FormControl>
+                                            <BRLInput field={field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="pix_value"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Pix</FormLabel>
+                                        <FormControl>
+                                            <BRLInput field={field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </div>
+
+                        {/* Row 7: Upload de Documentos */}
                         <div className="space-y-2">
                             <FormLabel>Envio de documentos</FormLabel>
                             <div className="border-2 border-dashed border-gray-200 dark:border-white/10 rounded-lg p-4 text-center hover:border-purple-400 dark:hover:border-purple-500/40 transition-colors">
