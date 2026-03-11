@@ -16,9 +16,35 @@ export default function Login() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (user) {
-      navigate('/admin/hub');
-    }
+    const handleRedirect = async () => {
+      if (user) {
+        try {
+          const { data: financialUser } = await supabase
+            .from('financial_users' as any)
+            .select('id')
+            .eq('email', user.email?.toLowerCase() || '')
+            .eq('active', true)
+            .maybeSingle();
+
+          const { data: roles } = await supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', user.id);
+
+          const hasStaffRole = roles && roles.some((r: any) => ['admin', 'manager', 'staff', 'franchisee_master'].includes(r.role));
+
+          if (financialUser && !hasStaffRole) {
+            navigate('/admin/financeiro');
+          } else {
+            navigate('/admin/hub');
+          }
+        } catch {
+          navigate('/admin/hub');
+        }
+      }
+    };
+
+    handleRedirect();
   }, [user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
