@@ -263,7 +263,7 @@ export default function FinancialDashboard() {
             const balances: Record<string, number> = {};
             (closingsRes || []).forEach((c: any) => {
                 const dcId = c.distribution_center_id;
-                // Formula: (Total Dinheiro + Baixa Dinheiro) - Gastos
+                // Fórmula do Fábio: (Total Dinheiro + Baixa Dinheiro) - Gastos do Fechamento
                 const netDay = Number(c.total_cash || 0) + Number(c.cash_settlement || 0) - Number(c.total_expenses || 0);
                 balances[dcId] = (balances[dcId] || 0) + netDay;
             });
@@ -281,8 +281,13 @@ export default function FinancialDashboard() {
         // Global Accounts Balance (Consolidated Banks + Cash)
         const globalAccountsBalance = (accounts || []).reduce((sum: number, a: any) => sum + Number(a.balance), 0);
 
-        // Override balance if a specific CD is selected
-        const balance = selectedCD ? (cdBalances?.[selectedCD] || 0) : globalAccountsBalance;
+        // Sum of all individual CD physical balances (computed via our cash closing logic)
+        const sumOfAllCDBalances = cdBalances ? Object.values(cdBalances).reduce((sum, b) => sum + b, 0) : 0;
+
+        // Determination of current context's balance
+        // If "Todos os CDs" (no selectedCD), use the sum of all CDs. 
+        // If specific CD, use only that CD's balance.
+        const balance = selectedCD ? (cdBalances?.[selectedCD] || 0) : sumOfAllCDBalances;
 
         // Total Pending Receivables
         const totalPendingReceivables = (receivables || []).reduce((sum: number, r: any) => sum + Number(r.amount), 0);
