@@ -250,30 +250,50 @@ export default function FinancialDashboard() {
         },
     });
 
+    /* ── Fetch all-time balance for specific CD ── */
+    const { data: cdBalance } = useQuery({
+        queryKey: ['financial_cd_balance', selectedCD],
+        enabled: !!selectedCD,
+        queryFn: async () => {
+            if (!selectedCD) return 0;
+            const [closingsRes, expensesRes] = await Promise.all([
+                supabase.from('cash_closings').select('total_cash').eq('distribution_center_id', selectedCD),
+                supabase.from('expenses').select('amount').eq('distribution_center_id', selectedCD).eq('paid_with_cash_balance', true)
+            ]);
+
+            const totalCashIn = (closingsRes.data || []).reduce((sum, c) => sum + Number(c.total_cash || 0), 0);
+            const totalExp = (expensesRes.data || []).reduce((sum, e) => sum + Number(e.amount || 0), 0);
+
+            return totalCashIn - totalExp;
+        }
+    });
+
     /* ── KPI Calculations ── */
     const kpis = useMemo(() => {
         // Total Entradas = somatório de Vendas nos Fechamentos de Caixa do mês
         const totalIncome = (closings || []).reduce((sum: number, c: any) => sum + Number(c.total_sales || 0), 0);
         const totalExpenses = (expensesData || []).reduce((sum: number, e: any) => sum + Number(e.amount), 0);
 
-        // All-time balance from all accounts
-        const totalAccountsBalance = (accounts || []).reduce((sum: number, a: any) => sum + Number(a.balance), 0);
-
-        // Specific Caixa Geral balance
+        // Global Accounts Balance computation
+        const globalAccountsBalance = (accounts || []).reduce((sum: number, a: any) => sum + Number(a.balance), 0);
         const caixaGeralAccount = (accounts || []).find(a => a.name === 'Caixa Geral');
-        const totalCash = caixaGeralAccount ? Number(caixaGeralAccount.balance) : 0;
+        const globalTotalCash = caixaGeralAccount ? Number(caixaGeralAccount.balance) : 0;
+
+        // If a specific CD is selected, override the balances
+        const balance = selectedCD && cdBalance !== undefined ? cdBalance : globalAccountsBalance;
+        const totalCash = selectedCD && cdBalance !== undefined ? cdBalance : globalTotalCash;
 
         // Total Pending Receivables
         const totalPendingReceivables = (receivables || []).reduce((sum: number, r: any) => sum + Number(r.amount), 0);
 
         return {
-            balance: totalAccountsBalance,
+            balance,
             totalExpenses,
             totalIncome,
             totalCash,
             totalPendingReceivables,
         };
-    }, [closings, expensesData, accounts, receivables]);
+    }, [closings, expensesData, accounts, receivables, selectedCD, cdBalance]);
 
     const goalTarget = activeGoal ? Number(activeGoal.target_value) : 0;
     const goalProgress = goalTarget > 0 ? (kpis.totalIncome / goalTarget) * 100 : 0;
