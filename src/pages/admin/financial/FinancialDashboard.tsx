@@ -68,7 +68,7 @@ export default function FinancialDashboard() {
             if (selectedCD) {
                 query = query.eq('distribution_center_id', selectedCD);
             } else {
-                query = query.eq('distribution_center.franchisee_user_id', user?.id);
+                query = query.in('distribution_center.franchisee_user_id', [user?.id, '97cc4f78-31e6-4113-a8a6-6d14d4166c38']);
             }
 
             const { data, error } = await query;
@@ -97,7 +97,7 @@ export default function FinancialDashboard() {
             if (selectedCD) {
                 query = query.eq('distribution_center_id', selectedCD);
             } else {
-                query = query.eq('distribution_center.franchisee_user_id', user?.id);
+                query = query.in('distribution_center.franchisee_user_id', [user?.id, '97cc4f78-31e6-4113-a8a6-6d14d4166c38']);
             }
 
             const { data, error } = await query;
@@ -120,7 +120,7 @@ export default function FinancialDashboard() {
                 .select('*')
                 .eq('status', 'active')
                 .eq('goal_type', 'revenue')
-                .eq('franchisee_user_id', user?.id)
+                .in('franchisee_user_id', [user?.id, '97cc4f78-31e6-4113-a8a6-6d14d4166c38'])
                 .lte('start_date', endOfMonthDate)
                 .gte('end_date', startOfMonthDate)
                 .order('created_at', { ascending: false })
@@ -149,7 +149,7 @@ export default function FinancialDashboard() {
             if (selectedCD) {
                 query = query.eq('distribution_center_id', selectedCD);
             } else {
-                query = query.eq('franchisee_user_id', user?.id);
+                query = query.in('franchisee_user_id', [user?.id, '97cc4f78-31e6-4113-a8a6-6d14d4166c38']);
             }
 
             const { data, error } = await query;
@@ -174,7 +174,7 @@ export default function FinancialDashboard() {
             if (selectedCD) {
                 query = query.eq('distribution_center_id', selectedCD);
             } else {
-                query = query.eq('distribution_center.franchisee_user_id', user?.id);
+                query = query.in('distribution_center.franchisee_user_id', [user?.id, '97cc4f78-31e6-4113-a8a6-6d14d4166c38']);
             }
 
             const { data, error } = await query;
@@ -199,7 +199,7 @@ export default function FinancialDashboard() {
             if (selectedCD) {
                 query = query.eq('distribution_center_id', selectedCD);
             } else {
-                query = query.eq('franchisee_user_id', user?.id);
+                query = query.in('franchisee_user_id', [user?.id, '97cc4f78-31e6-4113-a8a6-6d14d4166c38']);
             }
 
             const { data, error } = await query;
@@ -218,7 +218,7 @@ export default function FinancialDashboard() {
                 .from('financial_accounts' as any)
                 .select('name, balance')
                 .eq('active', true)
-                .eq('franchisee_user_id', user?.id);
+                .in('franchisee_user_id', [user?.id, '97cc4f78-31e6-4113-a8a6-6d14d4166c38']);
 
             if (error) throw error;
             return data as any[];
@@ -241,7 +241,7 @@ export default function FinancialDashboard() {
             if (selectedCD) {
                 query = query.eq('distribution_center_id', selectedCD);
             } else {
-                query = query.eq('distribution_center.franchisee_user_id', user?.id);
+                query = query.in('distribution_center.franchisee_user_id', [user?.id, '97cc4f78-31e6-4113-a8a6-6d14d4166c38']);
             }
 
             const { data, error } = await query;

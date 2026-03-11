@@ -70,7 +70,7 @@ export default function WeeklyCashFlowPage() {
             if (filterCD) {
                 query = query.eq('distribution_center_id', filterCD);
             } else {
-                query = query.eq('distribution_center.franchisee_user_id', user?.id);
+                query = query.in('distribution_center.franchisee_user_id', [user?.id, '97cc4f78-31e6-4113-a8a6-6d14d4166c38']);
             }
 
             const { data, error } = await query;
@@ -98,7 +98,7 @@ export default function WeeklyCashFlowPage() {
             if (filterCD) {
                 query = query.eq('distribution_center_id', filterCD);
             } else {
-                query = query.eq('distribution_center.franchisee_user_id', user?.id);
+                query = query.in('distribution_center.franchisee_user_id', [user?.id, '97cc4f78-31e6-4113-a8a6-6d14d4166c38']);
             }
 
             const { data, error } = await query;
@@ -123,7 +123,7 @@ export default function WeeklyCashFlowPage() {
             if (filterCD) {
                 query = query.eq('distribution_center_id', filterCD);
             } else {
-                query = query.eq('distribution_center.franchisee_user_id', user?.id);
+                query = query.in('distribution_center.franchisee_user_id', [user?.id, '97cc4f78-31e6-4113-a8a6-6d14d4166c38']);
             }
 
 

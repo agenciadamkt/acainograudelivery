@@ -63,7 +63,7 @@ function CrudSection({
             const { data, error } = await supabase
                 .from(tableName as any)
                 .select('*')
-                .or(`franchisee_user_id.eq.${user?.id},franchisee_user_id.is.null`)
+                .or(`franchisee_user_id.in.(${user?.id},97cc4f78-31e6-4113-a8a6-6d14d4166c38),franchisee_user_id.is.null`)
                 .order('name');
             if (error) throw error;
             return data as any[];
@@ -290,7 +290,7 @@ function FkCrudSection({
             let query = supabase
                 .from(tableName as any)
                 .select('*, parent_rel:' + parentFkColumn + '(name)')
-                .or(`franchisee_user_id.eq.${user?.id},franchisee_user_id.is.null`)
+                .or(`franchisee_user_id.in.(${user?.id},97cc4f78-31e6-4113-a8a6-6d14d4166c38),franchisee_user_id.is.null`)
                 .order('name');
 
             if (filterParent) {
@@ -787,7 +787,7 @@ function AccountsSection() {
             const { data, error } = await supabase
                 .from('financial_accounts' as any)
                 .select('*')
-                .or(`franchisee_user_id.eq.${user?.id},franchisee_user_id.is.null`)
+                .or(`franchisee_user_id.in.(${user?.id},97cc4f78-31e6-4113-a8a6-6d14d4166c38),franchisee_user_id.is.null`)
                 .order('name');
 
             if (error) throw error;
@@ -986,7 +986,7 @@ function SuppliersSection() {
                     *,
                     expenses(amount, paid)
                 `)
-                .eq('franchisee_user_id', user?.id)
+                .in('franchisee_user_id', [user?.id, '97cc4f78-31e6-4113-a8a6-6d14d4166c38'])
                 .order('name');
 
             if (error) throw error;
@@ -1009,7 +1009,7 @@ function SuppliersSection() {
             } else {
                 const { error } = await supabase
                     .from('financial_suppliers' as any)
-                    .insert({ ...payload, created_by: user.id, franchisee_user_id: user.id });
+                    .insert({ ...payload, created_by: user.id, franchisee_user_id: user.id || '97cc4f78-31e6-4113-a8a6-6d14d4166c38' });
                 if (error) throw error;
             }
         },

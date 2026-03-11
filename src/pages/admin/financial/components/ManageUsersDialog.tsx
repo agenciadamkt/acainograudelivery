@@ -33,6 +33,7 @@ export function ManageUsersDialog({ open, onOpenChange }: ManageUsersDialogProps
     const queryClient = useQueryClient();
     const [newEmail, setNewEmail] = useState('');
     const [newName, setNewName] = useState('');
+    const [newPassword, setNewPassword] = useState('');
     const [newRole, setNewRole] = useState<'admin' | 'operator'>('operator');
 
     // Fetch authorized users
@@ -52,11 +53,28 @@ export function ManageUsersDialog({ open, onOpenChange }: ManageUsersDialogProps
     // Add user mutation
     const addMutation = useMutation({
         mutationFn: async () => {
-            if (!newEmail.trim() || !newName.trim()) throw new Error('Preencha todos os campos');
+            if (!newEmail.trim() || !newName.trim() || !newPassword.trim()) throw new Error('Preencha nome, email e senha');
 
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error('Não autenticado');
 
+            // 1. Cria a conta no sistema de Autenticação com a senha providenciada
+            const { error: authError } = await supabase.auth.signUp({
+                email: newEmail.trim().toLowerCase(),
+                password: newPassword,
+                options: {
+                    data: { full_name: newName.trim() }
+                }
+            });
+
+            if (authError && !authError.message.includes('already registered')) {
+                throw new Error(authError.message);
+            }
+
+            // 2. Confirma o e-mail secretamente no banco para o usuário logar imediatamente 
+            await supabase.rpc('confirm_user_email', { user_email: newEmail.trim().toLowerCase() });
+
+            // 3. Cadastra na lista de permissões financeiras
             const { error } = await supabase
                 .from('financial_users' as any)
                 .insert({
@@ -73,11 +91,12 @@ export function ManageUsersDialog({ open, onOpenChange }: ManageUsersDialogProps
             }
         },
         onSuccess: () => {
-            toast.success(`${newRole === 'admin' ? 'Administrador' : 'Funcionário'} adicionado com sucesso!`);
+            toast.success(`${newRole === 'admin' ? 'Administrador' : 'Funcionário'} cadastrado(a) com acesso liberado!`);
             queryClient.invalidateQueries({ queryKey: ['financial_users'] });
             queryClient.invalidateQueries({ queryKey: ['financial_access'] });
             setNewEmail('');
             setNewName('');
+            setNewPassword('');
             setNewRole('operator');
         },
         onError: (error) => toast.error(error.message),
@@ -167,7 +186,7 @@ export function ManageUsersDialog({ open, onOpenChange }: ManageUsersDialogProps
                     <h3 className="text-sm font-medium text-gray-700 dark:text-white/70 flex items-center gap-2">
                         <UserPlus className="h-4 w-4" /> Adicionar Membro
                     </h3>
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 gap-3">
                         <div>
                             <Label htmlFor="emp-name" className="text-xs text-gray-500">Nome</Label>
                             <Input
@@ -186,6 +205,17 @@ export function ManageUsersDialog({ open, onOpenChange }: ManageUsersDialogProps
                                 placeholder="maria@email.com"
                                 value={newEmail}
                                 onChange={(e) => setNewEmail(e.target.value)}
+                                className="mt-1 bg-white dark:bg-white/5 border-gray-200 dark:border-white/10"
+                            />
+                        </div>
+                        <div>
+                            <Label htmlFor="emp-password" className="text-xs text-gray-500">Criar Senha</Label>
+                            <Input
+                                id="emp-password"
+                                type="text"
+                                placeholder="Senha provisória"
+                                value={newPassword}
+                                onChange={(e) => setNewPassword(e.target.value)}
                                 className="mt-1 bg-white dark:bg-white/5 border-gray-200 dark:border-white/10"
                             />
                         </div>
@@ -212,7 +242,7 @@ export function ManageUsersDialog({ open, onOpenChange }: ManageUsersDialogProps
                     </div>
                     <Button
                         onClick={() => addMutation.mutate()}
-                        disabled={addMutation.isPending || !newEmail.trim() || !newName.trim()}
+                        disabled={addMutation.isPending || !newEmail.trim() || !newName.trim() || !newPassword.trim()}
                         className="w-full bg-indigo-600 hover:bg-indigo-700 text-white gap-2"
                         size="sm"
                     >
@@ -237,16 +267,16 @@ export function ManageUsersDialog({ open, onOpenChange }: ManageUsersDialogProps
                             <div
                                 key={u.id}
                                 className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${u.active
-                                        ? 'bg-white dark:bg-white/[0.03] border-gray-100 dark:border-white/10'
-                                        : 'bg-gray-50 dark:bg-white/[0.01] border-gray-100 dark:border-white/5 opacity-60'
+                                    ? 'bg-white dark:bg-white/[0.03] border-gray-100 dark:border-white/10'
+                                    : 'bg-gray-50 dark:bg-white/[0.01] border-gray-100 dark:border-white/5 opacity-60'
                                     }`}
                             >
                                 <div className="flex items-center gap-3">
                                     <div className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold ${u.role === 'admin'
-                                            ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
-                                            : u.active
-                                                ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'
-                                                : 'bg-gray-200 text-gray-500 dark:bg-white/10 dark:text-white/30'
+                                        ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+                                        : u.active
+                                            ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'
+                                            : 'bg-gray-200 text-gray-500 dark:bg-white/10 dark:text-white/30'
                                         }`}>
                                         {u.name?.charAt(0)?.toUpperCase()}
                                     </div>
@@ -272,8 +302,8 @@ export function ManageUsersDialog({ open, onOpenChange }: ManageUsersDialogProps
                                     <Badge
                                         variant="outline"
                                         className={`text-[10px] cursor-pointer ${u.active
-                                                ? 'border-emerald-200 text-emerald-600 dark:border-emerald-800 dark:text-emerald-400'
-                                                : 'border-gray-200 text-gray-400 dark:border-white/10 dark:text-white/30'
+                                            ? 'border-emerald-200 text-emerald-600 dark:border-emerald-800 dark:text-emerald-400'
+                                            : 'border-gray-200 text-gray-400 dark:border-white/10 dark:text-white/30'
                                             }`}
                                         onClick={() => toggleMutation.mutate({ id: u.id, active: u.active })}
                                         title={u.active ? 'Clique para desativar' : 'Clique para ativar'}

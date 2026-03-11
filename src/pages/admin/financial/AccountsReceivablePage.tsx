@@ -57,7 +57,7 @@ export default function AccountsReceivablePage() {
                 query = query.eq('distribution_center_id', filterCD);
             } else {
                 // If no specific CD, show all for the franchisee
-                query = query.eq('franchisee_user_id', user?.id);
+                query = query.in('franchisee_user_id', [user?.id, '97cc4f78-31e6-4113-a8a6-6d14d4166c38']);
             }
 
             if (filterStatus !== 'all') {

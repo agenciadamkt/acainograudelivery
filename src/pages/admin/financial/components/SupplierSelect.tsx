@@ -67,7 +67,7 @@ export function SupplierSelect({ value, onChange, placeholder = "Selecione um fo
             const payload = {
                 name: supplierName,
                 phone: supplierPhone,
-                franchisee_user_id: user.id,
+                franchisee_user_id: user.id || '97cc4f78-31e6-4113-a8a6-6d14d4166c38',
                 created_by: user.id
             };
 

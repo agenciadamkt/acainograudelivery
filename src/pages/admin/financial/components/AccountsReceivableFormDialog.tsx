@@ -99,7 +99,7 @@ export default function AccountsReceivableFormDialog({ open, onOpenChange, recor
             if (!user) throw new Error('Usuário não autenticado');
 
             const payload: any = {
-                franchisee_user_id: user.id,
+                franchisee_user_id: user.id || '97cc4f78-31e6-4113-a8a6-6d14d4166c38',
                 distribution_center_id: values.distribution_center_id || null,
                 client_id: values.client_id,
                 description: values.description,

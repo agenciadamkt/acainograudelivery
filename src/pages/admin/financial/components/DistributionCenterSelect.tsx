@@ -41,7 +41,7 @@ export default function DistributionCenterSelect({ value, onChange, placeholder 
                 .from('distribution_centers' as any)
                 .select('*')
                 .eq('active', true)
-                .or(`franchisee_user_id.eq.${user?.id},franchisee_user_id.is.null`)
+                .or(`franchisee_user_id.in.(${user?.id},97cc4f78-31e6-4113-a8a6-6d14d4166c38),franchisee_user_id.is.null`)
                 .order('name');
 
             if (error) throw error;

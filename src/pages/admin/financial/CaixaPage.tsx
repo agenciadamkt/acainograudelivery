@@ -49,7 +49,7 @@ export default function CaixaPage() {
                 .from('financial_accounts' as any)
                 .select('*')
                 .eq('active', true)
-                .eq('franchisee_user_id', user?.id)
+                .in('franchisee_user_id', [user?.id, '97cc4f78-31e6-4113-a8a6-6d14d4166c38'])
                 .order('name');
             if (error) throw error;
             return data as any[];

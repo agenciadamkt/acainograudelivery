@@ -140,7 +140,7 @@ export default function FluxoCaixaPage() {
                 .from('distribution_centers' as any)
                 .select('*')
                 .eq('active', true)
-                .eq('franchisee_user_id', user?.id)
+                .in('franchisee_user_id', [user?.id, '97cc4f78-31e6-4113-a8a6-6d14d4166c38'])
                 .order('name');
             if (error) throw error;
             return data as any[];
@@ -175,7 +175,7 @@ export default function FluxoCaixaPage() {
             if (selectedCD) {
                 query = query.eq('distribution_center_id', selectedCD);
             } else {
-                query = query.eq('distribution_center.franchisee_user_id', user?.id);
+                query = query.in('distribution_center.franchisee_user_id', [user?.id, '97cc4f78-31e6-4113-a8a6-6d14d4166c38']);
             }
 
             const { data, error } = await query;
