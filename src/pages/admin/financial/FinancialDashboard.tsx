@@ -251,20 +251,24 @@ export default function FinancialDashboard() {
     });
 
     /* ── Fetch all-time balance for specific CD ── */
-    const { data: cdBalance } = useQuery({
-        queryKey: ['financial_cd_balance', selectedCD],
-        enabled: !!selectedCD,
+    const { data: cdBalances } = useQuery({
+        queryKey: ['financial_cd_balances'],
         queryFn: async () => {
-            if (!selectedCD) return 0;
-            const [closingsRes, expensesRes] = await Promise.all([
-                supabase.from('cash_closings').select('total_cash').eq('distribution_center_id', selectedCD),
-                supabase.from('expenses').select('amount').eq('distribution_center_id', selectedCD).eq('paid_with_cash_balance', true)
-            ]);
+            const { data: closingsRes } = await supabase.from('cash_closings' as any).select('distribution_center_id, total_cash');
+            const { data: expensesRes } = await supabase.from('expenses' as any).select('distribution_center_id, amount').eq('paid_with_cash_balance', true);
 
-            const totalCashIn = (closingsRes.data || []).reduce((sum, c) => sum + Number(c.total_cash || 0), 0);
-            const totalExp = (expensesRes.data || []).reduce((sum, e) => sum + Number(e.amount || 0), 0);
+            // Calculate balance per CD
+            const balances: Record<string, number> = {};
+            (closingsRes || []).forEach((c: any) => {
+                const dcId = c.distribution_center_id;
+                balances[dcId] = (balances[dcId] || 0) + Number(c.total_cash || 0);
+            });
+            (expensesRes || []).forEach((e: any) => {
+                const dcId = e.distribution_center_id;
+                balances[dcId] = (balances[dcId] || 0) - Number(e.amount || 0);
+            });
 
-            return totalCashIn - totalExp;
+            return balances;
         }
     });
 
@@ -274,14 +278,21 @@ export default function FinancialDashboard() {
         const totalIncome = (closings || []).reduce((sum: number, c: any) => sum + Number(c.total_sales || 0), 0);
         const totalExpenses = (expensesData || []).reduce((sum: number, e: any) => sum + Number(e.amount), 0);
 
-        // Global Accounts Balance computation
+        // Global Accounts Balance computation (Total consolidated across Banks + Cash)
         const globalAccountsBalance = (accounts || []).reduce((sum: number, a: any) => sum + Number(a.balance), 0);
-        const caixaGeralAccount = (accounts || []).find(a => a.name === 'Caixa Geral');
-        const globalTotalCash = caixaGeralAccount ? Number(caixaGeralAccount.balance) : 0;
 
-        // If a specific CD is selected, override the balances
-        const balance = selectedCD && cdBalance !== undefined ? cdBalance : globalAccountsBalance;
-        const totalCash = selectedCD && cdBalance !== undefined ? cdBalance : globalTotalCash;
+        // Sum of all individual CD physical balances
+        const sumOfCDBalances = cdBalances ? Object.values(cdBalances).reduce((sum, b) => sum + b, 0) : 0;
+
+        // Determination of current context's balance
+        let balance = globalAccountsBalance;
+        let totalCash = sumOfCDBalances;
+
+        if (selectedCD) {
+            const specificCDBalance = cdBalances?.[selectedCD] || 0;
+            balance = specificCDBalance;
+            totalCash = specificCDBalance;
+        }
 
         // Total Pending Receivables
         const totalPendingReceivables = (receivables || []).reduce((sum: number, r: any) => sum + Number(r.amount), 0);
@@ -293,7 +304,7 @@ export default function FinancialDashboard() {
             totalCash,
             totalPendingReceivables,
         };
-    }, [closings, expensesData, accounts, receivables, selectedCD, cdBalance]);
+    }, [closings, expensesData, accounts, receivables, selectedCD, cdBalances]);
 
     const goalTarget = activeGoal ? Number(activeGoal.target_value) : 0;
     const goalProgress = goalTarget > 0 ? (kpis.totalIncome / goalTarget) * 100 : 0;
