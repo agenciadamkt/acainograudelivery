@@ -250,22 +250,22 @@ export default function FinancialDashboard() {
         },
     });
 
-    /* ── Fetch all-time balance for specific CD ── */
+    /* ── Fetch all-time balance for each CD (In + Settlement - Out) ── */
     const { data: cdBalances } = useQuery({
         queryKey: ['financial_cd_balances'],
         queryFn: async () => {
-            const { data: closingsRes } = await supabase.from('cash_closings' as any).select('distribution_center_id, total_cash');
-            const { data: expensesRes } = await supabase.from('expenses' as any).select('distribution_center_id, amount').eq('paid_with_cash_balance', true);
+            // Fetch all-time data to calculate total balance
+            const { data: closingsRes } = await supabase
+                .from('cash_closings' as any)
+                .select('distribution_center_id, total_cash, cash_settlement, total_expenses');
 
             // Calculate balance per CD
             const balances: Record<string, number> = {};
             (closingsRes || []).forEach((c: any) => {
                 const dcId = c.distribution_center_id;
-                balances[dcId] = (balances[dcId] || 0) + Number(c.total_cash || 0);
-            });
-            (expensesRes || []).forEach((e: any) => {
-                const dcId = e.distribution_center_id;
-                balances[dcId] = (balances[dcId] || 0) - Number(e.amount || 0);
+                // Formula: (Total Dinheiro + Baixa Dinheiro) - Gastos
+                const netDay = Number(c.total_cash || 0) + Number(c.cash_settlement || 0) - Number(c.total_expenses || 0);
+                balances[dcId] = (balances[dcId] || 0) + netDay;
             });
 
             return balances;
@@ -274,25 +274,15 @@ export default function FinancialDashboard() {
 
     /* ── KPI Calculations ── */
     const kpis = useMemo(() => {
-        // Total Entradas = somatório de Vendas nos Fechamentos de Caixa do mês
+        // Monthly Metrics
         const totalIncome = (closings || []).reduce((sum: number, c: any) => sum + Number(c.total_sales || 0), 0);
         const totalExpenses = (expensesData || []).reduce((sum: number, e: any) => sum + Number(e.amount), 0);
 
-        // Global Accounts Balance computation (Total consolidated across Banks + Cash)
+        // Global Accounts Balance (Consolidated Banks + Cash)
         const globalAccountsBalance = (accounts || []).reduce((sum: number, a: any) => sum + Number(a.balance), 0);
 
-        // Sum of all individual CD physical balances
-        const sumOfCDBalances = cdBalances ? Object.values(cdBalances).reduce((sum, b) => sum + b, 0) : 0;
-
-        // Determination of current context's balance
-        let balance = globalAccountsBalance;
-        let totalCash = sumOfCDBalances;
-
-        if (selectedCD) {
-            const specificCDBalance = cdBalances?.[selectedCD] || 0;
-            balance = specificCDBalance;
-            totalCash = specificCDBalance;
-        }
+        // Override balance if a specific CD is selected
+        const balance = selectedCD ? (cdBalances?.[selectedCD] || 0) : globalAccountsBalance;
 
         // Total Pending Receivables
         const totalPendingReceivables = (receivables || []).reduce((sum: number, r: any) => sum + Number(r.amount), 0);
@@ -301,7 +291,6 @@ export default function FinancialDashboard() {
             balance,
             totalExpenses,
             totalIncome,
-            totalCash,
             totalPendingReceivables,
         };
     }, [closings, expensesData, accounts, receivables, selectedCD, cdBalances]);
@@ -464,7 +453,7 @@ export default function FinancialDashboard() {
             )}
 
             {/* ─── KPI Cards Row ─── */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {/* Saldo Total em Contas */}
                 <Card className="bg-gradient-to-br from-purple-600 to-indigo-700 border-0 shadow-xl shadow-purple-600/20 text-white overflow-hidden relative group">
                     <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
@@ -479,22 +468,6 @@ export default function FinancialDashboard() {
                             {formatBRL(kpis.balance)}
                         </p>
                         <p className="text-[10px] text-white/60 font-medium">Consolidado em todas as contas</p>
-                    </CardContent>
-                </Card>
-
-                {/* Saldo em Dinheiro (Caixa Geral) */}
-                <Card className="bg-white/60 dark:bg-white/[0.03] backdrop-blur-xl border-gray-200/50 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-green-500/5 transition-all">
-                    <CardContent className="p-6">
-                        <div className="flex items-center gap-4 mb-4">
-                            <div className="w-12 h-12 rounded-2xl bg-green-500/10 flex items-center justify-center">
-                                <Banknote className="h-6 w-6 text-green-600" />
-                            </div>
-                            <p className="text-sm font-bold text-gray-400 dark:text-white/40 uppercase tracking-widest">Saldo em Dinheiro</p>
-                        </div>
-                        <p className="text-3xl font-black text-gray-900 dark:text-white tracking-tight mb-1">
-                            {formatBRL(kpis.totalCash)}
-                        </p>
-                        <p className="text-[10px] text-green-600/60 font-medium">Disponível em Caixa Geral</p>
                     </CardContent>
                 </Card>
 
