@@ -52,7 +52,7 @@ export default defineConfig(({ mode }) => ({
         clientsClaim: true,
         skipWaiting: true, // FORCE immediate activation - critical for updates
         navigateFallback: "index.html",
-        navigateFallbackDenylist: [/^\/admin/, /^\/api/], // Don't cache admin or api routes
+        navigateFallbackDenylist: [/^\/api/], // Only exclude API routes, allow admin SPA routes
         runtimeCaching: [
           // HTML / Navigation - NetworkFirst
           {
