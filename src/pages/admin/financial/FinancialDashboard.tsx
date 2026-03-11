@@ -297,6 +297,7 @@ export default function FinancialDashboard() {
             totalExpenses,
             totalIncome,
             totalPendingReceivables,
+            globalAccountsBalance, // Retornamos o valor consolidado real do banco
         };
     }, [closings, expensesData, accounts, receivables, selectedCD, cdBalances]);
 
@@ -467,12 +468,14 @@ export default function FinancialDashboard() {
                             <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center">
                                 <Wallet className="h-6 w-6 text-white" />
                             </div>
-                            <p className="text-sm font-bold text-white/80 uppercase tracking-widest">Saldo Total</p>
+                            <p className="text-sm font-bold text-white/80 uppercase tracking-widest">{selectedCD ? 'Saldo do CD' : 'Saldo Consolidado'}</p>
                         </div>
                         <p className="text-3xl font-black tracking-tight mb-1">
-                            {formatBRL(kpis.balance)}
+                            {formatBRL(selectedCD ? kpis.balance : kpis.globalAccountsBalance)}
                         </p>
-                        <p className="text-[10px] text-white/60 font-medium">Consolidado em todas as contas</p>
+                        <p className="text-[10px] text-white/60 font-medium">
+                            {selectedCD ? 'Faturamento líquido em espécie' : 'Soma de todas as contas banco/caixa'}
+                        </p>
                     </CardContent>
                 </Card>
 
