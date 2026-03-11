@@ -250,22 +250,37 @@ export default function FinancialDashboard() {
         },
     });
 
-    /* ── Fetch all-time balance for each CD (In + Settlement - Out) ── */
+    /* ── Fetch all-time balance for each CD (In + Settlement - Expenses) ── */
     const { data: cdBalances } = useQuery({
         queryKey: ['financial_cd_balances'],
         queryFn: async () => {
-            // Fetch all-time data to calculate total balance
+            const { data: { user } } = await supabase.auth.getUser();
+            const franchiseeIds = [user?.id, '97cc4f78-31e6-4113-a8a6-6d14d4166c38'];
+
+            // 1. Fetch all cash closings for the franchisee
             const { data: closingsRes } = await supabase
                 .from('cash_closings' as any)
-                .select('distribution_center_id, total_cash, cash_settlement, total_expenses');
+                .select('distribution_center_id, total_cash, cash_settlement, distribution_center:distribution_centers!inner(franchisee_user_id)')
+                .in('distribution_center.franchisee_user_id', franchiseeIds);
+
+            // 2. Fetch all expenses paid with cash for the franchisee
+            const { data: expensesRes } = await supabase
+                .from('expenses' as any)
+                .select('distribution_center_id, amount, distribution_center:distribution_centers!inner(franchisee_user_id)')
+                .eq('paid_with_cash_balance', true)
+                .in('distribution_center.franchisee_user_id', franchiseeIds);
 
             // Calculate balance per CD
             const balances: Record<string, number> = {};
+
             (closingsRes || []).forEach((c: any) => {
                 const dcId = c.distribution_center_id;
-                // Fórmula do Fábio: (Total Dinheiro + Baixa Dinheiro) - Gastos do Fechamento
-                const netDay = Number(c.total_cash || 0) + Number(c.cash_settlement || 0) - Number(c.total_expenses || 0);
-                balances[dcId] = (balances[dcId] || 0) + netDay;
+                balances[dcId] = (balances[dcId] || 0) + Number(c.total_cash || 0) + Number(c.cash_settlement || 0);
+            });
+
+            (expensesRes || []).forEach((e: any) => {
+                const dcId = e.distribution_center_id;
+                balances[dcId] = (balances[dcId] || 0) - Number(e.amount || 0);
             });
 
             return balances;
@@ -278,15 +293,10 @@ export default function FinancialDashboard() {
         const totalIncome = (closings || []).reduce((sum: number, c: any) => sum + Number(c.total_sales || 0), 0);
         const totalExpenses = (expensesData || []).reduce((sum: number, e: any) => sum + Number(e.amount), 0);
 
-        // Global Accounts Balance (Consolidated Banks + Cash)
-        const globalAccountsBalance = (accounts || []).reduce((sum: number, a: any) => sum + Number(a.balance), 0);
-
-        // Sum of all individual CD physical balances (computed via our cash closing logic)
+        // Sum of all individual CD physical balances
         const sumOfAllCDBalances = cdBalances ? Object.values(cdBalances).reduce((sum, b) => sum + b, 0) : 0;
 
-        // Determination of current context's balance
-        // If "Todos os CDs" (no selectedCD), use the sum of all CDs. 
-        // If specific CD, use only that CD's balance.
+        // The unified Balance is ALWAYS based on the Net Cash Flow logic
         const balance = selectedCD ? (cdBalances?.[selectedCD] || 0) : sumOfAllCDBalances;
 
         // Total Pending Receivables
@@ -297,9 +307,8 @@ export default function FinancialDashboard() {
             totalExpenses,
             totalIncome,
             totalPendingReceivables,
-            globalAccountsBalance, // Retornamos o valor consolidado real do banco
         };
-    }, [closings, expensesData, accounts, receivables, selectedCD, cdBalances]);
+    }, [closings, expensesData, receivables, selectedCD, cdBalances]);
 
     const goalTarget = activeGoal ? Number(activeGoal.target_value) : 0;
     const goalProgress = goalTarget > 0 ? (kpis.totalIncome / goalTarget) * 100 : 0;
@@ -460,7 +469,7 @@ export default function FinancialDashboard() {
 
             {/* ─── KPI Cards Row ─── */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {/* Saldo Total em Contas */}
+                {/* Saldo Total (Net Cash Flow) */}
                 <Card className="bg-gradient-to-br from-purple-600 to-indigo-700 border-0 shadow-xl shadow-purple-600/20 text-white overflow-hidden relative group">
                     <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                     <CardContent className="p-6">
@@ -471,10 +480,10 @@ export default function FinancialDashboard() {
                             <p className="text-sm font-bold text-white/80 uppercase tracking-widest">{selectedCD ? 'Saldo do CD' : 'Saldo Consolidado'}</p>
                         </div>
                         <p className="text-3xl font-black tracking-tight mb-1">
-                            {formatBRL(selectedCD ? kpis.balance : kpis.globalAccountsBalance)}
+                            {formatBRL(kpis.balance)}
                         </p>
                         <p className="text-[10px] text-white/60 font-medium">
-                            {selectedCD ? 'Faturamento líquido em espécie' : 'Soma de todas as contas banco/caixa'}
+                            {selectedCD ? 'Faturamento líquido em espécie' : 'Consolidado de todos os CDs'}
                         </p>
                     </CardContent>
                 </Card>
