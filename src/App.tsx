@@ -109,6 +109,11 @@ import CaixaPage from "./pages/admin/financial/CaixaPage";
 import RevenueExpenseReportPage from "./pages/admin/financial/RevenueExpenseReportPage";
 import DetailedExpensesReportPage from "./pages/admin/financial/DetailedExpensesReportPage";
 import AccountsReceivablePage from "./pages/admin/financial/AccountsReceivablePage";
+import OrderCatalog from "./pages/admin/orders/OrderCatalog";
+import FranchiseeProductsPage from "./pages/admin/orders/FranchiseeProductsPage";
+import OrderManagement from "./pages/admin/orders/OrderManagement";
+import OrderHistory from "./pages/admin/orders/OrderHistory";
+import CheckoutPage from "./pages/admin/orders/CheckoutPage";
 
 import { ThemeProvider } from "next-themes";
 
@@ -248,6 +253,52 @@ const App = () => (
 
                         <Route path="configuracoes" element={<div className="p-8 text-center text-gray-400">Configurações — Em breve</div>} />
                       </Route>
+
+                      {/* Franchisee Ordering System */}
+                      <Route
+                        path="/admin/orders/catalog"
+                        element={
+                          <PrivateRoute requiredRole="staff">
+                            <OrderCatalog />
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/orders/history"
+                        element={
+                          <PrivateRoute requiredRole="staff">
+                            <OrderHistory />
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/orders/checkout"
+                        element={
+                          <PrivateRoute requiredRole="staff">
+                            <CheckoutPage />
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/orders/management"
+                        element={
+                          <PrivateRoute requiredRole="staff">
+                            <AdminLayout>
+                              <OrderManagement />
+                            </AdminLayout>
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/orders/products"
+                        element={
+                          <PrivateRoute requiredRole="manager">
+                            <AdminLayout>
+                              <FranchiseeProductsPage />
+                            </AdminLayout>
+                          </PrivateRoute>
+                        }
+                      />
 
                       {/* Franchise management */}
                       <Route path="/admin/franchisees" element={

@@ -26,6 +26,7 @@ import DistributionCenterSelect from './components/DistributionCenterSelect';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { addPdfBranding } from './utils/pdfBranding';
+import { useFranchiseeId } from '@/hooks/useFranchiseeId';
 
 const formatBRL = (val: number) =>
     val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -36,10 +37,12 @@ export default function DetailedExpensesReportPage() {
     const [dateEnd, setDateEnd] = useState(format(today, 'yyyy-MM-dd'));
     const [filterCD, setFilterCD] = useState('');
 
+    const { data: franchiseeId } = useFranchiseeId();
+
     const { data: expenses = [], isLoading } = useQuery({
-        queryKey: ['detailed_expenses_report', dateStart, dateEnd, filterCD],
+        queryKey: ['detailed_expenses_report', dateStart, dateEnd, filterCD, franchiseeId],
         queryFn: async () => {
-            const { data: { user } } = await supabase.auth.getUser();
+            if (!franchiseeId) return [];
 
             let query = supabase
                 .from('expenses' as any)
@@ -58,7 +61,7 @@ export default function DetailedExpensesReportPage() {
             if (filterCD) {
                 query = query.eq('distribution_center_id', filterCD);
             } else {
-                query = query.in('distribution_center.franchisee_user_id', [user?.id, '97cc4f78-31e6-4113-a8a6-6d14d4166c38']);
+                query = query.eq('distribution_center.franchisee_user_id', franchiseeId);
             }
 
             const { data, error } = await query;

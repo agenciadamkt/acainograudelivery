@@ -36,6 +36,7 @@ import DistributionCenterSelect from './components/DistributionCenterSelect';
 import CostCenterSelect from './components/CostCenterSelect';
 import { ManageUsersDialog } from './components/ManageUsersDialog';
 import MetasPage from './MetasPage';
+import { useFranchiseeId } from '@/hooks/useFranchiseeId';
 
 /* ─── Generic CRUD Section (for simple name-only entities) ─── */
 function CrudSection({
@@ -56,14 +57,16 @@ function CrudSection({
     const [address, setAddress] = useState('');
     const hasAddress = tableName === 'distribution_centers';
 
+    const { data: franchiseeId } = useFranchiseeId();
+
     const { data: items = [], isLoading } = useQuery({
-        queryKey: [queryKey],
+        queryKey: [queryKey, franchiseeId],
         queryFn: async () => {
-            const { data: { user } } = await supabase.auth.getUser();
+            if (!franchiseeId) return [];
             const { data, error } = await supabase
                 .from(tableName as any)
                 .select('*')
-                .or(`franchisee_user_id.in.(${user?.id},97cc4f78-31e6-4113-a8a6-6d14d4166c38),franchisee_user_id.is.null`)
+                .eq('franchisee_user_id', franchiseeId)
                 .order('name');
             if (error) throw error;
             return data as any[];
@@ -72,8 +75,7 @@ function CrudSection({
 
     const saveMutation = useMutation({
         mutationFn: async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            const payload: any = { name, franchisee_user_id: user?.id };
+            const payload: any = { name, franchisee_user_id: franchiseeId };
             if (hasAddress) payload.address = address;
 
             if (editItem) {
@@ -282,15 +284,17 @@ function FkCrudSection({
     const needsCDFilter = tableName === 'chart_of_accounts';
     const [filterCD, setFilterCD] = useState('');
 
+    const { data: franchiseeId } = useFranchiseeId();
+
     const { data: items = [], isLoading } = useQuery({
-        queryKey: [queryKey, filterParent],
+        queryKey: [queryKey, filterParent, franchiseeId],
         queryFn: async () => {
-            const { data: { user } } = await supabase.auth.getUser();
+            if (!franchiseeId) return [];
 
             let query = supabase
                 .from(tableName as any)
                 .select('*, parent_rel:' + parentFkColumn + '(name)')
-                .or(`franchisee_user_id.in.(${user?.id},97cc4f78-31e6-4113-a8a6-6d14d4166c38),franchisee_user_id.is.null`)
+                .eq('franchisee_user_id', franchiseeId)
                 .order('name');
 
             if (filterParent) {
@@ -305,9 +309,11 @@ function FkCrudSection({
 
     const saveMutation = useMutation({
         mutationFn: async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            const payload: any = { name, [parentFkColumn]: parentId, franchisee_user_id: user?.id };
-
+            const payload: any = {
+                name,
+                [parentFkColumn]: parentId,
+                franchisee_user_id: franchiseeId
+            };
             if (editItem) {
                 const { error } = await supabase
                     .from(tableName as any)
@@ -615,10 +621,12 @@ function ClientsSection() {
     const [name, setName] = useState('');
     const [phone, setPhone] = useState('');
 
+    const { data: franchiseeId } = useFranchiseeId();
+
     const { data: items = [], isLoading } = useQuery({
-        queryKey: ['financial_clients'],
+        queryKey: ['financial_clients', franchiseeId],
         queryFn: async () => {
-            const { data: { user } } = await supabase.auth.getUser();
+            if (!franchiseeId) return [];
 
             const { data, error } = await supabase
                 .from('financial_clients' as any)
@@ -626,7 +634,7 @@ function ClientsSection() {
                     *,
                     accounts_receivable(amount, paid)
                 `)
-                .or(`created_by.eq.${user?.id},created_by.is.null`)
+                .eq('created_by', franchiseeId)
                 .order('name');
 
             if (error) throw error;
@@ -649,7 +657,7 @@ function ClientsSection() {
             } else {
                 const { error } = await supabase
                     .from('financial_clients' as any)
-                    .insert({ ...payload, created_by: user.id });
+                    .insert({ ...payload, created_by: franchiseeId });
                 if (error) throw error;
             }
         },
@@ -779,15 +787,17 @@ function AccountsSection() {
     const [name, setName] = useState('');
     const [type, setType] = useState('cash');
 
+    const { data: franchiseeId } = useFranchiseeId();
+
     const { data: items = [], isLoading } = useQuery({
-        queryKey: ['financial_accounts'],
+        queryKey: ['financial_accounts', franchiseeId],
         queryFn: async () => {
-            const { data: { user } } = await supabase.auth.getUser();
+            if (!franchiseeId) return [];
 
             const { data, error } = await supabase
                 .from('financial_accounts' as any)
                 .select('*')
-                .or(`franchisee_user_id.in.(${user?.id},97cc4f78-31e6-4113-a8a6-6d14d4166c38),franchisee_user_id.is.null`)
+                .eq('franchisee_user_id', franchiseeId)
                 .order('name');
 
             if (error) throw error;
@@ -797,7 +807,7 @@ function AccountsSection() {
 
     const saveMutation = useMutation({
         mutationFn: async () => {
-            const payload: any = { name, type };
+            const payload: any = { name, type, franchisee_user_id: franchiseeId };
 
             if (editItem) {
                 const { error } = await supabase
@@ -986,7 +996,7 @@ function SuppliersSection() {
                     *,
                     expenses(amount, paid)
                 `)
-                .in('franchisee_user_id', [user?.id, '97cc4f78-31e6-4113-a8a6-6d14d4166c38'])
+                .eq('franchisee_user_id', user?.id)
                 .order('name');
 
             if (error) throw error;
@@ -1009,7 +1019,7 @@ function SuppliersSection() {
             } else {
                 const { error } = await supabase
                     .from('financial_suppliers' as any)
-                    .insert({ ...payload, created_by: user.id, franchisee_user_id: user.id || '97cc4f78-31e6-4113-a8a6-6d14d4166c38' });
+                    .insert({ ...payload, created_by: user.id, franchisee_user_id: user.id });
                 if (error) throw error;
             }
         },

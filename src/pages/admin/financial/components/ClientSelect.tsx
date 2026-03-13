@@ -28,6 +28,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
+import { useFranchiseeId } from '@/hooks/useFranchiseeId';
 
 interface ClientSelectProps {
     value: string;
@@ -43,14 +44,17 @@ export function ClientSelect({ value, onChange }: ClientSelectProps) {
     const [clientName, setClientName] = useState('');
     const [clientPhone, setClientPhone] = useState('');
     const queryClient = useQueryClient();
+    const { data: franchiseeId } = useFranchiseeId();
 
     // Fetch clients
     const { data: clients, isLoading } = useQuery({
-        queryKey: ['financial_clients'],
+        queryKey: ['financial_clients', franchiseeId],
         queryFn: async () => {
+            if (!franchiseeId) return [];
             const { data, error } = await supabase
                 .from('financial_clients' as any)
                 .select('*')
+                .eq('created_by', franchiseeId)
                 .order('name');
             if (error) throw error;
             return data as any[];
@@ -83,7 +87,7 @@ export function ClientSelect({ value, onChange }: ClientSelectProps) {
                     .insert({
                         name: clientName,
                         phone: clientPhone,
-                        created_by: user.id
+                        created_by: franchiseeId
                     })
                     .select()
                     .single();

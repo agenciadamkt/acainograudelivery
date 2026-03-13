@@ -39,12 +39,25 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth, UserRole } from '@/contexts/AuthContext';
 import logoCircular from '@/assets/logo-circular.png';
 
+interface MenuItem {
+  title: string;
+  url: string;
+  icon: any;
+  highlight?: boolean;
+  requireRole?: UserRole;
+  isMasterOnly?: boolean;
+}
+
+interface MenuSection {
+  label: string;
+  items: MenuItem[];
+}
 
 // Menu organizado por seções
-const menuSections = [
+const menuSections: MenuSection[] = [
   {
     label: '🚀 Acesso Rápido Pedidos',
     items: [
@@ -87,12 +100,27 @@ const menuSections = [
   {
     label: '📈 Gestão',
     items: [
-      { title: 'Financeiro', url: '/admin/financial', icon: DollarSign },
+      { title: 'Financeiro', url: '/admin/financeiro', icon: DollarSign },
       { title: 'Clientes (CRM)', url: '/admin/customers', icon: Users },
       { title: 'Avaliações NPS', url: '/admin/feedback', icon: MessageSquare, requireRole: 'manager' },
       { title: 'Relatórios PDV', url: '/admin/pdv/relatorios', icon: PieChart, requireRole: 'manager' },
       { title: 'Food Analytics', url: '/admin/analytics', icon: BarChart3, requireRole: 'manager' },
       { title: 'Universidade', url: '/admin/universidade/admin', icon: GraduationCap, requireRole: 'manager' },
+    ]
+  },
+  {
+    label: '🤝 Franquia (Unidade)',
+    items: [
+      { title: 'Pedido de Insumos', url: '/admin/orders/catalog', icon: ShoppingCart },
+      { title: 'Meus Pedidos', url: '/admin/orders/history', icon: History },
+    ]
+  },
+  {
+    label: '📦 Distribuição (Master)',
+    items: [
+      { title: 'Gestão de Cargas', url: '/admin/orders/management', icon: Package, isMasterOnly: true },
+      { title: 'Catálogo de Insumos', url: '/admin/orders/products', icon: Grid, isMasterOnly: true },
+      { title: 'Lista de Franqueados', url: '/admin/franchisees', icon: Store, isMasterOnly: true },
     ]
   },
   {
@@ -104,7 +132,6 @@ const menuSections = [
   {
     label: '⚙️ Sistema',
     items: [
-      { title: 'Franqueados', url: '/admin/franchisees', icon: Store, requireRole: 'franchisee_master' },
       { title: 'Configurações PDV', url: '/admin/pdv/configuracoes', icon: Settings },
       { title: 'Configurações Gerais', url: '/admin/settings', icon: Settings },
     ]
@@ -116,11 +143,25 @@ export function AdminSidebar() {
   const { state } = useSidebar();
   const location = useLocation();
   const navigate = useNavigate();
-  const { signOut, user } = useAuth();
+  const { signOut, user, hasRole } = useAuth();
 
   const isActive = (path: string) => location.pathname === path;
   const isCollapsed = state === 'collapsed';
+  const isMasterAdmin = user?.email === 'agenciadamkt@gmail.com';
 
+
+  const filteredSections = menuSections.map(section => ({
+    ...section,
+    items: section.items.filter(item => {
+      // Regra 1: Se for Master Only, exige e-mail específico
+      if (item.isMasterOnly && !isMasterAdmin) return false;
+
+      // Regra 2: Papel exigido
+      if (item.requireRole && !hasRole(item.requireRole as UserRole)) return false;
+
+      return true;
+    })
+  })).filter(section => section.items.length > 0);
 
   return (
     <Sidebar collapsible="icon">
@@ -142,7 +183,7 @@ export function AdminSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
-        {menuSections.map((section) => (
+        {filteredSections.map((section) => (
           <SidebarGroup key={section.label}>
             <SidebarGroupLabel>{section.label}</SidebarGroupLabel>
             <SidebarGroupContent>

@@ -29,6 +29,7 @@ import DistributionCenterSelect from './DistributionCenterSelect';
 import CurrencyInput from './CurrencyInput';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ClientSelect } from './ClientSelect';
+import { useFranchiseeId } from '@/hooks/useFranchiseeId';
 
 const formSchema = z.object({
     distribution_center_id: z.string().optional().nullable(),
@@ -52,6 +53,7 @@ interface AccountsReceivableFormDialogProps {
 
 export default function AccountsReceivableFormDialog({ open, onOpenChange, record, onSuccess }: AccountsReceivableFormDialogProps) {
     const queryClient = useQueryClient();
+    const { data: franchiseeId } = useFranchiseeId();
 
     const form = useForm<FormValues>({
         resolver: zodResolver(formSchema),
@@ -99,7 +101,7 @@ export default function AccountsReceivableFormDialog({ open, onOpenChange, recor
             if (!user) throw new Error('Usuário não autenticado');
 
             const payload: any = {
-                franchisee_user_id: user.id || '97cc4f78-31e6-4113-a8a6-6d14d4166c38',
+                franchisee_user_id: franchiseeId,
                 distribution_center_id: values.distribution_center_id || null,
                 client_id: values.client_id,
                 description: values.description,

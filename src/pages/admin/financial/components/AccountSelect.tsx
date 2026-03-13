@@ -10,6 +10,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Wallet, Landmark, PiggyBank } from 'lucide-react';
+import { useFranchiseeId } from '@/hooks/useFranchiseeId';
 
 interface AccountSelectProps {
     value: string;
@@ -18,13 +19,17 @@ interface AccountSelectProps {
 }
 
 export default function AccountSelect({ value, onChange, placeholder = "Selecionar conta..." }: AccountSelectProps) {
+    const { data: franchiseeId } = useFranchiseeId();
+
     const { data: accounts, isLoading } = useQuery({
-        queryKey: ['financial_accounts'],
+        queryKey: ['financial_accounts', franchiseeId],
         queryFn: async () => {
+            if (!franchiseeId) return [];
             const { data, error } = await supabase
                 .from('financial_accounts' as any)
                 .select('*')
                 .eq('active', true)
+                .eq('franchisee_user_id', franchiseeId)
                 .order('name');
             if (error) throw error;
             return data as any[];

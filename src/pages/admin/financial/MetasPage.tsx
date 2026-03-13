@@ -95,7 +95,7 @@ export default function MetasPage() {
             const { data, error } = await supabase
                 .from('financial_goals' as any)
                 .select('*, distribution_center:distribution_centers!distribution_center_id(name, franchisee_user_id)')
-                .or(`franchisee_user_id.in.(${user?.id},97cc4f78-31e6-4113-a8a6-6d14d4166c38),distribution_center.franchisee_user_id.in.(${user?.id},97cc4f78-31e6-4113-a8a6-6d14d4166c38)`)
+                .or(`franchisee_user_id.eq.${user?.id},distribution_center.franchisee_user_id.eq.${user?.id}`)
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
@@ -202,7 +202,7 @@ export default function MetasPage() {
             start_date: startDate,
             end_date: endDate,
             distribution_center_id: selectedCD || null,
-            franchisee_user_id: user?.id || '97cc4f78-31e6-4113-a8a6-6d14d4166c38',
+            franchisee_user_id: user?.id,
             updated_at: new Date().toISOString(),
         });
     };

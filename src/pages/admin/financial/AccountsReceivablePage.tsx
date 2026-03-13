@@ -11,6 +11,7 @@ import { Plus, Pencil, Loader2, FileSpreadsheet, Download, Trash2, Eye, CheckCir
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import DistributionCenterSelect from './components/DistributionCenterSelect';
 import AccountsReceivableFormDialog from './components/AccountsReceivableFormDialog';
+import { useFranchiseeId } from '@/hooks/useFranchiseeId';
 import {
     Dialog,
     DialogContent,
@@ -37,10 +38,12 @@ export default function AccountsReceivablePage() {
         open: false,
     });
 
+    const { data: franchiseeId } = useFranchiseeId();
+
     const { data: receivables = [], isLoading, refetch } = useQuery({
-        queryKey: ['accounts_receivable', dateStart, dateEnd, filterCD, filterStatus],
+        queryKey: ['accounts_receivable', dateStart, dateEnd, filterCD, filterStatus, franchiseeId],
         queryFn: async () => {
-            const { data: { user } } = await supabase.auth.getUser();
+            if (!franchiseeId) return [];
 
             let query = supabase
                 .from('accounts_receivable' as any)
@@ -57,7 +60,7 @@ export default function AccountsReceivablePage() {
                 query = query.eq('distribution_center_id', filterCD);
             } else {
                 // If no specific CD, show all for the franchisee
-                query = query.in('franchisee_user_id', [user?.id, '97cc4f78-31e6-4113-a8a6-6d14d4166c38']);
+                query = query.eq('franchisee_user_id', franchiseeId);
             }
 
             if (filterStatus !== 'all') {

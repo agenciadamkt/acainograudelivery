@@ -9,6 +9,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Check, ChevronsUpDown, Plus, Layers } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { useFranchiseeId } from '@/hooks/useFranchiseeId';
 
 interface CostCenterSelectProps {
     value: string;
@@ -22,11 +23,12 @@ export default function CostCenterSelect({ value, onChange, distributionCenterId
     const [open, setOpen] = useState(false);
     const [search, setSearch] = useState('');
     const [newName, setNewName] = useState('');
+    const { data: franchiseeId } = useFranchiseeId();
 
     const { data: items = [] } = useQuery({
-        queryKey: ['cost_centers', distributionCenterId],
+        queryKey: ['cost_centers', distributionCenterId, franchiseeId],
         queryFn: async () => {
-            const { data: { user } } = await supabase.auth.getUser();
+            if (!franchiseeId) return [];
 
             let query = supabase
                 .from('cost_centers' as any)
@@ -36,7 +38,7 @@ export default function CostCenterSelect({ value, onChange, distributionCenterId
             if (distributionCenterId) {
                 query = query.eq('distribution_center_id', distributionCenterId);
             } else {
-                query = query.in('distribution_center.franchisee_user_id', [user?.id, '97cc4f78-31e6-4113-a8a6-6d14d4166c38']);
+                query = query.eq('distribution_center.franchisee_user_id', franchiseeId);
             }
 
             const { data, error } = await query.order('name');

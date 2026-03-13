@@ -23,6 +23,7 @@ import DistributionCenterSelect from './components/DistributionCenterSelect';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { addPdfBranding } from './utils/pdfBranding';
+import { useFranchiseeId } from '@/hooks/useFranchiseeId';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     PieChart, Pie, Cell, Legend, LineChart, Line, AreaChart, Area,
@@ -39,15 +40,17 @@ export default function ReportsPage() {
     const [dateEnd, setDateEnd] = useState(format(endOfMonth(now), 'yyyy-MM-dd'));
     const [selectedCD, setSelectedCD] = useState('');
 
+    const { data: franchiseeId } = useFranchiseeId();
+
     const { data: centers = [] } = useQuery({
-        queryKey: ['distribution_centers'],
+        queryKey: ['distribution_centers', franchiseeId],
         queryFn: async () => {
-            const { data: { user } } = await supabase.auth.getUser();
+            if (!franchiseeId) return [];
             const { data, error } = await supabase
                 .from('distribution_centers' as any)
                 .select('*')
                 .eq('active', true)
-                .in('franchisee_user_id', [user?.id, '97cc4f78-31e6-4113-a8a6-6d14d4166c38'])
+                .eq('franchisee_user_id', franchiseeId)
                 .order('name');
             if (error) throw error;
             return data as any[];
@@ -56,9 +59,9 @@ export default function ReportsPage() {
 
     /* ── Fetch cash closings (revenue) ── */
     const { data: closings = [] } = useQuery({
-        queryKey: ['report_closings', dateStart, dateEnd, selectedCD],
+        queryKey: ['report_closings', dateStart, dateEnd, selectedCD, franchiseeId],
         queryFn: async () => {
-            const { data: { user } } = await supabase.auth.getUser();
+            if (!franchiseeId) return [];
             let query = supabase
                 .from('cash_closings' as any)
                 .select('closing_date, total_sales, total_cash, title_settlement, cash_settlement, total_expenses, distribution_center:distribution_centers!inner(franchisee_user_id)')
@@ -69,7 +72,7 @@ export default function ReportsPage() {
             if (selectedCD) {
                 query = query.eq('distribution_center_id', selectedCD);
             } else {
-                query = query.in('distribution_center.franchisee_user_id', [user?.id, '97cc4f78-31e6-4113-a8a6-6d14d4166c38']);
+                query = query.eq('distribution_center.franchisee_user_id', franchiseeId);
             }
 
             const { data, error } = await query;
@@ -80,9 +83,9 @@ export default function ReportsPage() {
 
     /* ── Fetch expenses ── */
     const { data: expenses = [] } = useQuery({
-        queryKey: ['report_expenses', dateStart, dateEnd, selectedCD],
+        queryKey: ['report_expenses', dateStart, dateEnd, selectedCD, franchiseeId],
         queryFn: async () => {
-            const { data: { user } } = await supabase.auth.getUser();
+            if (!franchiseeId) return [];
             let query = supabase
                 .from('expenses' as any)
                 .select(`
@@ -98,7 +101,7 @@ export default function ReportsPage() {
             if (selectedCD) {
                 query = query.eq('distribution_center_id', selectedCD);
             } else {
-                query = query.in('distribution_center.franchisee_user_id', [user?.id, '97cc4f78-31e6-4113-a8a6-6d14d4166c38']);
+                query = query.eq('distribution_center.franchisee_user_id', franchiseeId);
             }
 
             const { data, error } = await query;
@@ -109,9 +112,9 @@ export default function ReportsPage() {
 
     /* ── Fetch financial records ── */
     const { data: records = [] } = useQuery({
-        queryKey: ['report_records', dateStart, dateEnd, selectedCD],
+        queryKey: ['report_records', dateStart, dateEnd, selectedCD, franchiseeId],
         queryFn: async () => {
-            const { data: { user } } = await supabase.auth.getUser();
+            if (!franchiseeId) return [];
             let query = supabase
                 .from('financial_records' as any)
                 .select(`
@@ -127,7 +130,7 @@ export default function ReportsPage() {
             if (selectedCD) {
                 query = query.eq('distribution_center_id', selectedCD);
             } else {
-                query = query.in('distribution_center.franchisee_user_id', [user?.id, '97cc4f78-31e6-4113-a8a6-6d14d4166c38']);
+                query = query.eq('distribution_center.franchisee_user_id', franchiseeId);
             }
 
             const { data, error } = await query;

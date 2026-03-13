@@ -123,7 +123,7 @@ export default function FluxoCaixaPage() {
             }
 
             // Fallback for known admins if not in table yet (but still authorized)
-            const isKnownAdmin = user.email === 'agenciadamkt@gmail.com' || user.email === 'acainograuwagner@gmail.com';
+            const isKnownAdmin = user.email === 'agenciadamkt@gmail.com';
             if (isKnownAdmin) {
                 return { authorized: true, isAdmin: true, role: 'admin', name: 'Administrador' };
             }
@@ -140,7 +140,7 @@ export default function FluxoCaixaPage() {
                 .from('distribution_centers' as any)
                 .select('*')
                 .eq('active', true)
-                .in('franchisee_user_id', [user?.id, '97cc4f78-31e6-4113-a8a6-6d14d4166c38'])
+                .eq('franchisee_user_id', user?.id)
                 .order('name');
             if (error) throw error;
             return data as any[];
@@ -175,7 +175,7 @@ export default function FluxoCaixaPage() {
             if (selectedCD) {
                 query = query.eq('distribution_center_id', selectedCD);
             } else {
-                query = query.in('distribution_center.franchisee_user_id', [user?.id, '97cc4f78-31e6-4113-a8a6-6d14d4166c38']);
+                query = query.eq('distribution_center.franchisee_user_id', user?.id);
             }
 
             const { data, error } = await query;

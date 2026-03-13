@@ -34,6 +34,7 @@ import {
 import { format, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import DistributionCenterSelect from './components/DistributionCenterSelect';
+import { useFranchiseeId } from '@/hooks/useFranchiseeId';
 
 /* ─── Helpers ─── */
 const formatBRL = (val: number) =>
@@ -44,6 +45,7 @@ export default function FinancialDashboard() {
     const navigate = useNavigate();
     const today = new Date();
     const [selectedCD, setSelectedCD] = useState('');
+    const { data: franchiseeId } = useFranchiseeId();
 
     const startOfMonthDate = format(new Date(today.getFullYear(), today.getMonth(), 1), 'yyyy-MM-dd');
 
@@ -51,9 +53,9 @@ export default function FinancialDashboard() {
 
     /* ── Fetch cash closings (mês corrente, até hoje) ── */
     const { data: closings } = useQuery({
-        queryKey: ['financial_dashboard', selectedCD],
+        queryKey: ['financial_dashboard', selectedCD, franchiseeId],
         queryFn: async () => {
-            const { data: { user } } = await supabase.auth.getUser();
+            if (!franchiseeId) return [];
 
             // Enforce franchisee isolation via inner join
             const selectStr = `*, distribution_center:distribution_centers!inner(name, franchisee_user_id), operator:cash_operators!operator_id(name)`;
@@ -68,7 +70,7 @@ export default function FinancialDashboard() {
             if (selectedCD) {
                 query = query.eq('distribution_center_id', selectedCD);
             } else {
-                query = query.in('distribution_center.franchisee_user_id', [user?.id, '97cc4f78-31e6-4113-a8a6-6d14d4166c38']);
+                query = query.eq('distribution_center.franchisee_user_id', franchiseeId);
             }
 
             const { data, error } = await query;
@@ -78,13 +80,10 @@ export default function FinancialDashboard() {
     });
 
     /* ── Fetch expenses (last 30 days) ── */
-
-    /* ── Fetch expenses (last 30 days) ── */
-
     const { data: expensesData } = useQuery({
-        queryKey: ['financial_dashboard_expenses', selectedCD],
+        queryKey: ['financial_dashboard_expenses', selectedCD, franchiseeId],
         queryFn: async () => {
-            const { data: { user } } = await supabase.auth.getUser();
+            if (!franchiseeId) return [];
 
             // Enforce franchisee isolation via inner join
             const selectStr = `amount, expense_type, expense_date, paid_with_cash_balance, paid, distribution_center:distribution_centers!inner(franchisee_user_id)`;
@@ -97,7 +96,7 @@ export default function FinancialDashboard() {
             if (selectedCD) {
                 query = query.eq('distribution_center_id', selectedCD);
             } else {
-                query = query.in('distribution_center.franchisee_user_id', [user?.id, '97cc4f78-31e6-4113-a8a6-6d14d4166c38']);
+                query = query.eq('distribution_center.franchisee_user_id', franchiseeId);
             }
 
             const { data, error } = await query;
@@ -108,9 +107,9 @@ export default function FinancialDashboard() {
 
     /* ── Fetch active revenue goal ── */
     const { data: activeGoal } = useQuery({
-        queryKey: ['active_revenue_goal', selectedCD],
+        queryKey: ['active_revenue_goal', selectedCD, franchiseeId],
         queryFn: async () => {
-            const { data: { user } } = await supabase.auth.getUser();
+            if (!franchiseeId) return null;
             const now = new Date();
             const startOfMonthDate = format(new Date(now.getFullYear(), now.getMonth(), 1), 'yyyy-MM-dd');
             const endOfMonthDate = format(new Date(now.getFullYear(), now.getMonth() + 1, 0), 'yyyy-MM-dd');
@@ -120,7 +119,7 @@ export default function FinancialDashboard() {
                 .select('*')
                 .eq('status', 'active')
                 .eq('goal_type', 'revenue')
-                .in('franchisee_user_id', [user?.id, '97cc4f78-31e6-4113-a8a6-6d14d4166c38'])
+                .eq('franchisee_user_id', franchiseeId)
                 .lte('start_date', endOfMonthDate)
                 .gte('end_date', startOfMonthDate)
                 .order('created_at', { ascending: false })
@@ -138,9 +137,9 @@ export default function FinancialDashboard() {
 
     /* ── Fetch accounts receivable (pending) ── */
     const { data: receivables } = useQuery({
-        queryKey: ['financial_dashboard_receivables', selectedCD],
+        queryKey: ['financial_dashboard_receivables', selectedCD, franchiseeId],
         queryFn: async () => {
-            const { data: { user } } = await supabase.auth.getUser();
+            if (!franchiseeId) return [];
             let query = supabase
                 .from('accounts_receivable' as any)
                 .select('amount, paid')
@@ -149,7 +148,7 @@ export default function FinancialDashboard() {
             if (selectedCD) {
                 query = query.eq('distribution_center_id', selectedCD);
             } else {
-                query = query.in('franchisee_user_id', [user?.id, '97cc4f78-31e6-4113-a8a6-6d14d4166c38']);
+                query = query.eq('franchisee_user_id', franchiseeId);
             }
 
             const { data, error } = await query;
@@ -160,9 +159,9 @@ export default function FinancialDashboard() {
 
     /* ── Fetch overdue expenses ── */
     const { data: overdueExpenses = [] } = useQuery({
-        queryKey: ['financial_dashboard_overdue_expenses', selectedCD],
+        queryKey: ['financial_dashboard_overdue_expenses', selectedCD, franchiseeId],
         queryFn: async () => {
-            const { data: { user } } = await supabase.auth.getUser();
+            if (!franchiseeId) return [];
             const todayStr = format(new Date(), 'yyyy-MM-dd');
 
             let query = supabase
@@ -174,7 +173,7 @@ export default function FinancialDashboard() {
             if (selectedCD) {
                 query = query.eq('distribution_center_id', selectedCD);
             } else {
-                query = query.in('distribution_center.franchisee_user_id', [user?.id, '97cc4f78-31e6-4113-a8a6-6d14d4166c38']);
+                query = query.eq('distribution_center.franchisee_user_id', franchiseeId);
             }
 
             const { data, error } = await query;
@@ -185,9 +184,9 @@ export default function FinancialDashboard() {
 
     /* ── Fetch overdue receivables ── */
     const { data: overdueReceivables = [] } = useQuery({
-        queryKey: ['financial_dashboard_overdue_receivables', selectedCD],
+        queryKey: ['financial_dashboard_overdue_receivables', selectedCD, franchiseeId],
         queryFn: async () => {
-            const { data: { user } } = await supabase.auth.getUser();
+            if (!franchiseeId) return [];
             const todayStr = format(new Date(), 'yyyy-MM-dd');
 
             let query = supabase
@@ -199,7 +198,7 @@ export default function FinancialDashboard() {
             if (selectedCD) {
                 query = query.eq('distribution_center_id', selectedCD);
             } else {
-                query = query.in('franchisee_user_id', [user?.id, '97cc4f78-31e6-4113-a8a6-6d14d4166c38']);
+                query = query.eq('franchisee_user_id', franchiseeId);
             }
 
             const { data, error } = await query;
@@ -210,15 +209,15 @@ export default function FinancialDashboard() {
 
     /* ── Fetch all active accounts ── */
     const { data: accounts } = useQuery({
-        queryKey: ['financial_accounts_dashboard'],
+        queryKey: ['financial_accounts_dashboard', franchiseeId],
         queryFn: async () => {
-            const { data: { user } } = await supabase.auth.getUser();
+            if (!franchiseeId) return [];
 
             const { data, error } = await supabase
                 .from('financial_accounts' as any)
                 .select('name, balance')
                 .eq('active', true)
-                .in('franchisee_user_id', [user?.id, '97cc4f78-31e6-4113-a8a6-6d14d4166c38']);
+                .eq('franchisee_user_id', franchiseeId);
 
             if (error) throw error;
             return data as any[];
@@ -227,9 +226,9 @@ export default function FinancialDashboard() {
 
     /* ── Fetch financial_records (lançamentos PixPag) for Total Entradas ── */
     const { data: financialRecords } = useQuery({
-        queryKey: ['financial_records_dashboard', selectedCD],
+        queryKey: ['financial_records_dashboard', selectedCD, franchiseeId],
         queryFn: async () => {
-            const { data: { user } } = await supabase.auth.getUser();
+            if (!franchiseeId) return [];
 
             let query = supabase
                 .from('financial_records' as any)
@@ -241,7 +240,7 @@ export default function FinancialDashboard() {
             if (selectedCD) {
                 query = query.eq('distribution_center_id', selectedCD);
             } else {
-                query = query.in('distribution_center.franchisee_user_id', [user?.id, '97cc4f78-31e6-4113-a8a6-6d14d4166c38']);
+                query = query.eq('distribution_center.franchisee_user_id', franchiseeId);
             }
 
             const { data, error } = await query;
@@ -252,23 +251,22 @@ export default function FinancialDashboard() {
 
     /* ── Fetch all-time balance for each CD (In + Settlement - Expenses) ── */
     const { data: cdBalances } = useQuery({
-        queryKey: ['financial_cd_balances'],
+        queryKey: ['financial_cd_balances', franchiseeId],
         queryFn: async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            const franchiseeIds = [user?.id, '97cc4f78-31e6-4113-a8a6-6d14d4166c38'];
+            if (!franchiseeId) return {};
 
             // 1. Fetch all cash closings for the franchisee
             const { data: closingsRes } = await supabase
                 .from('cash_closings' as any)
                 .select('distribution_center_id, total_cash, cash_settlement, distribution_center:distribution_centers!inner(franchisee_user_id)')
-                .in('distribution_center.franchisee_user_id', franchiseeIds);
+                .eq('distribution_center.franchisee_user_id', franchiseeId);
 
             // 2. Fetch all expenses paid with cash for the franchisee
             const { data: expensesRes } = await supabase
                 .from('expenses' as any)
                 .select('distribution_center_id, amount, distribution_center:distribution_centers!inner(franchisee_user_id)')
                 .eq('paid_with_cash_balance', true)
-                .in('distribution_center.franchisee_user_id', franchiseeIds);
+                .eq('distribution_center.franchisee_user_id', franchiseeId);
 
             // Calculate balance per CD
             const balances: Record<string, number> = {};

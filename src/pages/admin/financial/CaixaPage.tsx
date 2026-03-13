@@ -25,6 +25,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import AccountSelect from './components/AccountSelect';
 import CurrencyInput from './components/CurrencyInput';
+import { useFranchiseeId } from '@/hooks/useFranchiseeId';
 
 /* ─── Helpers ─── */
 const formatBRL = (val: number) =>
@@ -32,6 +33,7 @@ const formatBRL = (val: number) =>
 
 export default function CaixaPage() {
     const queryClient = useQueryClient();
+    const { data: franchiseeId } = useFranchiseeId();
     const [isTransferOpen, setIsTransferOpen] = useState(false);
     const [transferData, setTransferData] = useState({
         from: '',
@@ -42,14 +44,14 @@ export default function CaixaPage() {
 
     /* ── Fetch Accounts ── */
     const { data: accounts, isLoading: loadingAccounts } = useQuery({
-        queryKey: ['financial_accounts'],
+        queryKey: ['financial_accounts', franchiseeId],
         queryFn: async () => {
-            const { data: { user } } = await supabase.auth.getUser();
+            if (!franchiseeId) return [];
             const { data, error } = await supabase
                 .from('financial_accounts' as any)
                 .select('*')
                 .eq('active', true)
-                .in('franchisee_user_id', [user?.id, '97cc4f78-31e6-4113-a8a6-6d14d4166c38'])
+                .eq('franchisee_user_id', franchiseeId)
                 .order('name');
             if (error) throw error;
             return data as any[];
@@ -58,9 +60,9 @@ export default function CaixaPage() {
 
     /* ── Fetch Transfers (Statement) ── */
     const { data: transfers, isLoading: loadingTransfers } = useQuery({
-        queryKey: ['financial_transfers_statement'],
+        queryKey: ['financial_transfers_statement', franchiseeId],
         queryFn: async () => {
-            const { data: { user } } = await supabase.auth.getUser();
+            if (!franchiseeId) return [];
             const { data, error } = await supabase
                 .from('financial_transfers' as any)
                 .select(`
@@ -69,7 +71,7 @@ export default function CaixaPage() {
                     destination:financial_accounts!to_account_id(name, franchisee_user_id)
                 `)
                 .order('created_at', { ascending: false })
-                .eq('origin.franchisee_user_id', user?.id)
+                .eq('origin.franchisee_user_id', franchiseeId)
                 .limit(20);
             if (error) throw error;
             return data as any[];

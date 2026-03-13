@@ -15,6 +15,7 @@ import ExpenseFormDialog from './components/ExpenseFormDialog';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { addPdfBranding } from './utils/pdfBranding';
+import { useFranchiseeId } from '@/hooks/useFranchiseeId';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend, PieChart, Pie,
 } from 'recharts';
@@ -66,6 +67,7 @@ const ChartTooltip = ({ active, payload, label }: any) => {
 };
 
 export default function ExpensesPage() {
+    const { data: franchiseeId } = useFranchiseeId();
     const now = new Date();
     const [dateStart, setDateStart] = useState(format(startOfMonth(now), 'yyyy-MM-dd'));
     const [dateEnd, setDateEnd] = useState(format(endOfMonth(now), 'yyyy-MM-dd'));
@@ -83,27 +85,24 @@ export default function ExpensesPage() {
     });
 
     const { data: centers = [] } = useQuery({
-        queryKey: ['distribution_centers_expenses'],
+        queryKey: ['distribution_centers_expenses', franchiseeId],
         queryFn: async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-
+            if (!franchiseeId) return [];
             const { data, error } = await supabase
                 .from('distribution_centers' as any)
                 .select('*')
                 .eq('active', true)
-                .in('franchisee_user_id', [user?.id, '97cc4f78-31e6-4113-a8a6-6d14d4166c38'])
+                .eq('franchisee_user_id', franchiseeId)
                 .order('name');
-
             if (error) throw error;
             return data as any[];
         },
     });
 
     const { data: costCenters = [] } = useQuery({
-        queryKey: ['cost_centers_list', filterCD],
+        queryKey: ['cost_centers_list', filterCD, franchiseeId],
         queryFn: async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-
+            if (!franchiseeId) return [];
             let query = supabase
                 .from('cost_centers' as any)
                 .select('id, name, distribution_center:distribution_centers!inner(franchisee_user_id)')
@@ -112,7 +111,7 @@ export default function ExpensesPage() {
             if (filterCD) {
                 query = query.eq('distribution_center_id', filterCD);
             } else {
-                query = query.in('distribution_center.franchisee_user_id', [user?.id, '97cc4f78-31e6-4113-a8a6-6d14d4166c38']);
+                query = query.eq('distribution_center.franchisee_user_id', franchiseeId);
             }
 
             const { data, error } = await query.order('name');
@@ -122,10 +121,9 @@ export default function ExpensesPage() {
     });
 
     const { data: chartAccounts = [] } = useQuery({
-        queryKey: ['chart_accounts_list', filterCostCenter],
+        queryKey: ['chart_accounts_list', filterCostCenter, franchiseeId],
         queryFn: async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-
+            if (!franchiseeId) return [];
             let query = supabase
                 .from('chart_of_accounts' as any)
                 .select(`
@@ -139,7 +137,7 @@ export default function ExpensesPage() {
             if (filterCostCenter) {
                 query = query.eq('cost_center_id', filterCostCenter);
             } else {
-                query = query.eq('cost_center.distribution_center.franchisee_user_id', user?.id);
+                query = query.eq('cost_center.distribution_center.franchisee_user_id', franchiseeId);
             }
 
             const { data, error } = await query.order('name');
@@ -149,10 +147,9 @@ export default function ExpensesPage() {
     });
 
     const { data: expenses = [], isLoading, refetch } = useQuery({
-        queryKey: ['expenses', dateStart, dateEnd, filterCD, filterType, filterStatus, filterCostCenter, filterChartAccount],
+        queryKey: ['expenses', dateStart, dateEnd, filterCD, filterType, filterStatus, filterCostCenter, filterChartAccount, franchiseeId],
         queryFn: async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-
+            if (!franchiseeId) return [];
             let query = supabase
                 .from('expenses' as any)
                 .select(`
@@ -169,7 +166,7 @@ export default function ExpensesPage() {
             if (filterCD) {
                 query = query.eq('distribution_center_id', filterCD);
             } else {
-                query = query.in('distribution_center.franchisee_user_id', [user?.id, '97cc4f78-31e6-4113-a8a6-6d14d4166c38']);
+                query = query.eq('distribution_center.franchisee_user_id', franchiseeId);
             }
 
             if (filterType) query = query.eq('expense_type', filterType);

@@ -28,6 +28,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
+import { useFranchiseeId } from '@/hooks/useFranchiseeId';
 
 interface SupplierSelectProps {
     value?: string;
@@ -44,21 +45,23 @@ export function SupplierSelect({ value, onChange, placeholder = "Selecione um fo
     const [supplierName, setSupplierName] = useState('');
     const [supplierPhone, setSupplierPhone] = useState('');
     const queryClient = useQueryClient();
+    const { data: franchiseeId } = useFranchiseeId();
 
     // Fetch suppliers
     const { data: suppliers, isLoading } = useQuery({
-        queryKey: ['financial_suppliers'],
+        queryKey: ['financial_suppliers', franchiseeId],
         queryFn: async () => {
+            if (!franchiseeId) return [];
             const { data, error } = await supabase
                 .from('financial_suppliers' as any)
                 .select('*')
+                .eq('franchisee_user_id', franchiseeId)
                 .order('name');
             if (error) throw error;
             return data as any[];
         }
     });
 
-    // Create/Edit supplier mutation
     const saveMutation = useMutation({
         mutationFn: async () => {
             const { data: { user } } = await supabase.auth.getUser();
@@ -67,7 +70,7 @@ export function SupplierSelect({ value, onChange, placeholder = "Selecione um fo
             const payload = {
                 name: supplierName,
                 phone: supplierPhone,
-                franchisee_user_id: user.id || '97cc4f78-31e6-4113-a8a6-6d14d4166c38',
+                franchisee_user_id: franchiseeId,
                 created_by: user.id
             };
 
@@ -107,7 +110,7 @@ export function SupplierSelect({ value, onChange, placeholder = "Selecione um fo
             setEditingSupplier(null);
             toast.success(action === 'created' ? 'Fornecedor cadastrado!' : 'Fornecedor atualizado!');
         },
-        onError: (error) => toast.error('Erro ao salvar: ' + error.message)
+        onError: (error: any) => toast.error('Erro ao salvar: ' + error.message)
     });
 
     // Delete supplier mutation

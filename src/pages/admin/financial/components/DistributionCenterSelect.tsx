@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Check, ChevronsUpDown, Plus, Loader2, Building2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { useFranchiseeId } from '@/hooks/useFranchiseeId';
 
 interface DistributionCenterSelectProps {
     value: string;
@@ -31,17 +32,17 @@ export default function DistributionCenterSelect({ value, onChange, placeholder 
     const [open, setOpen] = useState(false);
     const [search, setSearch] = useState('');
     const queryClient = useQueryClient();
+    const { data: franchiseeId } = useFranchiseeId();
 
     const { data: centers = [], isLoading } = useQuery({
-        queryKey: ['distribution_centers'],
+        queryKey: ['distribution_centers', franchiseeId],
         queryFn: async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-
+            if (!franchiseeId) return [];
             const { data, error } = await supabase
                 .from('distribution_centers' as any)
                 .select('*')
                 .eq('active', true)
-                .or(`franchisee_user_id.in.(${user?.id},97cc4f78-31e6-4113-a8a6-6d14d4166c38),franchisee_user_id.is.null`)
+                .eq('franchisee_user_id', franchiseeId)
                 .order('name');
 
             if (error) throw error;
@@ -51,10 +52,9 @@ export default function DistributionCenterSelect({ value, onChange, placeholder 
 
     const createMutation = useMutation({
         mutationFn: async (name: string) => {
-            const { data: { user } } = await supabase.auth.getUser();
             const { data, error } = await supabase
                 .from('distribution_centers' as any)
-                .insert({ name, franchisee_user_id: user?.id })
+                .insert({ name, franchisee_user_id: franchiseeId })
                 .select()
                 .single();
             if (error) throw error;
