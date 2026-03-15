@@ -114,6 +114,7 @@ import FranchiseeProductsPage from "./pages/admin/orders/FranchiseeProductsPage"
 import OrderManagement from "./pages/admin/orders/OrderManagement";
 import OrderHistory from "./pages/admin/orders/OrderHistory";
 import CheckoutPage from "./pages/admin/orders/CheckoutPage";
+import FranchiseeOrderDetails from "./pages/admin/orders/FranchiseeOrderDetails";
 
 import { ThemeProvider } from "next-themes";
 
@@ -268,6 +269,14 @@ const App = () => (
                         element={
                           <PrivateRoute requiredRole="staff">
                             <OrderHistory />
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/orders/:orderId"
+                        element={
+                          <PrivateRoute requiredRole="staff">
+                            <FranchiseeOrderDetails />
                           </PrivateRoute>
                         }
                       />
