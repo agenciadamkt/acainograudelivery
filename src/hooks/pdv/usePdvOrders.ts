@@ -83,7 +83,56 @@ export function usePdvOrders() {
                 throw itemsError;
             }
 
-            // 3. Update Table Status if applicable
+            // 3. Automated Stock Deduction (Phase 3)
+            if (payload.status === 'paid' || !payload.status) {
+                try {
+                    for (const item of payload.items) {
+                        // Get recipe for this product
+                        const { data: recipes } = await supabase
+                            .from('inventory_recipes')
+                            .select('*')
+                            .eq('product_id', item.product_id);
+                        
+                        if (recipes && recipes.length > 0) {
+                            for (const recipe of recipes) {
+                                const qtyToDeduct = item.quantity * recipe.quantity;
+                                
+                                // Get current stock
+                                const { data: invItem } = await supabase
+                                    .from('inventory_items')
+                                    .select('current_qty, avg_price')
+                                    .eq('id', recipe.item_id)
+                                    .single();
+                                
+                                if (invItem) {
+                                    // 1. Log Movement
+                                    await supabase.from('inventory_movements').insert([{
+                                        store_id: payload.store_id,
+                                        item_id: recipe.item_id,
+                                        user_id: payload.user_id,
+                                        action: 'exit',
+                                        classification: 'sale',
+                                        qty: qtyToDeduct,
+                                        unit_price: invItem.avg_price,
+                                        total_value: qtyToDeduct * invItem.avg_price,
+                                        notes: `Baixa automática: Venda #${order.id.slice(0, 8)}`
+                                    }]);
+
+                                    // 2. Update Balance
+                                    await supabase
+                                        .from('inventory_items')
+                                        .update({ current_qty: invItem.current_qty - qtyToDeduct })
+                                        .eq('id', recipe.item_id);
+                                }
+                            }
+                        }
+                    }
+                } catch (stockErr) {
+                    console.error('Stock deduction error:', stockErr);
+                }
+            }
+
+            // 4. Update Table Status if applicable
             if (payload.table_id) {
                 const { error: tableError } = await supabase
                     .from('pdv_tables')
@@ -102,7 +151,9 @@ export function usePdvOrders() {
             toast.success('Venda realizada com sucesso!');
             queryClient.invalidateQueries({ queryKey: ['pdv_orders'] });
             queryClient.invalidateQueries({ queryKey: ['pdv_tables'] });
-            // Also invalidate products if stock is managed
+            queryClient.invalidateQueries({ queryKey: ['inventory'] });
+            queryClient.invalidateQueries({ queryKey: ['inventory_movements'] });
+            queryClient.invalidateQueries({ queryKey: ['stock_dashboard'] });
         },
         onError: (error) => {
             console.error('Error creating sale:', error);

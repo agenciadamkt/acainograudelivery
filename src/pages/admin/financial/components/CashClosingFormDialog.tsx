@@ -54,6 +54,13 @@ const formSchema = z.object({
     credit_card_value: z.coerce.number().min(0, 'Valor inválido'),
     debit_card_value: z.coerce.number().min(0, 'Valor inválido'),
     pix_value: z.coerce.number().min(0, 'Valor inválido'),
+    credit_moderninha: z.coerce.number().min(0, 'Valor inválido'),
+    debit_moderninha: z.coerce.number().min(0, 'Valor inválido'),
+    pix_moderninha: z.coerce.number().min(0, 'Valor inválido'),
+    credit_cielo: z.coerce.number().min(0, 'Valor inválido'),
+    debit_cielo: z.coerce.number().min(0, 'Valor inválido'),
+    pix_cielo: z.coerce.number().min(0, 'Valor inválido'),
+    online_payment: z.coerce.number().min(0, 'Valor inválido'),
     checked_by_id: z.string().min(1, 'Selecione quem conferiu'),
     account_id: z.string().optional(),
     notes: z.string().optional(),
@@ -88,6 +95,13 @@ export default function CashClosingFormDialog({ open, onOpenChange, editData }: 
             credit_card_value: 0,
             debit_card_value: 0,
             pix_value: 0,
+            credit_moderninha: 0,
+            debit_moderninha: 0,
+            pix_moderninha: 0,
+            credit_cielo: 0,
+            debit_cielo: 0,
+            pix_cielo: 0,
+            online_payment: 0,
             checked_by_id: '',
             account_id: '',
             notes: '',
@@ -115,6 +129,13 @@ export default function CashClosingFormDialog({ open, onOpenChange, editData }: 
                 credit_card_value: editData.credit_card_value || 0,
                 debit_card_value: editData.debit_card_value || 0,
                 pix_value: editData.pix_value || 0,
+                credit_moderninha: editData.credit_moderninha || 0,
+                debit_moderninha: editData.debit_moderninha || 0,
+                pix_moderninha: editData.pix_moderninha || 0,
+                credit_cielo: editData.credit_cielo || 0,
+                debit_cielo: editData.debit_cielo || 0,
+                pix_cielo: editData.pix_cielo || 0,
+                online_payment: editData.online_payment || 0,
                 checked_by_id: editData.checked_by_id || '',
                 account_id: editData.account_id || '',
                 notes: editData.notes || '',
@@ -150,6 +171,13 @@ export default function CashClosingFormDialog({ open, onOpenChange, editData }: 
                 credit_card_value: 0,
                 debit_card_value: 0,
                 pix_value: 0,
+                credit_moderninha: 0,
+                debit_moderninha: 0,
+                pix_moderninha: 0,
+                credit_cielo: 0,
+                debit_cielo: 0,
+                pix_cielo: 0,
+                online_payment: 0,
                 checked_by_id: '',
                 account_id: '',
                 notes: '',
@@ -455,43 +483,60 @@ export default function CashClosingFormDialog({ open, onOpenChange, editData }: 
                             />
                         </div>
 
-                        {/* Row 6: Formas de Recebimento */}
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <FormField
-                                control={form.control}
-                                name="credit_card_value"
+                        {/* Row 6: Formas de Recebimento por Operadora */}
+                        <div className="space-y-3">
+                            <p className="text-xs font-bold uppercase tracking-widest text-gray-400 dark:text-white/30">Formas de Recebimento</p>
+
+                            {/* Moderninha */}
+                            <div className="rounded-lg border border-blue-100 dark:border-blue-900/30 p-3 space-y-2">
+                                <p className="text-xs font-bold text-blue-600 dark:text-blue-400">Moderninha</p>
+                                <div className="grid grid-cols-3 gap-3">
+                                    {([
+                                        { name: 'credit_moderninha', label: 'Crédito' },
+                                        { name: 'debit_moderninha',  label: 'Débito'  },
+                                        { name: 'pix_moderninha',    label: 'Pix'     },
+                                    ] as const).map(({ name, label }) => (
+                                        <FormField key={name} control={form.control} name={name}
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel className="text-xs">{label}</FormLabel>
+                                                    <FormControl><BRLInput field={field} /></FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Cielo */}
+                            <div className="rounded-lg border border-orange-100 dark:border-orange-900/30 p-3 space-y-2">
+                                <p className="text-xs font-bold text-orange-600 dark:text-orange-400">Cielo</p>
+                                <div className="grid grid-cols-3 gap-3">
+                                    {([
+                                        { name: 'credit_cielo', label: 'Crédito' },
+                                        { name: 'debit_cielo',  label: 'Débito'  },
+                                        { name: 'pix_cielo',    label: 'Pix'     },
+                                    ] as const).map(({ name, label }) => (
+                                        <FormField key={name} control={form.control} name={name}
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel className="text-xs">{label}</FormLabel>
+                                                    <FormControl><BRLInput field={field} /></FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Online */}
+                            <FormField control={form.control} name="online_payment"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Crédito</FormLabel>
-                                        <FormControl>
-                                            <BRLInput field={field} />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="debit_card_value"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Débito</FormLabel>
-                                        <FormControl>
-                                            <BRLInput field={field} />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="pix_value"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Pix</FormLabel>
-                                        <FormControl>
-                                            <BRLInput field={field} />
-                                        </FormControl>
+                                        <FormLabel className="text-xs font-bold text-purple-600 dark:text-purple-400">Pagamento Online</FormLabel>
+                                        <FormControl><BRLInput field={field} /></FormControl>
                                         <FormMessage />
                                     </FormItem>
                                 )}

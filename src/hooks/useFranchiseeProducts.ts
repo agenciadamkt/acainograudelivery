@@ -15,6 +15,14 @@ export interface FranchiseeProduct {
     advertising_fee_percentage: number;
     active: boolean;
     display_order: number;
+    code: string | null;
+    current_stock: number;
+    distribution_center_id: string | null;
+    ingredients?: string | null;
+    nutritional_info?: any;
+    has_nutrition_facts?: boolean;
+    gallery_images?: string[];
+    related_product_ids?: string[];
     created_at?: string;
     updated_at?: string;
     category?: {
@@ -29,7 +37,7 @@ export function useFranchiseeProducts(categoryId?: string, activeOnly = false) {
         queryFn: async () => {
             let query = supabase
                 .from('franchisee_products' as any)
-                .select('*, category:franchisee_product_categories(id, name)')
+                .select('*, category:franchisee_product_categories(id, name), distribution_center:distribution_centers(id, name)')
                 .order('display_order', { ascending: true })
                 .order('name', { ascending: true });
 
@@ -48,6 +56,23 @@ export function useFranchiseeProducts(categoryId?: string, activeOnly = false) {
             }
             return (data as any) as FranchiseeProduct[];
         },
+    });
+}
+
+export function useFranchiseeProduct(id: string) {
+    return useQuery({
+        queryKey: ['franchisee_product', id],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from('franchisee_products' as any)
+                .select('*, category:franchisee_product_categories(id, name), distribution_center:distribution_centers(id, name)')
+                .eq('id', id)
+                .single();
+
+            if (error) throw error;
+            return (data as any) as FranchiseeProduct;
+        },
+        enabled: !!id,
     });
 }
 

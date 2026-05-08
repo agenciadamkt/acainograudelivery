@@ -17,13 +17,15 @@ export function useRealtimeOrders() {
   useEffect(() => {
     console.log('[Hook] 🔍 Verificando suporte a BroadcastChannel...');
 
+    let timeoutId: NodeJS.Timeout;
+
     if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
       try {
         notificationBroadcastRef.current = new BroadcastChannel(NOTIFICATION_CHANNEL);
         console.log('[Hook] ✅ Broadcast Channel criado:', NOTIFICATION_CHANNEL);
 
         // Testar envio de mensagem após 5 segundos
-        setTimeout(() => {
+        timeoutId = setTimeout(() => {
           console.log('[Hook] 🧪 Enviando mensagem de teste...');
           notificationBroadcastRef.current?.postMessage({
             type: 'TEST',
@@ -40,6 +42,7 @@ export function useRealtimeOrders() {
 
     return () => {
       console.log('[Hook] 🧹 Fechando Broadcast Channel');
+      if (timeoutId) clearTimeout(timeoutId);
       notificationBroadcastRef.current?.close();
     };
   }, []);

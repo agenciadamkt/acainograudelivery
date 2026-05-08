@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { supabase } from '@/integrations/supabase/client';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,8 +10,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
 import { ImageUpload } from './ImageUpload';
+import GlobalDistributionCenterSelect from './GlobalDistributionCenterSelect';
 import { useCreateFranchisee } from '@/hooks/useCreateFranchisee';
 import { useUpdateStore, type Store } from '@/hooks/useStores';
+import { useUpdateFranchiseeUser } from '@/hooks/useUpdateFranchiseeUser';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -26,6 +29,7 @@ const storeSchema = z.object({
   city: z.string().trim().min(3, 'Cidade é obrigatória'),
   state: z.string().trim().length(2, 'Estado deve ter 2 caracteres'),
   storePhone: z.string().trim().min(10, 'Telefone inválido'),
+  distribution_center_id: z.string().optional().nullable(),
 
   // Delivery
   deliveryFee: z.number().min(0, 'Taxa deve ser maior ou igual a 0'),
@@ -89,6 +93,7 @@ export function FranchiseeForm({ onSuccess, initialData }: FranchiseeFormProps) 
 
   const createFranchisee = useCreateFranchisee();
   const updateStore = useUpdateStore();
+  const updateFranchiseeUser = useUpdateFranchiseeUser();
 
   const {
     register,
@@ -96,7 +101,8 @@ export function FranchiseeForm({ onSuccess, initialData }: FranchiseeFormProps) 
     setValue,
     watch,
     formState: { errors },
-    reset
+    reset,
+    control
   } = useForm<FranchiseeFormData>({
     resolver: zodResolver(isEditing ? editSchema : createSchema),
     defaultValues: {
@@ -109,51 +115,71 @@ export function FranchiseeForm({ onSuccess, initialData }: FranchiseeFormProps) 
       acceptsCard: true,
       acceptsPix: true,
       requiresChange: false,
+      distribution_center_id: null,
     },
   });
 
   useEffect(() => {
-    if (initialData) {
-      // Tentar extrair endereço (Best effort)
-      // Formato esperado: "Rua X, 123 - Bairro"
-      let street = initialData.address || '';
-      let number = '';
-      let neighborhood = '';
+    const loadProfile = async () => {
+      if (initialData) {
+        // Tentar extrair endereço (Best effort)
+        let street = initialData.address || '';
+        let number = '';
+        let neighborhood = '';
 
-      if (initialData.address) {
-        const parts = initialData.address.split(',');
-        if (parts.length > 0) street = parts[0].trim();
-        if (parts.length > 1) {
-          const numAndNeigh = parts[1].split('-');
-          if (numAndNeigh.length > 0) number = numAndNeigh[0].trim();
-          if (numAndNeigh.length > 1) neighborhood = numAndNeigh[1].trim();
+        if (initialData.address) {
+          const parts = initialData.address.split(',');
+          if (parts.length > 0) street = parts[0].trim();
+          if (parts.length > 1) {
+            const numAndNeigh = parts[1].split('-');
+            if (numAndNeigh.length > 0) number = numAndNeigh[0].trim();
+            if (numAndNeigh.length > 1) neighborhood = numAndNeigh[1].trim();
+          }
         }
-      }
 
-      reset({
-        storeName: initialData.name,
-        slug: initialData.slug || '',
-        street: street,
-        addressNumber: number || 'S/N', // Preencher para evitar validação erro, user corrige
-        neighborhood: neighborhood || 'Centro', // Preencher para evitar validação erro
-        zipcode: initialData.zipcode || '',
-        city: initialData.city || '',
-        state: initialData.state || '',
-        storePhone: initialData.phone || '',
-        deliveryFee: initialData.delivery_fee || 0,
-        minOrderValue: initialData.min_order_value || 0,
-        deliveryRadius: initialData.delivery_radius_km || 0,
-        preparationTime: initialData.preparation_time || 0,
-        deliveryTime: initialData.delivery_time || 0,
-        // Configs de pagamento não estão na interface Store, mantendo defaults
-        acceptsCash: true,
-        acceptsCard: true,
-        acceptsPix: true,
-        requiresChange: false,
-      });
-      if (initialData.logo_url) setLogoPreview(initialData.logo_url);
-      if (initialData.business_hours) setBusinessHours(initialData.business_hours);
-    }
+        const formData: any = {
+          storeName: initialData.name,
+          slug: initialData.slug || '',
+          street: street,
+          addressNumber: number || 'S/N', 
+          neighborhood: neighborhood || 'Centro',
+          zipcode: initialData.zipcode || '',
+          city: initialData.city || '',
+          state: initialData.state || '',
+          storePhone: initialData.phone || '',
+          deliveryFee: initialData.delivery_fee || 0,
+          minOrderValue: initialData.min_order_value || 0,
+          deliveryRadius: initialData.delivery_radius_km || 0,
+          preparationTime: Number(initialData.preparation_time) || 0,
+          deliveryTime: Number(initialData.delivery_time) || 0,
+          acceptsCash: true,
+          acceptsCard: true,
+          acceptsPix: true,
+          requiresChange: false,
+          distribution_center_id: initialData.distribution_center_id || null,
+        };
+
+        // Carregar dados do perfil se não houver join ( fallback manual )
+        if (initialData.franchisee_user_id) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('email, full_name')
+            .eq('id', initialData.franchisee_user_id)
+            .single();
+          
+          if (profile) {
+            formData.fullName = profile.full_name || '';
+            formData.email = profile.email || '';
+          }
+        }
+
+        reset(formData);
+        if (initialData.logo_url) setLogoPreview(initialData.logo_url);
+        if (initialData.business_hours) setBusinessHours(initialData.business_hours);
+      }
+    };
+
+    loadProfile();
   }, [initialData, reset]);
 
   const onSubmit = async (data: FranchiseeFormData) => {
@@ -177,12 +203,20 @@ export function FranchiseeForm({ onSuccess, initialData }: FranchiseeFormProps) 
             delivery_radius_km: data.deliveryRadius,
             preparation_time: data.preparationTime,
             delivery_time: data.deliveryTime,
+            distribution_center_id: data.distribution_center_id,
             business_hours: businessHours,
-            // Se houver upload de nova logo, precisaria tratar upload separado ou no updateStore
-            // Por simplicidade, assumimos que logo só se atualiza na criação ou via profile page por enquanto.
-            // Para habilitar update de logo, precisariamos fazer upload aqui e passar a URL.
           }
         });
+
+        // Atualizar credenciais se houver mudança de e-mail ou se senha for informada
+        if (initialData.franchisee_user_id && (data.email !== initialData.franchisee_profile?.email || data.password)) {
+          await updateFranchiseeUser.mutateAsync({
+            userId: initialData.franchisee_user_id,
+            email: data.email !== initialData.franchisee_profile?.email ? data.email : undefined,
+            password: data.password || undefined,
+            fullName: data.fullName,
+          });
+        }
       } else {
         // Criar
         await createFranchisee.mutateAsync({
@@ -210,6 +244,7 @@ export function FranchiseeForm({ onSuccess, initialData }: FranchiseeFormProps) 
           acceptsCard: data.acceptsCard,
           acceptsPix: data.acceptsPix,
           requiresChange: data.requiresChange,
+          distribution_center_id: data.distribution_center_id,
           businessHours,
           logoFile,
         });
@@ -257,20 +292,19 @@ export function FranchiseeForm({ onSuccess, initialData }: FranchiseeFormProps) 
     }
   };
 
-  const isLoading = createFranchisee.isPending || updateStore.isPending;
+  const isLoading = createFranchisee.isPending || updateStore.isPending || updateFranchiseeUser.isPending;
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       <Tabs defaultValue={isEditing ? "store" : "franchisee"} className="w-full">
         <TabsList className="grid w-full grid-cols-4">
-          {!isEditing && <TabsTrigger value="franchisee">👤 Franqueado</TabsTrigger>}
+          <TabsTrigger value="franchisee">👤 Franqueado</TabsTrigger>
           <TabsTrigger value="store">🏪 Loja</TabsTrigger>
           <TabsTrigger value="delivery">🚚 Delivery</TabsTrigger>
           <TabsTrigger value="payment">💳 Pagamento</TabsTrigger>
         </TabsList>
 
-        {!isEditing && (
-          <TabsContent value="franchisee" className="space-y-4">
+        <TabsContent value="franchisee" className="space-y-4">
             <div className="grid gap-4">
               <div>
                 <Label htmlFor="fullName">Nome Completo *</Label>
@@ -313,7 +347,6 @@ export function FranchiseeForm({ onSuccess, initialData }: FranchiseeFormProps) 
               </div>
             </div>
           </TabsContent>
-        )}
 
         <TabsContent value="store" className="space-y-4">
           <div className="grid gap-4">
@@ -401,6 +434,23 @@ export function FranchiseeForm({ onSuccess, initialData }: FranchiseeFormProps) 
               {errors.storePhone && (
                 <p className="text-sm text-destructive mt-1">{errors.storePhone.message}</p>
               )}
+            </div>
+
+            <div>
+              <Label>Centro de Distribuição</Label>
+              <Controller
+                control={control}
+                name="distribution_center_id"
+                render={({ field }) => (
+                  <GlobalDistributionCenterSelect
+                    value={field.value}
+                    onChange={field.onChange}
+                    placeholder="Selecione o CD central"
+                    className="mt-1"
+                  />
+                )}
+              />
+              <p className="text-[10px] text-gray-400 mt-1">Este franqueado será atendido pelo CD selecionado.</p>
             </div>
 
             {!isEditing && (

@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Menu, Loader2 } from "lucide-react";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import BottomNavigation from "@/components/BottomNavigation";
 import { useNearbyStores } from "@/hooks/useNearbyStores";
 import type { Coordinates } from "@/hooks/useGeolocation";
+import { BrandedLoader } from "@/components/ui/branded-loader";
 
 const Searching = () => {
   const navigate = useNavigate();
@@ -81,13 +83,10 @@ const Searching = () => {
               <span className="text-primary font-bold">{city || "sua cidade"}</span>
             </h1>
 
-            <div className="relative w-32 h-32 mx-auto">
-              <Loader2 className="w-32 h-32 text-primary animate-spin" strokeWidth={3} />
-            </div>
-
-            {isLoading && (
-              <p className="mt-6 text-muted-foreground">Buscando lojas disponíveis...</p>
-            )}
+            <BrandedLoader 
+              label={isLoading ? "Buscando lojas disponíveis..." : "Lojas encontradas!"} 
+              minHeight="200px" 
+            />
           </div>
         </div>
       </div>

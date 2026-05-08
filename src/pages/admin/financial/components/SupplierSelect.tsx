@@ -55,7 +55,6 @@ export function SupplierSelect({ value, onChange, placeholder = "Selecione um fo
             const { data, error } = await supabase
                 .from('financial_suppliers' as any)
                 .select('*')
-                .eq('franchisee_user_id', franchiseeId)
                 .order('name');
             if (error) throw error;
             return data as any[];

@@ -22,15 +22,31 @@ import { Theme } from '@/components/ui/theme';
 import { useUpdateStore } from '@/hooks/useStores';
 import { Switch } from '@/components/ui/switch';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { ManualProvider, useManual } from '@/contexts/ManualContext';
+import { MobileBottomNav } from './MobileBottomNav';
+import { cn } from '@/lib/utils';
+import { OperationalManualDrawer } from './OperationalManualDrawer';
+import { HelpCircle } from 'lucide-react';
 
 interface AdminLayoutProps {
   children: ReactNode;
 }
 
 export function AdminLayout({ children }: AdminLayoutProps) {
+  return (
+    <ManualProvider>
+      <AdminLayoutContent>
+        {children}
+      </AdminLayoutContent>
+    </ManualProvider>
+  );
+}
+
+function AdminLayoutContent({ children }: AdminLayoutProps) {
   const { signOut, user } = useAuth();
   const { currentStore, refreshStores } = useStore();
   const updateStore = useUpdateStore();
+  const { isOpen, toggleManual } = useManual();
 
   // Ativar Web Push Notifications globalmente
   usePushNotifications(currentStore?.id);
@@ -284,6 +300,16 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             </div>
 
             <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={toggleManual}
+                className="text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors gap-2"
+              >
+                <HelpCircle className="h-4 w-4" />
+                <span className="hidden sm:inline">Ajuda</span>
+              </Button>
+
               {/* Indicador de som tocando */}
               {isPlayingSound && (
                 <Badge className="animate-pulse-border bg-red-500 hover:bg-red-600 text-white px-3 py-1 cursor-pointer mr-2" onClick={stopSound}>
@@ -308,11 +334,13 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             </div>
           </header>
 
-          <main className="flex-1 p-6 overflow-auto">
+          <main className={cn('flex-1 p-6 overflow-auto', isMobile && 'pb-20')}>
             {children}
           </main>
         </div>
       </div>
+
+      {isMobile && <MobileBottomNav />}
 
       {/* Global New Order Dialog */}
       <NewOrderDialog
@@ -454,14 +482,15 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         />
       )}
       {/* Logout Feedback Modal */}
-      <FeedbackModal
-        isOpen={showLogoutModal}
-        onOpenChange={(open) => {
-          if (!open) signOut(); // Se fechar manualmente, sai
-          setShowLogoutModal(open);
-        }}
-        title={<>Logout realizado <br /><span className="font-bold">com sucesso!</span></>}
-      />
+        <FeedbackModal
+          isOpen={showLogoutModal}
+          onOpenChange={(open) => {
+            if (!open) signOut(); // Se fechar manualmente, sai
+            setShowLogoutModal(open);
+          }}
+          title={<>Logout realizado <br /><span className="font-bold">com sucesso!</span></>}
+        />
+        <OperationalManualDrawer isOpen={isOpen} onOpenChange={toggleManual} />
     </SidebarProvider>
   );
 }

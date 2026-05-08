@@ -20,7 +20,7 @@ import {
     Zap,
     LogOut
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -34,6 +34,10 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 import CartDrawer from './components/CartDrawer';
+import { CategorySection } from './components/CategorySection';
+import { useFranchiseeCart } from '@/hooks/useFranchiseeCart';
+import { SpringElement } from '@/components/ui/spring-element';
+import { MASCOTE_BASE64 } from '@/assets/mascote-data';
 
 /* ─── Types ─── */
 interface Category {
@@ -53,21 +57,35 @@ interface Product {
     taxa: number;
     has_advertising_fee: boolean;
     advertising_fee_percentage: number;
-}
-
-interface CartItem extends Product {
-    quantity: number;
+    display_order: number;
+    current_stock: number;
+    brand?: string | null;
 }
 
 const OrderCatalog = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
-    const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+    const [searchParams, setSearchParams] = useSearchParams();
+    const selectedCategory = searchParams.get('category');
+    const selectedBrand = searchParams.get('brand');
+    const setSelectedCategory = (id: string | null) => {
+        if (id) setSearchParams({ category: id });
+        else setSearchParams({});
+    };
+    const setSelectedBrand = (brand: string | null) => {
+        if (brand) setSearchParams({ brand });
+        else setSearchParams({});
+    };
     const [searchQuery, setSearchQuery] = useState('');
-    const [cart, setCart] = useState<Record<string, CartItem>>(() => {
-        const saved = localStorage.getItem('franchisee_cart');
-        return saved ? JSON.parse(saved) : {};
-    });
+    const { 
+        cart, 
+        totalItems, 
+        totalPrice, 
+        addToCart: addToCartHook, 
+        updateQuantity, 
+        removeItem, 
+        clearCart 
+    } = useFranchiseeCart();
     const [isCartOpen, setIsCartOpen] = useState(false);
     const [paymentMethod, setPaymentMethod] = useState('PIX');
 
@@ -95,6 +113,21 @@ const OrderCatalog = () => {
         enabled: !!user?.id
     });
 
+    // Fetch franchisee store
+    const { data: store } = useQuery({
+        queryKey: ['franchisee_store', user?.id],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from('stores')
+                .select('*, distribution_center:distribution_centers(name)')
+                .eq('franchisee_user_id', user?.id)
+                .single();
+            if (error) return null;
+            return data as any;
+        },
+        enabled: !!user?.id
+    });
+
     const isFranchisee = profile?.is_franchisee || false;
 
     /* ─── Queries ─── */
@@ -112,70 +145,106 @@ const OrderCatalog = () => {
     });
 
     const { data: products, isLoading: loadingProducts } = useQuery({
-        queryKey: ['franchisee_products', selectedCategory],
+        queryKey: ['franchisee_products_all'],
         queryFn: async () => {
-            let query = supabase
+            const { data, error } = await supabase
                 .from('franchisee_products' as any)
                 .select('*')
-                .eq('active', true);
-
-            if (selectedCategory) {
-                query = query.eq('category_id', selectedCategory);
-            }
-
-            const { data, error } = await query;
+                .eq('active', true)
+                .order('display_order', { ascending: true })
+                .order('name', { ascending: true });
             if (error) throw error;
             return (data as unknown) as Product[];
         }
     });
 
     /* ─── Logic ─── */
-    useEffect(() => {
-        localStorage.setItem('franchisee_cart', JSON.stringify(Object.values(cart)));
-    }, [cart]);
+    const isHomepage = !selectedCategory && !selectedBrand && !searchQuery;
+
+    const PRODUCTS_PER_PAGE = 12;
+    const [currentPage, setCurrentPage] = useState(1);
 
     const filteredProducts = useMemo(() => {
         if (!products) return [];
-        return products.filter(p =>
-            p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            p.description?.toLowerCase().includes(searchQuery.toLowerCase())
-        );
-    }, [products, searchQuery]);
+        let list = products;
+
+        if (selectedCategory) {
+            list = list.filter(p => p.category_id === selectedCategory);
+        }
+        if (selectedBrand) {
+            list = list.filter(p => p.brand === selectedBrand);
+        }
+        if (searchQuery) {
+            list = list.filter(p =>
+                p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                p.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                p.brand?.toLowerCase().includes(searchQuery.toLowerCase())
+            );
+        }
+
+        return [...list].sort((a, b) => {
+            const orderA = a.display_order ?? 999;
+            const orderB = b.display_order ?? 999;
+            if (orderA !== orderB) return orderA - orderB;
+            return a.name.localeCompare(b.name);
+        });
+    }, [products, searchQuery, selectedCategory, selectedBrand]);
+
+    // Products grouped by category for homepage
+    const groupedByCategory = useMemo(() => {
+        if (!products || !categories) return [];
+        return categories
+            .map(cat => ({
+                category: cat,
+                products: products
+                    .filter(p => p.category_id === cat.id)
+                    .sort((a, b) => (a.display_order ?? 999) - (b.display_order ?? 999))
+            }))
+            .filter(g => g.products.length > 0);
+    }, [products, categories]);
+
+    // Unique brands
+    const uniqueBrands = useMemo(() => {
+        if (!products) return [];
+        const brands = products
+            .map(p => p.brand)
+            .filter((b): b is string => !!b && b.trim() !== '');
+        return [...new Set(brands)].sort();
+    }, [products]);
+
+    // Reset page when filters change
+    useEffect(() => { setCurrentPage(1); }, [selectedCategory, selectedBrand, searchQuery]);
+
+    const totalPages = Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE);
+    const paginatedProducts = filteredProducts.slice(
+        (currentPage - 1) * PRODUCTS_PER_PAGE,
+        currentPage * PRODUCTS_PER_PAGE
+    );
 
     const addToCart = (product: Product) => {
-        setCart(prev => ({
-            ...prev,
-            [product.id]: {
-                ...product,
-                quantity: (prev[product.id]?.quantity || 0) + 1
-            }
-        }));
+        addToCartHook(product);
         toast.success(`${product.name} adicionado ao carrinho`, {
             icon: <ShoppingBag className="h-4 w-4 text-purple-600" />,
             position: 'top-center'
         });
     };
 
-    const updateQuantity = (productId: string, delta: number) => {
-        setCart(prev => {
-            const item = prev[productId];
-            if (!item) return prev;
-            const newQty = Math.max(0, item.quantity + delta);
-
-            if (newQty === 0) {
-                const { [productId]: _, ...rest } = prev;
-                return rest;
-            }
-
-            return {
-                ...prev,
-                [productId]: { ...item, quantity: newQty }
-            };
-        });
+    const handleRemoveItem = (productId: string) => {
+        const removedItem = cart[productId];
+        if (removedItem) {
+            removeItem(productId);
+            toast.error(`${removedItem.name} removido do carrinho`, {
+                position: 'top-center'
+            });
+        }
     };
 
-    const totalItems = Object.values(cart).reduce((acc, item) => acc + item.quantity, 0);
-    const totalPrice = Object.values(cart).reduce((acc, item) => acc + (item.price * item.quantity), 0);
+    const handleClearCart = () => {
+        clearCart();
+        toast.info('Carrinho limpo', {
+            position: 'top-center'
+        });
+    };
 
     return (
         <div className="min-h-screen bg-white dark:bg-[#030303] text-gray-900 dark:text-gray-100 flex flex-col overflow-x-hidden">
@@ -183,6 +252,19 @@ const OrderCatalog = () => {
             <div className="fixed inset-0 pointer-events-none opacity-40 dark:opacity-20">
                 <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-400 blur-[120px] rounded-full animate-pulse" />
                 <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-400 blur-[120px] rounded-full animate-pulse decoration-1000" />
+            </div>
+
+            {/* Hub Navigation Bar */}
+            <div className="sticky top-0 z-50 w-full bg-white/80 dark:bg-black/80 backdrop-blur-xl border-b border-gray-100 dark:border-white/10">
+                <div className="max-w-7xl mx-auto px-4 md:px-8 h-10 flex items-center">
+                    <a
+                        href="https://app.acainograu.com.br/admin/hub"
+                        className="flex items-center gap-1.5 text-[11px] font-bold text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors uppercase tracking-widest"
+                    >
+                        <ChevronRight className="h-3 w-3 rotate-180" />
+                        Voltar ao Hub
+                    </a>
+                </div>
             </div>
 
             {/* Header Content */}
@@ -230,7 +312,9 @@ const OrderCatalog = () => {
                             </div>
                             <div className="hidden sm:block mr-2 text-right">
                                 <p className="text-sm font-black leading-tight">{profile?.full_name || 'Franqueado'}</p>
-                                <p className="text-[10px] text-purple-600 font-bold uppercase tracking-wider">Unidade Teresina</p>
+                                <p className="text-[10px] text-purple-600 font-bold uppercase tracking-wider">
+                                    {store?.name || 'Carregando...'} • CD: {store?.distribution_center?.name || 'Geral'}
+                                </p>
                             </div>
                         </motion.div>
 
@@ -251,8 +335,23 @@ const OrderCatalog = () => {
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="md:col-span-8 overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-purple-600 via-indigo-600 to-indigo-900 text-white relative p-8 md:p-12 shadow-2xl shadow-purple-500/20 group order-2 md:order-1"
+                        className="md:col-span-8 rounded-[2.5rem] bg-[#532089] text-white relative p-8 md:p-12 shadow-2xl shadow-purple-500/20 group order-2 md:order-1"
                     >
+                        {/* Mascote Peeking Draggable */}
+                        <SpringElement
+                            className="absolute bottom-[calc(100%-25px)] right-2 md:right-8 w-48 h-48 z-40"
+                            springClassName="stroke-purple-400 dark:stroke-purple-300 opacity-40 shadow-sm"
+                            dragElastic={0.4}
+                            springConfig={{ stiffness: 300, damping: 20 }}
+                            whileHover={{ y: -10 }}
+                        >
+                             <img 
+                                src={MASCOTE_BASE64} 
+                                alt="Mascote" 
+                                className="w-full h-full object-contain pointer-events-none drop-shadow-2xl" 
+                             />
+                        </SpringElement>
+
                         <div className="relative z-20 flex h-full flex-col justify-between">
                             <div>
                                 <h3 className="text-3xl md:text-5xl font-black mb-4 tracking-tighter max-w-md leading-[0.9]">Estoque em baixa? Reponha agora.</h3>
@@ -263,11 +362,8 @@ const OrderCatalog = () => {
                                 <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
                             </Button>
                         </div>
-                        <div className="absolute -right-12 -bottom-12 w-80 h-80 opacity-20 pointer-events-none group-hover:scale-110 transition-transform duration-700">
-                            <Package className="w-full h-full -rotate-12" />
-                        </div>
                         <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32 blur-[100px]" />
-                        <div className="absolute bottom-0 left-0 w-48 h-48 bg-indigo-400/20 rounded-full -ml-24 -mb-24 blur-[80px]" />
+                        <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full -ml-24 -mb-24 blur-[80px]" />
                     </motion.div>
 
                     {/* Stats */}
@@ -380,80 +476,255 @@ const OrderCatalog = () => {
                             </Button>
                         </div>
 
-                        {/* Product Grid */}
-                        <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-3 gap-6 md:gap-8">
-                            {loadingProducts ? (
-                                [1, 2, 3, 4, 5, 6].map(i => (
-                                    <div key={i} className="space-y-4">
-                                        <Skeleton className="aspect-square rounded-[2.5rem]" />
-                                        <div className="px-2 space-y-2">
-                                            <Skeleton className="h-4 w-3/4 rounded-full" />
-                                            <Skeleton className="h-8 w-1/2 rounded-full" />
-                                        </div>
-                                    </div>
-                                ))
-                            ) : filteredProducts.length > 0 ? (
-                                filteredProducts.map((p, idx) => (
+                        {/* ─── HOMEPAGE MODE: Sections by Category + Brands ─── */}
+                        {isHomepage ? (
+                            <div className="space-y-10">
+                                {/* Navegue por Marcas */}
+                                {uniqueBrands.length > 0 && (
                                     <motion.div
-                                        key={p.id}
-                                        initial={{ opacity: 0, y: 20 }}
+                                        initial={{ opacity: 0, y: 16 }}
                                         animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: (idx % 9) * 0.05 }}
+                                        className="space-y-4"
                                     >
-                                        <Card className="group border-0 bg-white/40 dark:bg-white/5 backdrop-blur-xl rounded-[2.5rem] overflow-hidden shadow-sm hover:shadow-2xl hover:shadow-purple-500/10 transition-all duration-500 relative flex flex-col h-full border border-gray-100 dark:border-white/5">
-                                            {/* Badge or Meta */}
-                                            {idx === 0 && (
-                                                <div className="absolute top-4 left-4 z-20">
-                                                    <Badge className="bg-emerald-500 text-white border-0 font-black text-[10px] px-3 py-1 uppercase tracking-widest rounded-full">Destaque</Badge>
-                                                </div>
-                                            )}
-
-                                            {/* Image container */}
-                                            <div className="aspect-[4/5] sm:aspect-square bg-gray-50 dark:bg-white/2 relative overflow-hidden p-4">
-                                                <img
-                                                    src={p.image_url || `https://images.unsplash.com/photo-1579954115545-a95291e68b98?auto=format&fit=crop&w=800&q=80`}
-                                                    className="w-full h-full object-contain transition-transform duration-700 group-hover:scale-110"
-                                                    alt={p.name}
-                                                />
-                                                <div className="absolute inset-0 bg-gradient-to-t from-black/5 to-transparent group-hover:opacity-100 opacity-0 transition-opacity" />
-                                            </div>
-
-                                            <CardContent className="p-6 flex flex-col flex-1 h-full">
-                                                <div className="flex-1">
-                                                    <div className="flex items-start justify-between gap-4 mb-2">
-                                                        <h4 className="font-black text-lg leading-tight line-clamp-2 md:group-hover:text-purple-600 transition-colors uppercase tracking-tight">{p.name}</h4>
-                                                    </div>
-                                                    <p className="text-xs text-gray-500 font-bold mb-4 uppercase tracking-wider">{p.unit}</p>
-                                                </div>
-
-                                                <div className="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-white/5 mt-auto">
-                                                    <div>
-                                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Preço unit.</p>
-                                                        <p className="text-2xl font-black text-gray-900 dark:text-white">{formatBRL(p.price)}</p>
-                                                    </div>
-                                                    <Button
-                                                        size="icon"
-                                                        onClick={() => addToCart(p)}
-                                                        className="h-14 w-14 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white shadow-xl shadow-purple-500/20 active:scale-95 transition-all"
-                                                    >
-                                                        <Plus className="h-6 w-6" />
-                                                    </Button>
-                                                </div>
-                                            </CardContent>
-                                        </Card>
+                                        <div>
+                                            <h2 className="text-xl font-black tracking-tight text-gray-900 dark:text-white">
+                                                Navegue por Marcas
+                                            </h2>
+                                            <p className="text-xs text-gray-400 font-medium mt-0.5">Filtre pelos fornecedores</p>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {uniqueBrands.map(brand => (
+                                                <button
+                                                    key={brand}
+                                                    onClick={() => setSelectedBrand(brand)}
+                                                    className="h-9 px-4 rounded-2xl text-xs font-black uppercase tracking-widest border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/5 hover:border-purple-400 hover:bg-purple-50 dark:hover:bg-purple-500/10 hover:text-purple-600 transition-all"
+                                                >
+                                                    {brand}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </motion.div>
-                                ))
-                            ) : (
-                                <div className="col-span-full py-32 text-center rounded-[3rem] border border-dashed border-gray-200 dark:border-white/10 bg-gray-50/50 dark:bg-white/2">
-                                    <div className="w-20 h-20 rounded-full bg-gray-100 dark:bg-white/5 flex items-center justify-center mx-auto mb-6">
-                                        <Search className="h-10 w-10 text-gray-300" />
+                                )}
+
+                                {/* Category Sections */}
+                                {loadingProducts ? (
+                                    <div className="space-y-8">
+                                        {[1, 2, 3].map(i => (
+                                            <div key={i} className="space-y-3">
+                                                <Skeleton className="h-6 w-40 rounded-2xl" />
+                                                <div className="flex gap-4">
+                                                    {[1, 2, 3, 4].map(j => (
+                                                        <Skeleton key={j} className="flex-none w-44 aspect-square rounded-[1.5rem]" />
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
-                                    <h3 className="text-xl font-black mb-2 uppercase tracking-tight">Carga não localizada</h3>
-                                    <p className="text-gray-500 font-medium">Não encontramos insumos para "{searchQuery}"</p>
-                                    <Button variant="link" onClick={() => setSearchQuery('')} className="mt-4 text-purple-600 font-bold uppercase tracking-widest text-xs">Limpar Busca</Button>
+                                ) : (
+                                    groupedByCategory.map((group, idx) => (
+                                        <CategorySection
+                                            key={group.category.id}
+                                            categoryName={group.category.name}
+                                            products={group.products}
+                                            cart={cart}
+                                            onAddToCart={addToCart}
+                                            onUpdateQuantity={updateQuantity}
+                                            onViewAll={() => setSelectedCategory(group.category.id)}
+                                            onProductClick={(id) => navigate(`/admin/orders/catalog/${id}`)}
+                                            animationDelay={idx * 0.08}
+                                        />
+                                    ))
+                                )}
+                            </div>
+                        ) : (
+                            /* ─── GRID MODE: Filtrada (categoria, marca, busca) ─── */
+                            <div className="space-y-6">
+                                {/* Active filter breadcrumb */}
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    {selectedBrand && (
+                                        <div className="flex items-center gap-2 bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/20 px-4 py-2 rounded-2xl">
+                                            <span className="text-xs font-black text-purple-700 dark:text-purple-300 uppercase tracking-widest">
+                                                🏷 Marca: {selectedBrand}
+                                            </span>
+                                            <button onClick={() => setSelectedBrand(null)} className="text-purple-400 hover:text-purple-600 ml-1 font-black text-xs">✕</button>
+                                        </div>
+                                    )}
+                                    {selectedCategory && (
+                                        <div className="flex items-center gap-2 bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/20 px-4 py-2 rounded-2xl">
+                                            <span className="text-xs font-black text-purple-700 dark:text-purple-300 uppercase tracking-widest">
+                                                📦 {categories?.find(c => c.id === selectedCategory)?.name}
+                                            </span>
+                                            <button onClick={() => setSelectedCategory(null)} className="text-purple-400 hover:text-purple-600 ml-1 font-black text-xs">✕</button>
+                                        </div>
+                                    )}
+                                    {searchQuery && (
+                                        <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 px-4 py-2 rounded-2xl">
+                                            <span className="text-xs font-black text-blue-700 dark:text-blue-300 uppercase tracking-widest">
+                                                🔍 "{searchQuery}"
+                                            </span>
+                                            <button onClick={() => setSearchQuery('')} className="text-blue-400 hover:text-blue-600 ml-1 font-black text-xs">✕</button>
+                                        </div>
+                                    )}
+                                    <span className="text-xs text-gray-400 font-medium">{filteredProducts.length} resultado{filteredProducts.length !== 1 ? 's' : ''}</span>
                                 </div>
-                            )}
-                        </div>
+
+                                {/* Product Grid */}
+                                <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-3 gap-6 md:gap-8">
+                                    {loadingProducts ? (
+                                        [1, 2, 3, 4, 5, 6].map(i => (
+                                            <div key={i} className="space-y-4">
+                                                <Skeleton className="aspect-square rounded-[2.5rem]" />
+                                                <div className="px-2 space-y-2">
+                                                    <Skeleton className="h-4 w-3/4 rounded-full" />
+                                                    <Skeleton className="h-8 w-1/2 rounded-full" />
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : filteredProducts.length > 0 ? (
+                                        paginatedProducts.map((p, idx) => (
+                                            <motion.div
+                                                key={p.id}
+                                                initial={{ opacity: 0, y: 20 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ delay: (idx % 9) * 0.05 }}
+                                            >
+                                                <Card className={cn(
+                                                    "group border-0 backdrop-blur-xl rounded-[2.5rem] overflow-hidden shadow-sm transition-all duration-500 relative flex flex-col h-full border",
+                                                    p.current_stock === 0
+                                                        ? "bg-gray-100/60 dark:bg-white/3 border-gray-200 dark:border-white/5 hover:shadow-none"
+                                                        : "bg-white/40 dark:bg-white/5 border-gray-100 dark:border-white/5 hover:shadow-2xl hover:shadow-purple-500/10"
+                                                )}>
+                                                    {/* Indisponível overlay badge */}
+                                                    {p.current_stock === 0 && (
+                                                        <div className="absolute top-4 left-4 z-20">
+                                                            <Badge className="bg-gray-400 text-white border-0 font-black text-[10px] px-3 py-1 uppercase tracking-widest rounded-full">Indisponível</Badge>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Image container */}
+                                                    <div
+                                                        className={cn(
+                                                            "aspect-[4/5] sm:aspect-square bg-gray-50 dark:bg-white/2 relative overflow-hidden p-4",
+                                                            p.current_stock === 0 ? "cursor-default" : "cursor-pointer"
+                                                        )}
+                                                        onClick={() => p.current_stock > 0 && navigate(`/admin/orders/catalog/${p.id}`)}
+                                                    >
+                                                        <img
+                                                            src={p.image_url || `https://images.unsplash.com/photo-1579954115545-a95291e68b98?auto=format&fit=crop&w=800&q=80`}
+                                                            loading="lazy"
+                                                            className={cn(
+                                                                "w-full h-full object-contain transition-transform duration-700",
+                                                                p.current_stock === 0 ? "opacity-40 grayscale" : "group-hover:scale-110"
+                                                            )}
+                                                            alt={p.name}
+                                                        />
+                                                        {p.current_stock > 0 && <div className="absolute inset-0 bg-gradient-to-t from-black/5 to-transparent group-hover:opacity-100 opacity-0 transition-opacity" />}
+                                                    </div>
+
+                                                    <CardContent className="p-6 flex flex-col flex-1 h-full">
+                                                        <div
+                                                            className={cn("flex-1", p.current_stock > 0 ? "cursor-pointer" : "cursor-default")}
+                                                            onClick={() => p.current_stock > 0 && navigate(`/admin/orders/catalog/${p.id}`)}
+                                                        >
+                                                            {p.brand && (
+                                                                <p className="text-[9px] font-black text-purple-500/70 uppercase tracking-widest leading-none mb-1">{p.brand}</p>
+                                                            )}
+                                                            <div className="flex items-start justify-between gap-4 mb-2">
+                                                                <h4 className={cn(
+                                                                    "font-black text-lg leading-tight line-clamp-2 transition-colors uppercase tracking-tight",
+                                                                    p.current_stock === 0 ? "text-gray-400" : "md:group-hover:text-purple-600"
+                                                                )}>{p.name}</h4>
+                                                            </div>
+                                                            <p className="text-xs text-gray-500 font-bold mb-4 uppercase tracking-wider">{p.unit}</p>
+                                                        </div>
+
+                                                        <div className="pt-4 border-t border-gray-100 dark:border-white/5 mt-auto flex items-center justify-between">
+                                                            <div>
+                                                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Preço unit.</p>
+                                                                <p className={cn(
+                                                                    "text-xl md:text-2xl font-black leading-tight",
+                                                                    p.current_stock === 0 ? "text-gray-400" : "text-gray-900 dark:text-white"
+                                                                )}>{formatBRL(p.price)}</p>
+                                                            </div>
+
+                                                            {p.current_stock === 0 ? (
+                                                                <Button size="icon" disabled className="h-10 w-10 md:h-11 md:w-11 rounded-xl bg-gray-200 dark:bg-white/10 text-gray-400 cursor-not-allowed shadow-none">
+                                                                    <Plus className="h-4 w-4 opacity-40" />
+                                                                </Button>
+                                                            ) : cart[p.id]?.quantity > 0 ? (
+                                                                <div className="flex items-center gap-2 animate-in zoom-in duration-300">
+                                                                    <Button size="icon" variant="outline" onClick={(e) => { e.stopPropagation(); updateQuantity(p.id, -1); }} className="h-7 w-7 md:h-8 md:w-8 rounded-lg border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 shadow-sm hover:bg-gray-50 dark:hover:bg-white/10 active:scale-90 transition-all p-0">
+                                                                        <Minus className="h-3 w-3 md:h-3.5 md:w-3.5 text-gray-700 dark:text-gray-300" />
+                                                                    </Button>
+                                                                    <span className="text-xs md:text-sm font-black min-w-[1rem] text-center">{cart[p.id].quantity}</span>
+                                                                    <Button size="icon" variant="outline" onClick={(e) => { e.stopPropagation(); updateQuantity(p.id, 1); }} className="h-7 w-7 md:h-8 md:w-8 rounded-lg border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 shadow-sm hover:bg-gray-50 dark:hover:bg-white/10 active:scale-90 transition-all p-0">
+                                                                        <Plus className="h-3 w-3 md:h-3.5 md:w-3.5 text-gray-700 dark:text-gray-300" />
+                                                                    </Button>
+                                                                </div>
+                                                            ) : (
+                                                                <Button size="icon" onClick={(e) => { e.stopPropagation(); addToCart(p); }} className="h-10 w-10 md:h-11 md:w-11 rounded-xl bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-500/20 active:scale-95 transition-all animate-in fade-in duration-300">
+                                                                    <Plus className="h-4.5 w-4.5 md:h-5 md:w-5" />
+                                                                </Button>
+                                                            )}
+                                                        </div>
+                                                    </CardContent>
+                                                </Card>
+                                            </motion.div>
+                                        ))
+                                    ) : (
+                                        <div className="col-span-full py-32 text-center rounded-[3rem] border border-dashed border-gray-200 dark:border-white/10 bg-gray-50/50 dark:bg-white/2">
+                                            <div className="w-20 h-20 rounded-full bg-gray-100 dark:bg-white/5 flex items-center justify-center mx-auto mb-6">
+                                                <Search className="h-10 w-10 text-gray-300" />
+                                            </div>
+                                            <h3 className="text-xl font-black mb-2 uppercase tracking-tight">Carga não localizada</h3>
+                                            <p className="text-gray-500 font-medium">Nenhum produto encontrado para o filtro selecionado.</p>
+                                            <Button variant="link" onClick={() => { setSearchQuery(''); setSelectedBrand(null); setSelectedCategory(null); }} className="mt-4 text-purple-600 font-bold uppercase tracking-widest text-xs">Limpar Filtros</Button>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Pagination Controls */}
+                                {totalPages > 1 && (
+                                    <div className="flex items-center justify-center gap-3 mt-8">
+                                        <Button
+                                            variant="outline"
+                                            onClick={() => { setCurrentPage(p => Math.max(1, p - 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                                            disabled={currentPage === 1}
+                                            className="rounded-2xl border-gray-200 dark:border-white/10 font-bold text-sm gap-2 h-11 px-5 disabled:opacity-40"
+                                        >
+                                            <ChevronRight className="h-4 w-4 rotate-180" />
+                                            Anterior
+                                        </Button>
+                                        <div className="flex items-center gap-2">
+                                            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                                                <button
+                                                    key={page}
+                                                    onClick={() => { setCurrentPage(page); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                                                    className={cn(
+                                                        "w-9 h-9 rounded-xl text-sm font-black transition-all",
+                                                        page === currentPage
+                                                            ? "bg-purple-600 text-white shadow-lg shadow-purple-500/20"
+                                                            : "bg-white dark:bg-white/5 text-gray-500 border border-gray-200 dark:border-white/10 hover:border-purple-400"
+                                                    )}
+                                                >
+                                                    {page}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <Button
+                                            variant="outline"
+                                            onClick={() => { setCurrentPage(p => Math.min(totalPages, p + 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                                            disabled={currentPage === totalPages}
+                                            className="rounded-2xl border-gray-200 dark:border-white/10 font-bold text-sm gap-2 h-11 px-5 disabled:opacity-40"
+                                        >
+                                            Próximo
+                                            <ChevronRight className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
                     </main>
                 </div>
             </div>
@@ -534,6 +805,8 @@ const OrderCatalog = () => {
                 paymentMethod={paymentMethod}
                 isFranchisee={isFranchisee}
                 onUpdateQuantity={updateQuantity}
+                onRemoveItem={handleRemoveItem}
+                onClearCart={handleClearCart}
                 onCheckout={() => {
                     setIsCartOpen(false);
                     navigate('/admin/orders/checkout');

@@ -55,6 +55,7 @@ import InfinitePaySuccess from "./pages/InfinitePaySuccess";
 // Admin pages
 import Login from "./pages/admin/Login";
 import ResetPassword from "./pages/admin/ResetPassword";
+import UpdatePasswordPage from "./pages/admin/UpdatePasswordPage";
 import Signup from "./pages/admin/Signup";
 import DriverLogin from "./pages/driver/DriverLogin";
 import DriverDashboard from "./pages/driver/DriverDashboard";
@@ -67,7 +68,7 @@ import ProductsPage from "./pages/admin/products/ProductsPage";
 import ToppingsPage from "./pages/admin/toppings/ToppingsPage";
 import OrdersPage from "./pages/admin/orders/OrdersPage";
 import KDSPage from "./pages/admin/kds/KDSPage";
-import InventoryPage from "./pages/admin/inventory/InventoryPage";
+// Removed old InventoryPage import to avoid conflict with StockInventoryPage
 import FinancialPage from "./pages/admin/financial/FinancialPage";
 import CustomersPage from "./pages/admin/customers/CustomersPage";
 import DeliveryPage from "./pages/admin/delivery/DeliveryPage";
@@ -95,6 +96,7 @@ import UniversidadeAdminPage from "./pages/admin/universidade/UniversidadeAdminP
 import PerformancePage from "./pages/admin/performance/PerformancePage";
 import AssistentePage from "./pages/admin/assistente/AssistentePage";
 import ComunidadePage from "./pages/admin/comunidade/ComunidadePage";
+import FrotaPage from "./pages/admin/frota/FrotaPage";
 import FluxoCaixaPage from "./pages/admin/financial/FluxoCaixaPage";
 import WeeklyCashFlowPage from "./pages/admin/financial/WeeklyCashFlowPage";
 import FinancialLayout from "./pages/admin/financial/FinancialLayout";
@@ -115,29 +117,81 @@ import OrderManagement from "./pages/admin/orders/OrderManagement";
 import OrderHistory from "./pages/admin/orders/OrderHistory";
 import CheckoutPage from "./pages/admin/orders/CheckoutPage";
 import FranchiseeOrderDetails from "./pages/admin/orders/FranchiseeOrderDetails";
+import FranchiseeProductDetail from "./pages/admin/orders/FranchiseeProductDetail";
+import GrauzinhoPage from "./pages/admin/game/GrauzinhoPage";
+
+// Stock Management Module
+import StockInventoryPage from "./pages/admin/stock/InventoryPage";
+import StockDashboardPage from "./pages/admin/stock/DashboardPage";
+import StockMovementsPage from "./pages/admin/stock/MovementsPage";
+import StockCMVPage from "./pages/admin/stock/CMVPage";
+import StockPurchasesPage from "./pages/admin/stock/PurchasesPage";
+import StockCountsPage from "./pages/admin/stock/CountsPage";
+import StockRecipesPage from "./pages/admin/stock/RecipesPage";
+import PurchaseHistoryPage from "./pages/admin/stock/PurchaseHistoryPage";
+import ChecklistAdminPage from "./pages/admin/stock/ChecklistAdminPage";
+import ChecklistExecutionPage from "./pages/admin/stock/ChecklistExecutionPage";
+import ChecklistReportsPage from "./pages/admin/stock/ChecklistReportsPage";
+import CountGroupsPage from "./pages/admin/stock/CountGroupsPage";
+import RecurringCountsPage from "./pages/admin/stock/RecurringCountsPage";
+import RecurringCountExecutionPage from "./pages/admin/stock/RecurringCountExecutionPage";
+import StockHelpPage from "./pages/admin/stock/HelpPage";
+import BonificacoesPage from "./pages/admin/stock/BonificacoesPage";
+import GlobalHelpPage from "./pages/admin/GlobalHelpPage";
+import CRMPipeline from "./pages/admin/crm/CRMPipeline";
+import CRMLeadDetail from "./pages/admin/crm/CRMLeadDetail";
+import CRMScripts from "./pages/admin/crm/CRMScripts";
+import CRMDashboard from "./pages/admin/crm/CRMDashboard";
+import UnauthorizedPage from "./pages/admin/UnauthorizedPage";
+import MeuPerfilPage from "./pages/admin/MeuPerfilPage";
+import UsersPage from "./pages/admin/settings/UsersPage";
+import UserFormPage from "./pages/admin/settings/UserFormPage";
+import SecurityPage from "./pages/admin/settings/SecurityPage";
+import { PermissionProvider } from "./contexts/PermissionContext";
 
 import { ThemeProvider } from "next-themes";
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-      <TooltipProvider>
-        <AppManager />
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <ErrorBoundary>
-            <AuthProvider>
-              <StoreProvider>
-                <CartProvider>
-                  <PrinterProvider>
-                    <CopilotGlobalWrapper />
-                    <Routes>
-                      {/* Client routes */}
-                      <Route path="/" element={<LocationState />} />
-                      <Route path="/location-city" element={<LocationCity />} />
+const App = () => {
+  const hostname = window.location.hostname;
+  const isAppDomain = hostname.includes('app.acainograu.com.br');
+  const isDeliveryDomain = hostname.includes('delivery.acainograu.com.br');
+  const isLocal = !isAppDomain && !isDeliveryDomain;
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <TooltipProvider>
+          <AppManager />
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <ErrorBoundary>
+              <AuthProvider>
+                <PermissionProvider>
+                <StoreProvider>
+                  <CartProvider>
+                    <PrinterProvider>
+                      <CopilotGlobalWrapper />
+                      <Routes>
+                        {/* 🌐 Domain Aware Routing Logic */}
+                        
+                        {/* Redirecionamento inicial para o domínio APP */}
+                        {isAppDomain && (
+                          <Route path="/" element={<Navigate to="/admin/hub" replace />} />
+                        )}
+
+                        {/* Bloqueio de Admin no domínio Delivery */}
+                        {isDeliveryDomain && (
+                          <Route path="/admin/*" element={<Navigate to="/" replace />} />
+                        )}
+
+                        {/* Client routes - Apenas se NÃO for domínio APP (exceto se for local) */}
+                        {(!isAppDomain || isLocal) && (
+                          <>
+                            <Route path="/" element={<LocationState />} />
+                            <Route path="/location-city" element={<LocationCity />} />
                       <Route path="/searching" element={<Searching />} />
                       <Route path="/store-result" element={<StoreResult />} />
                       <Route path="/stores" element={<Stores />} />
@@ -159,12 +213,18 @@ const App = () => (
                       <Route path="/order-confirmation/:orderId" element={<ProtectedRoute><OrderConfirmation /></ProtectedRoute>} />
 
                       {/* Public Tracking Route (from Email/WhatsApp) */}
-                      <Route path="/tracking/:orderId" element={<OrderTracking />} />
+                            <Route path="/tracking/:orderId" element={<OrderTracking />} />
+                          </>
+                        )}
 
-                      {/* Admin auth routes */}
+                        {/* Admin routes - Apenas se NÃO for domínio Delivery (exceto se for local) */}
+                        {(!isDeliveryDomain || isLocal) && (
+                          <>
+                            {/* Admin auth routes */}
                       <Route path="/admin" element={<Navigate to="/admin/login" replace />} />
                       <Route path="/admin/login" element={<Login />} />
                       <Route path="/admin/reset-password" element={<ResetPassword />} />
+                      <Route path="/admin/update-password" element={<UpdatePasswordPage />} />
                       <Route path="/admin/signup" element={<Signup />} />
                       <Route path="/franchise-request" element={<FranchiseRequest />} />
 
@@ -232,6 +292,14 @@ const App = () => (
                         }
                       />
                       <Route
+                        path="/admin/frota"
+                        element={
+                          <PrivateRoute requiredRole="manager">
+                            <FrotaPage />
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
                         path="/admin/financeiro"
                         element={
                           <PrivateRoute>
@@ -261,6 +329,22 @@ const App = () => (
                         element={
                           <PrivateRoute requiredRole="staff">
                             <OrderCatalog />
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/grauzinho"
+                        element={
+                          <PrivateRoute requiredRole="staff">
+                            <GrauzinhoPage />
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/orders/catalog/:productId"
+                        element={
+                          <PrivateRoute requiredRole="staff">
+                            <FranchiseeProductDetail />
                           </PrivateRoute>
                         }
                       />
@@ -381,11 +465,253 @@ const App = () => (
                           </PrivateRoute>
                         }
                       />
+                      {/* New Stock & Operations Module */}
+                      <Route path="/admin/stock" element={<Navigate to="/admin/stock/dashboard" replace />} />
                       <Route
-                        path="/admin/inventory"
+                        path="/admin/stock/dashboard"
                         element={
                           <PrivateRoute requiredRole="manager">
-                            <InventoryPage />
+                            <AdminLayout>
+                              <StockDashboardPage />
+                            </AdminLayout>
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/stock/inventory"
+                        element={
+                          <PrivateRoute requiredRole="manager">
+                            <AdminLayout>
+                              <StockInventoryPage />
+                            </AdminLayout>
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/stock/movements"
+                        element={
+                          <PrivateRoute requiredRole="manager">
+                            <AdminLayout>
+                              <StockMovementsPage />
+                            </AdminLayout>
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/stock/cmv"
+                        element={
+                          <PrivateRoute requiredRole="manager">
+                            <AdminLayout>
+                              <StockCMVPage />
+                            </AdminLayout>
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/stock/purchases"
+                        element={
+                          <PrivateRoute requiredRole="manager">
+                            <AdminLayout>
+                              <StockPurchasesPage />
+                            </AdminLayout>
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/stock/counts"
+                        element={
+                          <PrivateRoute requiredRole="manager">
+                            <AdminLayout>
+                              <StockCountsPage />
+                            </AdminLayout>
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/stock/recipes"
+                        element={
+                          <PrivateRoute requiredRole="manager">
+                            <AdminLayout>
+                              <StockRecipesPage />
+                            </AdminLayout>
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/stock/purchase-history"
+                        element={
+                          <PrivateRoute requiredRole="staff">
+                            <AdminLayout>
+                              <PurchaseHistoryPage />
+                            </AdminLayout>
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/stock/checklists/admin"
+                        element={
+                          <PrivateRoute requiredRole="manager">
+                            <AdminLayout>
+                              <ChecklistAdminPage />
+                            </AdminLayout>
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/stock/checklists/execution"
+                        element={
+                          <PrivateRoute requiredRole="staff">
+                            <AdminLayout>
+                              <ChecklistExecutionPage />
+                            </AdminLayout>
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/stock/checklists/reports"
+                        element={
+                          <PrivateRoute requiredRole="staff">
+                            <AdminLayout>
+                              <ChecklistReportsPage />
+                            </AdminLayout>
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/stock/count-groups"
+                        element={
+                          <PrivateRoute requiredRole="manager">
+                            <AdminLayout>
+                              <CountGroupsPage />
+                            </AdminLayout>
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/stock/recurring-counts"
+                        element={
+                          <PrivateRoute requiredRole="manager">
+                            <AdminLayout>
+                              <RecurringCountsPage />
+                            </AdminLayout>
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/stock/count-executions/:id"
+                        element={
+                          <PrivateRoute requiredRole="staff">
+                            <AdminLayout>
+                              <RecurringCountExecutionPage />
+                            </AdminLayout>
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/stock/bonificacoes"
+                        element={
+                          <PrivateRoute requiredRole="staff">
+                            <AdminLayout>
+                              <BonificacoesPage />
+                            </AdminLayout>
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/stock/help"
+                        element={<Navigate to="/admin/help" replace />}
+                      />
+                      <Route
+                        path="/admin/help"
+                        element={
+                          <PrivateRoute>
+                            <AdminLayout>
+                              <GlobalHelpPage />
+                            </AdminLayout>
+                          </PrivateRoute>
+                        }
+                      />
+                      {/* CRM & Atendimento */}
+                      <Route path="/admin/crm" element={<Navigate to="/admin/crm/pipeline" replace />} />
+                      <Route
+                        path="/admin/crm/pipeline"
+                        element={
+                          <PrivateRoute requiredRole="manager">
+                            <AdminLayout><CRMPipeline /></AdminLayout>
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/crm/leads/:id"
+                        element={
+                          <PrivateRoute requiredRole="manager">
+                            <AdminLayout><CRMLeadDetail /></AdminLayout>
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/crm/scripts"
+                        element={
+                          <PrivateRoute requiredRole="manager">
+                            <AdminLayout><CRMScripts /></AdminLayout>
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/crm/dashboard"
+                        element={
+                          <PrivateRoute requiredRole="manager">
+                            <AdminLayout><CRMDashboard /></AdminLayout>
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/unauthorized"
+                        element={
+                          <PrivateRoute>
+                            <AdminLayout>
+                              <UnauthorizedPage />
+                            </AdminLayout>
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/meu-perfil"
+                        element={
+                          <PrivateRoute>
+                            <AdminLayout>
+                              <MeuPerfilPage />
+                            </AdminLayout>
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/settings/usuarios"
+                        element={
+                          <PrivateRoute requiredRole="manager" requiredPermission="sis.usuarios">
+                            <AdminLayout>
+                              <UsersPage />
+                            </AdminLayout>
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/settings/usuarios/novo"
+                        element={
+                          <PrivateRoute requiredRole="manager" requiredPermission="sis.usuarios" requiredNivel={2}>
+                            <AdminLayout>
+                              <UserFormPage />
+                            </AdminLayout>
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/settings/usuarios/editar/:id"
+                        element={
+                          <PrivateRoute requiredRole="manager" requiredPermission="sis.usuarios" requiredNivel={3}>
+                            <AdminLayout>
+                              <UserFormPage />
+                            </AdminLayout>
                           </PrivateRoute>
                         }
                       />
@@ -465,6 +791,16 @@ const App = () => (
                           </PrivateRoute>
                         }
                       />
+                      <Route
+                        path="/admin/settings/seguranca"
+                        element={
+                          <PrivateRoute requiredRole="manager">
+                            <AdminLayout>
+                              <SecurityPage />
+                            </AdminLayout>
+                          </PrivateRoute>
+                        }
+                      />
 
                       {/* PDV Module */}
                       <Route
@@ -539,18 +875,22 @@ const App = () => (
                           </PrivateRoute>
                         }
                       />
+                    </>
+                  )}
 
                       <Route path="*" element={<NotFound />} />
                     </Routes>
                   </PrinterProvider>
                 </CartProvider>
               </StoreProvider>
+                </PermissionProvider>
             </AuthProvider>
           </ErrorBoundary>
         </BrowserRouter>
       </TooltipProvider>
     </ThemeProvider>
   </QueryClientProvider>
-);
+  );
+};
 
 export default App;

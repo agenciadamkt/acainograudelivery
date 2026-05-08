@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { BrandedLoader } from '@/components/ui/branded-loader';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStore } from '@/contexts/StoreContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,8 +30,7 @@ import {
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Progress } from '@/components/ui/progress';
-
-
+import { QuoteWidget } from '@/components/admin/quotes/QuoteWidget';
 const COLORS = ['#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#3b82f6'];
 
 type Period = 'today' | 'week' | 'month' | 'yesterday';
@@ -88,11 +89,7 @@ export default function Dashboard() {
   }, [realTime, refetch]);
 
   if (isLoading) {
-    return (
-      <div className="p-8 flex items-center justify-center">
-        <RefreshCw className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <BrandedLoader />;
   }
 
   if (!stats) return null;
@@ -150,6 +147,8 @@ export default function Dashboard() {
           </Select>
         </div>
       </div>
+
+      <QuoteWidget />
 
       {/* Row 1: Status Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

@@ -55,6 +55,7 @@ interface OrderItem {
         name: string;
         unit: string;
         image_url: string | null;
+        code: string | null;
     };
 }
 
@@ -81,7 +82,7 @@ const FranchiseeOrderDetails = () => {
         queryFn: async () => {
             const { data, error } = await supabase
                 .from('franchisee_order_items' as any)
-                .select('*, franchisee_products(name, unit, image_url)')
+                .select('*, franchisee_products(name, unit, image_url, code)')
                 .eq('order_id', orderId);
             if (error) throw error;
             return (data as any) as OrderItem[];
@@ -199,7 +200,8 @@ const FranchiseeOrderDetails = () => {
                                 <Table>
                                     <TableHeader>
                                         <TableRow className="hover:bg-transparent border-gray-100 dark:border-white/5">
-                                            <TableHead className="px-8 h-14 font-black text-[10px] uppercase tracking-widest">Item</TableHead>
+                                            <TableHead className="px-8 h-14 font-black text-[10px] uppercase tracking-widest">Cód.</TableHead>
+                                            <TableHead className="h-14 font-black text-[10px] uppercase tracking-widest">Item</TableHead>
                                             <TableHead className="text-center h-14 font-black text-[10px] uppercase tracking-widest">Qtd</TableHead>
                                             <TableHead className="text-right h-14 font-black text-[10px] uppercase tracking-widest">Unit.</TableHead>
                                             <TableHead className="px-8 text-right h-14 font-black text-[10px] uppercase tracking-widest">Subtotal</TableHead>
@@ -217,6 +219,11 @@ const FranchiseeOrderDetails = () => {
                                         ) : items?.map((item) => (
                                             <TableRow key={item.id} className="hover:bg-gray-50/50 dark:hover:bg-white/2 border-gray-100 dark:border-white/5">
                                                 <TableCell className="px-8 py-5">
+                                                    <span className="font-mono text-xs text-gray-400 font-bold">
+                                                        {item.franchisee_products.code || '—'}
+                                                    </span>
+                                                </TableCell>
+                                                <TableCell className="py-5">
                                                     <div className="flex items-center gap-4">
                                                         <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-white/10 flex items-center justify-center overflow-hidden">
                                                             {item.franchisee_products.image_url ? (

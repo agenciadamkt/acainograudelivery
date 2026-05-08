@@ -3,6 +3,7 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import GlobalDistributionCenterSelect from '@/components/admin/GlobalDistributionCenterSelect';
 import {
     Form,
     FormControl,
@@ -37,7 +38,9 @@ import {
     Hash,
     Sparkles,
     CheckCircle2,
-    Image as ImageIcon
+    Image as ImageIcon,
+    Plus,
+    X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ImageUpload } from '@/components/admin/ImageUpload';
@@ -45,6 +48,7 @@ import { useState } from 'react';
 
 const franchiseeProductSchema = z.object({
     name: z.string().min(1, 'Nome é obrigatório'),
+    brand: z.string().optional().nullable(),
     description: z.string().optional().nullable(),
     category_id: z.string().min(1, 'Selecione uma categoria'),
     price: z.number().min(0, 'Preço deve ser maior ou igual a 0'),
@@ -55,6 +59,14 @@ const franchiseeProductSchema = z.object({
     advertising_fee_percentage: z.number().min(0).max(100).default(0),
     active: z.boolean().default(true),
     display_order: z.number().default(0),
+    code: z.string().optional().nullable(),
+    current_stock: z.number().default(0),
+    distribution_center_id: z.string().optional().nullable(),
+    ingredients: z.string().optional().nullable(),
+    nutritional_info: z.any().optional(),
+    has_nutrition_facts: z.boolean().default(false),
+    gallery_images: z.array(z.string()).default([]),
+    related_product_ids: z.array(z.string()).default([]),
 });
 
 type FranchiseeProductFormData = z.infer<typeof franchiseeProductSchema>;
@@ -86,11 +98,24 @@ export function FranchiseeProductForm({
             return data as any[];
         }
     });
+    
+    const { data: allProducts } = useQuery({
+        queryKey: ['franchisee_products_all'],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from('franchisee_products' as any)
+                .select('id, name')
+                .eq('active', true);
+            if (error) throw error;
+            return data as any[];
+        }
+    });
 
     const form = useForm<FranchiseeProductFormData>({
         resolver: zodResolver(franchiseeProductSchema),
         defaultValues: {
             name: '',
+            brand: '',
             description: '',
             category_id: '',
             price: 0,
@@ -101,6 +126,14 @@ export function FranchiseeProductForm({
             advertising_fee_percentage: 0,
             active: true,
             display_order: 0,
+            code: '',
+            current_stock: 0,
+            distribution_center_id: null,
+            ingredients: '',
+            nutritional_info: {},
+            has_nutrition_facts: false,
+            gallery_images: [],
+            related_product_ids: [],
         },
     });
 
@@ -108,6 +141,7 @@ export function FranchiseeProductForm({
         if (product) {
             form.reset({
                 name: product.name || '',
+                brand: product.brand || '',
                 description: product.description || '',
                 category_id: product.category_id || '',
                 price: product.price || 0,
@@ -118,6 +152,14 @@ export function FranchiseeProductForm({
                 advertising_fee_percentage: product.advertising_fee_percentage || 0,
                 active: product.active ?? true,
                 display_order: product.display_order ?? 0,
+                code: product.code || '',
+                current_stock: product.current_stock || 0,
+                distribution_center_id: product.distribution_center_id || null,
+                ingredients: product.ingredients || '',
+                nutritional_info: product.nutritional_info || {},
+                has_nutrition_facts: product.has_nutrition_facts ?? false,
+                gallery_images: product.gallery_images || [],
+                related_product_ids: product.related_product_ids || [],
             });
         }
     }, [product, form]);
@@ -147,6 +189,17 @@ export function FranchiseeProductForm({
         } finally {
             setIsUploading(false);
         }
+    };
+
+    const handleGalleryUpload = async (file: File) => {
+        const url = await handleImageUpload(file);
+        const currentGallery = form.getValues('gallery_images') || [];
+        form.setValue('gallery_images', [...currentGallery, url]);
+    };
+
+    const removeGalleryImage = (url: string) => {
+        const currentGallery = form.getValues('gallery_images') || [];
+        form.setValue('gallery_images', currentGallery.filter(img => img !== url));
     };
 
     return (
@@ -199,6 +252,28 @@ export function FranchiseeProductForm({
                                             placeholder="Ex: Açaí Médio 10L"
                                             className="pl-12 h-14 rounded-2xl border-gray-200 dark:border-white/10 bg-white/50 dark:bg-white/5 focus-visible:ring-purple-500 focus-visible:border-purple-500 transition-all font-medium"
                                             {...field}
+                                        />
+                                    </div>
+                                </FormControl>
+                                <FormMessage className="text-[10px] font-bold" />
+                            </FormItem>
+                        )}
+                    />
+
+                    <FormField
+                        control={form.control}
+                        name="brand"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel className="flex items-center gap-2">Marca <span className="text-gray-400 text-[10px] font-normal">(opcional)</span></FormLabel>
+                                <FormControl>
+                                    <div className="relative group">
+                                        <Tag className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 group-focus-within:text-purple-500 transition-colors" />
+                                        <Input
+                                            placeholder="Ex: Nestlé, Unilever, Açaí no Grau..."
+                                            className="pl-12 h-14 rounded-2xl border-gray-200 dark:border-white/10 bg-white/50 dark:bg-white/5 focus-visible:ring-purple-500 focus-visible:border-purple-500 transition-all font-medium"
+                                            {...field}
+                                            value={field.value || ''}
                                         />
                                     </div>
                                 </FormControl>
@@ -303,6 +378,68 @@ export function FranchiseeProductForm({
                                                 onChange={e => field.onChange(parseInt(e.target.value))}
                                             />
                                         </div>
+                                    </FormControl>
+                                    <FormMessage className="text-[10px] font-bold" />
+                                </FormItem>
+                            )}
+                        />
+
+                        <FormField
+                            control={form.control}
+                            name="code"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel className="flex items-center gap-2 text-sm font-bold text-gray-700 dark:text-white/80">Código</FormLabel>
+                                    <FormControl>
+                                        <div className="relative group">
+                                            <Hash className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 group-focus-within:text-purple-500 transition-colors" />
+                                            <Input
+                                                placeholder="Código do Cefas"
+                                                className="pl-12 h-14 rounded-2xl border-gray-200 dark:border-white/10 bg-white/50 dark:bg-white/5 focus-visible:ring-purple-500 font-medium"
+                                                {...field}
+                                                value={field.value || ''}
+                                            />
+                                        </div>
+                                    </FormControl>
+                                    <FormMessage className="text-[10px] font-bold" />
+                                </FormItem>
+                            )}
+                        />
+
+                        <FormField
+                            control={form.control}
+                            name="current_stock"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel className="flex items-center gap-2 text-sm font-bold text-gray-700 dark:text-white/80">Estoque Atual</FormLabel>
+                                    <FormControl>
+                                        <div className="relative group">
+                                            <Package className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 group-focus-within:text-purple-500 transition-colors" />
+                                            <Input
+                                                type="number"
+                                                className="pl-12 h-14 rounded-2xl border-gray-200 dark:border-white/10 bg-white/50 dark:bg-white/5 focus-visible:ring-purple-500 font-black"
+                                                {...field}
+                                                onChange={e => field.onChange(parseInt(e.target.value) || 0)}
+                                            />
+                                        </div>
+                                    </FormControl>
+                                    <FormMessage className="text-[10px] font-bold" />
+                                </FormItem>
+                            )}
+                        />
+
+                        <FormField
+                            control={form.control}
+                            name="distribution_center_id"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel className="flex items-center gap-2 text-sm font-bold text-gray-700 dark:text-white/80">Centro de Distribuição</FormLabel>
+                                    <FormControl>
+                                        <GlobalDistributionCenterSelect
+                                            value={field.value || null}
+                                            onChange={field.onChange}
+                                            className="h-14 rounded-2xl"
+                                        />
                                     </FormControl>
                                     <FormMessage className="text-[10px] font-bold" />
                                 </FormItem>
@@ -423,6 +560,177 @@ export function FranchiseeProductForm({
                                 </FormItem>
                             )}
                         />
+                    </div>
+                </div>
+
+                {/* Product Detail Page Features */}
+                <div className="p-8 rounded-[2.5rem] bg-white/50 dark:bg-white/5 border border-gray-200/50 dark:border-white/10 space-y-8">
+                    <div className="flex items-center gap-2 text-purple-600 dark:text-purple-400">
+                        <Sparkles className="h-4 w-4" />
+                        <h3 className="text-xs font-black uppercase tracking-widest">Detalhes da Página do Produto</h3>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="space-y-6">
+                            <FormField
+                                control={form.control}
+                                name="has_nutrition_facts"
+                                render={({ field }) => (
+                                    <FormItem className="flex flex-row items-center justify-between rounded-3xl border border-gray-100 dark:border-white/5 p-5 bg-white/30 dark:bg-white/5">
+                                        <div className="space-y-0.5">
+                                            <FormLabel className="font-bold">Informações Nutricionais</FormLabel>
+                                            <FormDescription className="text-[10px]">Exibir tabela nutricional na página</FormDescription>
+                                        </div>
+                                        <FormControl>
+                                            <Switch
+                                                checked={field.value}
+                                                onCheckedChange={field.onChange}
+                                                className="data-[state=checked]:bg-purple-600"
+                                            />
+                                        </FormControl>
+                                    </FormItem>
+                                )}
+                            />
+
+                            {form.watch('has_nutrition_facts') && (
+                                <div className="space-y-4">
+                                    <FormField
+                                        control={form.control}
+                                        name="ingredients"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel className="font-bold">Ingredientes</FormLabel>
+                                                <FormControl>
+                                                    <Textarea
+                                                        placeholder="Liste os ingredientes..."
+                                                        className="rounded-2xl border-gray-200 dark:border-white/10 bg-white/50 dark:bg-white/5 focus-visible:ring-purple-500 min-h-[120px] resize-none"
+                                                        {...field}
+                                                        value={field.value || ''}
+                                                    />
+                                                </FormControl>
+                                                <FormMessage className="text-[10px]" />
+                                            </FormItem>
+                                        )}
+                                    />
+
+                                    {/* Tabela Nutricional */}
+                                    <div className="rounded-2xl border border-purple-100 dark:border-purple-900/30 bg-purple-50/50 dark:bg-purple-900/10 p-4 space-y-3">
+                                        <p className="text-xs font-black uppercase tracking-widest text-purple-600 dark:text-purple-400">Tabela Nutricional <span className="text-[10px] font-normal normal-case">(por porção)</span></p>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            {[
+                                                { key: 'calories', label: 'Valor Energético', suffix: 'kcal', placeholder: '240' },
+                                                { key: 'protein',  label: 'Proteínas',        suffix: 'g',    placeholder: '4.5' },
+                                                { key: 'carbs',    label: 'Carboidratos',     suffix: 'g',    placeholder: '48'  },
+                                                { key: 'fat',      label: 'Gorduras Totais',  suffix: 'g',    placeholder: '2.1' },
+                                                { key: 'fiber',    label: 'Fibras',           suffix: 'g',    placeholder: '1.2' },
+                                                { key: 'sodium',   label: 'Sódio',            suffix: 'mg',   placeholder: '0'   },
+                                            ].map(({ key, label, suffix, placeholder }) => (
+                                                <div key={key} className="space-y-1">
+                                                    <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">{label}</label>
+                                                    <div className="flex items-center gap-1">
+                                                        <Input
+                                                            type="number"
+                                                            placeholder={placeholder}
+                                                            className="rounded-xl border-gray-200 dark:border-white/10 bg-white dark:bg-white/10 focus-visible:ring-purple-500 h-8 text-sm"
+                                                            value={form.watch('nutritional_info')?.[key] ?? ''}
+                                                            onChange={(e) => {
+                                                                const current = form.getValues('nutritional_info') || {};
+                                                                form.setValue('nutritional_info', {
+                                                                    ...current,
+                                                                    [key]: e.target.value === '' ? '' : parseFloat(e.target.value)
+                                                                });
+                                                            }}
+                                                        />
+                                                        <span className="text-xs text-gray-400 w-8 shrink-0">{suffix}</span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            <FormField
+                                control={form.control}
+                                name="related_product_ids"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="font-bold">Produtos Relacionados</FormLabel>
+                                        <div className="grid grid-cols-1 gap-2 max-h-[200px] overflow-y-auto p-4 rounded-2xl bg-white/30 dark:bg-white/5 border border-gray-100 dark:border-white/5 custom-scrollbar">
+                                            {allProducts?.filter(p => p.id !== product?.id).map((p) => {
+                                                const isSelected = field.value?.includes(p.id);
+                                                return (
+                                                    <div
+                                                        key={p.id}
+                                                        onClick={() => {
+                                                            const current = field.value || [];
+                                                            if (isSelected) {
+                                                                field.onChange(current.filter(id => id !== p.id));
+                                                            } else {
+                                                                field.onChange([...current, p.id]);
+                                                            }
+                                                        }}
+                                                        className={cn(
+                                                            "flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all border",
+                                                            isSelected 
+                                                                ? "bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300" 
+                                                                : "bg-transparent border-transparent hover:bg-gray-100 dark:hover:bg-white/5"
+                                                        )}
+                                                    >
+                                                        <div className={cn(
+                                                            "w-4 h-4 rounded border flex items-center justify-center transition-colors",
+                                                            isSelected ? "bg-purple-600 border-purple-600" : "border-gray-300"
+                                                        )}>
+                                                            {isSelected && <CheckCircle2 className="h-3 w-3 text-white" />}
+                                                        </div>
+                                                        <span className="text-xs font-medium">{p.name}</span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                        <FormDescription className="text-[10px]">Selecione produtos para recomendar.</FormDescription>
+                                    </FormItem>
+                                )}
+                            />
+                        </div>
+
+                        <div className="space-y-6">
+                            <FormItem>
+                                <FormLabel className="font-bold mb-3 block">Galeria de Fotos</FormLabel>
+                                <div className="grid grid-cols-3 gap-3">
+                                    {form.watch('gallery_images')?.map((url, idx) => (
+                                        <div key={idx} className="relative aspect-square rounded-xl overflow-hidden group border border-gray-100 dark:border-white/10">
+                                            <img src={url} alt={`Gallery ${idx}`} className="w-full h-full object-cover" />
+                                            <button
+                                                type="button"
+                                                onClick={() => removeGalleryImage(url)}
+                                                className="absolute top-1 right-1 bg-rose-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                            >
+                                                <X className="h-3 w-3" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                    {(!form.watch('gallery_images') || form.watch('gallery_images').length < 6) && (
+                                        <div className="aspect-square rounded-xl border-2 border-dashed border-gray-200 dark:border-white/10 flex items-center justify-center cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-colors group">
+                                            <label className="cursor-pointer flex flex-col items-center gap-1 w-full h-full justify-center">
+                                                <Plus className="h-5 w-5 text-gray-400 group-hover:text-purple-500 transition-colors" />
+                                                <span className="text-[10px] font-bold text-gray-400">Adicionar</span>
+                                                <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    className="hidden"
+                                                    onChange={e => {
+                                                        const file = e.target.files?.[0];
+                                                        if (file) handleGalleryUpload(file);
+                                                    }}
+                                                />
+                                            </label>
+                                        </div>
+                                    )}
+                                </div>
+                                <FormDescription className="text-[10px]">Adicione até 6 fotos extras para a galeria.</FormDescription>
+                            </FormItem>
+                        </div>
                     </div>
                 </div>
 

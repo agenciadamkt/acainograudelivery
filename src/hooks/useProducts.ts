@@ -22,6 +22,7 @@ export interface Product {
   unit: string;
   current_stock: number;
   minimum_stock: number;
+  distribution_center_id?: string | null;
   active: boolean;
   display_order: number;
   created_at?: string;
@@ -41,7 +42,8 @@ export function useProducts(categoryId?: string, activeOnly = false) {
         .from('products')
         .select(`
           *,
-          category:categories(id, name, icon)
+          category:categories(id, name, icon),
+          distribution_center:distribution_centers(id, name)
         `)
         .order('display_order', { ascending: true })
         .order('name', { ascending: true });

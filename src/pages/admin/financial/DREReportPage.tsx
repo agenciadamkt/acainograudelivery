@@ -51,7 +51,6 @@ export default function DREReportPage() {
                 .from('distribution_centers' as any)
                 .select('*')
                 .eq('active', true)
-                .eq('franchisee_user_id', user?.id)
                 .order('name');
             if (error) throw error;
             return data as any[];
@@ -71,8 +70,6 @@ export default function DREReportPage() {
 
             if (selectedCD) {
                 query = query.eq('distribution_center_id', selectedCD);
-            } else {
-                query = query.eq('distribution_center.franchisee_user_id', user?.id);
             }
 
             const { data, error } = await query;
@@ -99,8 +96,6 @@ export default function DREReportPage() {
 
             if (selectedCD) {
                 query = query.eq('distribution_center_id', selectedCD);
-            } else {
-                query = query.eq('distribution_center.franchisee_user_id', user?.id);
             }
 
             const { data, error } = await query;
@@ -122,8 +117,6 @@ export default function DREReportPage() {
 
             if (selectedCD) {
                 query = query.eq('distribution_center_id', selectedCD);
-            } else {
-                query = query.eq('franchisee_user_id', user?.id);
             }
 
             const { data, error } = await query;

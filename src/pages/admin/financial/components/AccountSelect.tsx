@@ -29,7 +29,6 @@ export default function AccountSelect({ value, onChange, placeholder = "Selecion
                 .from('financial_accounts' as any)
                 .select('*')
                 .eq('active', true)
-                .eq('franchisee_user_id', franchiseeId)
                 .order('name');
             if (error) throw error;
             return data as any[];

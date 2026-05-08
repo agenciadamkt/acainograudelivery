@@ -55,8 +55,6 @@ export default function CashClosingsPage() {
 
             if (filterCD) {
                 query = query.eq('distribution_center_id', filterCD);
-            } else {
-                query = query.eq('distribution_center.franchisee_user_id', user?.id);
             }
 
             const { data, error: queryError } = await query;

@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useState } from 'react';
-import { Wallet, DollarSign, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownLeft, X, Check, Lock } from 'lucide-react';
+import { Wallet, TrendingUp, ArrowUpRight, ArrowDownLeft, Lock, CreditCard, Smartphone, Globe } from 'lucide-react';
 import { usePdvCashRegister } from '@/hooks/pdv/usePdvCashRegister';
 import {
     Dialog,
@@ -28,6 +28,19 @@ export default function Caixa() {
     const [movementType, setMovementType] = useState<'sangria' | 'suprimento' | null>(null);
     const [isMovementOpen, setIsMovementOpen] = useState(false);
     const [isCloseOpen, setIsCloseOpen] = useState(false);
+
+    // Closing payment fields
+    const [closingFields, setClosingFields] = useState({
+        credit_moderninha: '',
+        debit_moderninha: '',
+        pix_moderninha: '',
+        credit_cielo: '',
+        debit_cielo: '',
+        pix_cielo: '',
+        online: '',
+    });
+    const setField = (key: string, val: string) =>
+        setClosingFields(prev => ({ ...prev, [key]: val }));
 
     // Calculations
     const opening = currentRegister ? Number(currentRegister.opening_amount) : 0;
@@ -71,13 +84,20 @@ export default function Caixa() {
     const handleCloseRegister = () => {
         const amount = parseFloat(closingAmount);
         if (isNaN(amount)) {
-            toast.error("Valor inválido");
+            toast.error("Informe o valor em dinheiro na gaveta");
             return;
         }
-        closeRegister.mutate({ closingAmount: amount, notes: 'Fechamento manual' }, {
+        const paymentNotes = JSON.stringify({
+            dinheiro: amount,
+            ...Object.fromEntries(
+                Object.entries(closingFields).map(([k, v]) => [k, parseFloat(v) || 0])
+            )
+        });
+        closeRegister.mutate({ closingAmount: amount, notes: paymentNotes }, {
             onSuccess: () => {
                 setIsCloseOpen(false);
                 setClosingAmount('');
+                setClosingFields({ credit_moderninha: '', debit_moderninha: '', pix_moderninha: '', credit_cielo: '', debit_cielo: '', pix_cielo: '', online: '' });
             }
         });
     };
@@ -236,35 +256,97 @@ export default function Caixa() {
                                         Fechar Caixa
                                     </Button>
                                 </DialogTrigger>
-                                <DialogContent>
+                                <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
                                     <DialogHeader>
                                         <DialogTitle>Fechamento de Caixa</DialogTitle>
                                         <DialogDescription>
-                                            Confira o dinheiro em gaveta e informe o valor final.
+                                            Informe os valores físicos de cada forma de pagamento.
                                         </DialogDescription>
                                     </DialogHeader>
-                                    <div className="py-4 space-y-4">
-                                        <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                                            <span className="text-sm font-medium">Saldo Esperado (Sistema):</span>
-                                            <span className="text-xl font-bold">R$ {currentBalance.toFixed(2)}</span>
-                                        </div>
+
+                                    <div className="py-2 space-y-5">
+                                        {/* Dinheiro */}
                                         <div className="space-y-2">
-                                            <Label>Valor em Gaveta (Informado)</Label>
-                                            <Input
-                                                type="number"
-                                                placeholder="0.00"
-                                                value={closingAmount}
-                                                onChange={e => setClosingAmount(e.target.value)}
-                                            />
+                                            <div className="flex items-center gap-2 text-sm font-bold text-green-700">
+                                                <Wallet className="h-4 w-4" /> Dinheiro
+                                            </div>
+                                            <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
+                                                <span>Sistema: <b>R$ {(salesSummary?.byMethod?.['money'] || 0).toFixed(2)}</b></span>
+                                                <span>Esperado em caixa: <b>R$ {currentBalance.toFixed(2)}</b></span>
+                                            </div>
+                                            <Input type="number" placeholder="Valor contado na gaveta (R$)" value={closingAmount} onChange={e => setClosingAmount(e.target.value)} />
+                                        </div>
+
+                                        <hr />
+
+                                        {/* Moderninha */}
+                                        <div className="space-y-3">
+                                            <div className="flex items-center gap-2 text-sm font-bold text-blue-700">
+                                                <CreditCard className="h-4 w-4" /> Moderninha
+                                            </div>
+                                            {[
+                                                { key: 'credit_moderninha', label: 'Crédito Moderninha' },
+                                                { key: 'debit_moderninha', label: 'Débito Moderninha' },
+                                                { key: 'pix_moderninha', label: 'Pix Moderninha' },
+                                            ].map(({ key, label }) => (
+                                                <div key={key} className="flex items-center gap-3">
+                                                    <Label className="w-44 text-xs shrink-0">{label}</Label>
+                                                    <div className="text-xs text-muted-foreground w-24 shrink-0">
+                                                        Sistema: <b>R$ {((salesSummary as any)?.byMethod?.[key] || 0).toFixed(2)}</b>
+                                                    </div>
+                                                    <Input type="number" placeholder="0.00" className="h-8 text-sm"
+                                                        value={(closingFields as any)[key]}
+                                                        onChange={e => setField(key, e.target.value)} />
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        <hr />
+
+                                        {/* Cielo */}
+                                        <div className="space-y-3">
+                                            <div className="flex items-center gap-2 text-sm font-bold text-orange-700">
+                                                <CreditCard className="h-4 w-4" /> Cielo
+                                            </div>
+                                            {[
+                                                { key: 'credit_cielo', label: 'Crédito Cielo' },
+                                                { key: 'debit_cielo', label: 'Débito Cielo' },
+                                                { key: 'pix_cielo', label: 'Pix Cielo' },
+                                            ].map(({ key, label }) => (
+                                                <div key={key} className="flex items-center gap-3">
+                                                    <Label className="w-44 text-xs shrink-0">{label}</Label>
+                                                    <div className="text-xs text-muted-foreground w-24 shrink-0">
+                                                        Sistema: <b>R$ {((salesSummary as any)?.byMethod?.[key] || 0).toFixed(2)}</b>
+                                                    </div>
+                                                    <Input type="number" placeholder="0.00" className="h-8 text-sm"
+                                                        value={(closingFields as any)[key]}
+                                                        onChange={e => setField(key, e.target.value)} />
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        <hr />
+
+                                        {/* Online */}
+                                        <div className="space-y-3">
+                                            <div className="flex items-center gap-2 text-sm font-bold text-purple-700">
+                                                <Globe className="h-4 w-4" /> Pagamento Online
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <Label className="w-44 text-xs shrink-0">Pagamento Online</Label>
+                                                <div className="text-xs text-muted-foreground w-24 shrink-0">
+                                                    Sistema: <b>R$ {((salesSummary as any)?.byMethod?.['online'] || 0).toFixed(2)}</b>
+                                                </div>
+                                                <Input type="number" placeholder="0.00" className="h-8 text-sm"
+                                                    value={closingFields.online}
+                                                    onChange={e => setField('online', e.target.value)} />
+                                            </div>
                                         </div>
                                     </div>
+
                                     <DialogFooter>
                                         <Button variant="outline" onClick={() => setIsCloseOpen(false)}>Cancelar</Button>
-                                        <Button
-                                            variant="destructive"
-                                            onClick={handleCloseRegister}
-                                            disabled={closeRegister.isPending}
-                                        >
+                                        <Button variant="destructive" onClick={handleCloseRegister} disabled={closeRegister.isPending}>
                                             {closeRegister.isPending ? 'Fechando...' : 'Confirmar Fechamento'}
                                         </Button>
                                     </DialogFooter>

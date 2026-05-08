@@ -140,7 +140,6 @@ export default function FluxoCaixaPage() {
                 .from('distribution_centers' as any)
                 .select('*')
                 .eq('active', true)
-                .eq('franchisee_user_id', user?.id)
                 .order('name');
             if (error) throw error;
             return data as any[];
@@ -174,9 +173,9 @@ export default function FluxoCaixaPage() {
 
             if (selectedCD) {
                 query = query.eq('distribution_center_id', selectedCD);
-            } else {
-                query = query.eq('distribution_center.franchisee_user_id', user?.id);
             }
+            // Removing the hardcoded franchisee_user_id filter to allow RLS to work for operators
+            // RLS will automatically filter by franchisee_user_id OR cd_links
 
             const { data, error } = await query;
             if (error) throw error;

@@ -50,11 +50,9 @@ export function ClientSelect({ value, onChange }: ClientSelectProps) {
     const { data: clients, isLoading } = useQuery({
         queryKey: ['financial_clients', franchiseeId],
         queryFn: async () => {
-            if (!franchiseeId) return [];
             const { data, error } = await supabase
                 .from('financial_clients' as any)
                 .select('*')
-                .eq('created_by', franchiseeId)
                 .order('name');
             if (error) throw error;
             return data as any[];

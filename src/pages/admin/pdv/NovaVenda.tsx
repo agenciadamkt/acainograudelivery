@@ -1,5 +1,6 @@
 
 import { useState, useCallback, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -345,7 +346,16 @@ export default function NovaVenda() {
                     </CardHeader>
                     <CardContent className="flex-1 overflow-auto p-4 pt-0">
                         {isLoading || isLoadingCategories ? (
-                            <div className="flex items-center justify-center h-48">Carregando produtos...</div>
+                            <div className="flex flex-col items-center justify-center h-48 gap-4">
+                                <motion.img 
+                                    src="/logo-192x192.png" 
+                                    className="h-16 w-16 object-contain" 
+                                    alt="Carregando..."
+                                    animate={{ scale: [1, 1.05, 1] }}
+                                    transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                                />
+                                <div className="text-sm font-medium text-muted-foreground animate-pulse">Carregando catálogo...</div>
+                            </div>
                         ) : filteredProducts.length === 0 ? (
                             <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
                                 <Search className="h-8 w-8 mb-2 opacity-50" />
@@ -546,9 +556,13 @@ export default function NovaVenda() {
                                                 </SelectTrigger>
                                                 <SelectContent>
                                                     <SelectItem value="money">Dinheiro</SelectItem>
-                                                    <SelectItem value="credit">Cartão de Crédito</SelectItem>
-                                                    <SelectItem value="debit">Cartão de Débito</SelectItem>
-                                                    <SelectItem value="pix">PIX</SelectItem>
+                                                    <SelectItem value="credit_moderninha">Crédito Moderninha</SelectItem>
+                                                    <SelectItem value="debit_moderninha">Débito Moderninha</SelectItem>
+                                                    <SelectItem value="pix_moderninha">Pix Moderninha</SelectItem>
+                                                    <SelectItem value="credit_cielo">Crédito Cielo</SelectItem>
+                                                    <SelectItem value="debit_cielo">Débito Cielo</SelectItem>
+                                                    <SelectItem value="pix_cielo">Pix Cielo</SelectItem>
+                                                    <SelectItem value="online">Pagamento Online</SelectItem>
                                                 </SelectContent>
                                             </Select>
                                         </div>

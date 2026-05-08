@@ -92,7 +92,6 @@ export default function ExpensesPage() {
                 .from('distribution_centers' as any)
                 .select('*')
                 .eq('active', true)
-                .eq('franchisee_user_id', franchiseeId)
                 .order('name');
             if (error) throw error;
             return data as any[];
@@ -110,8 +109,6 @@ export default function ExpensesPage() {
 
             if (filterCD) {
                 query = query.eq('distribution_center_id', filterCD);
-            } else {
-                query = query.eq('distribution_center.franchisee_user_id', franchiseeId);
             }
 
             const { data, error } = await query.order('name');
@@ -136,8 +133,6 @@ export default function ExpensesPage() {
 
             if (filterCostCenter) {
                 query = query.eq('cost_center_id', filterCostCenter);
-            } else {
-                query = query.eq('cost_center.distribution_center.franchisee_user_id', franchiseeId);
             }
 
             const { data, error } = await query.order('name');
@@ -165,8 +160,6 @@ export default function ExpensesPage() {
 
             if (filterCD) {
                 query = query.eq('distribution_center_id', filterCD);
-            } else {
-                query = query.eq('distribution_center.franchisee_user_id', franchiseeId);
             }
 
             if (filterType) query = query.eq('expense_type', filterType);

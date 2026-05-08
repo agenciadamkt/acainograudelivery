@@ -37,8 +37,6 @@ export default function CostCenterSelect({ value, onChange, distributionCenterId
 
             if (distributionCenterId) {
                 query = query.eq('distribution_center_id', distributionCenterId);
-            } else {
-                query = query.eq('distribution_center.franchisee_user_id', franchiseeId);
             }
 
             const { data, error } = await query.order('name');

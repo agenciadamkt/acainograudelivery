@@ -38,6 +38,8 @@ interface CartDrawerProps {
     paymentMethod: string;
     isFranchisee: boolean;
     onUpdateQuantity: (id: string, delta: number) => void;
+    onRemoveItem: (id: string) => void;
+    onClearCart: () => void;
     onCheckout: () => void;
 }
 
@@ -48,6 +50,8 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
     paymentMethod,
     isFranchisee,
     onUpdateQuantity,
+    onRemoveItem,
+    onClearCart,
     onCheckout
 }) => {
 
@@ -106,9 +110,21 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
                                 <h2 className="text-xl font-bold">Meu Carrinho</h2>
                                 <p className="text-xs text-gray-500">{items.length} itens selecionados</p>
                             </div>
-                            <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full">
-                                <X className="h-5 w-5" />
-                            </Button>
+                            <div className="flex items-center gap-2">
+                                {items.length > 0 && (
+                                    <Button 
+                                        variant="ghost" 
+                                        size="sm" 
+                                        onClick={onClearCart}
+                                        className="text-xs font-bold text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/10 uppercase tracking-widest px-3"
+                                    >
+                                        Limpar
+                                    </Button>
+                                )}
+                                <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full">
+                                    <X className="h-5 w-5" />
+                                </Button>
+                            </div>
                         </div>
 
                         {/* Items List */}
@@ -123,7 +139,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
                             ) : (
                                 <div className="space-y-6">
                                     {items.map((item) => (
-                                        <div key={item.id} className="flex gap-4">
+                                        <div key={item.id} className="flex gap-4 group">
                                             <div className="w-20 h-20 rounded-2xl bg-gray-100 dark:bg-white/5 overflow-hidden shrink-0">
                                                 <img
                                                     src={item.image_url || 'https://images.unsplash.com/photo-1579954115545-a95291e68b98?auto=format&fit=crop&w=800&q=80'}
@@ -131,25 +147,33 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
                                                     alt={item.name}
                                                 />
                                             </div>
-                                            <div className="flex-1">
-                                                <h4 className="font-bold text-sm mb-1">{item.name}</h4>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-start justify-between gap-2 mb-1">
+                                                    <h4 className="font-bold text-sm truncate">{item.name}</h4>
+                                                    <button 
+                                                        onClick={() => onRemoveItem(item.id)}
+                                                        className="p-1.5 text-gray-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                                    >
+                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                    </button>
+                                                </div>
                                                 <div className="flex items-center justify-between">
-                                                    <span className="text-purple-600 font-bold text-sm">
+                                                    <span className="purple-price font-black text-sm">
                                                         {formatBRL(item.price)}
                                                     </span>
-                                                    <div className="flex items-center gap-3 bg-gray-100 dark:bg-white/5 rounded-xl px-2 py-1">
+                                                    <div className="flex items-center gap-3 bg-gray-50 dark:bg-white/5 rounded-xl px-2 py-1 border border-gray-100 dark:border-white/5">
                                                         <button
                                                             onClick={() => onUpdateQuantity(item.id, -1)}
-                                                            className="p-1 hover:bg-white dark:hover:bg-black/20 rounded-lg transition-colors"
+                                                            className="p-1 hover:bg-white dark:hover:bg-black/20 rounded-lg transition-colors shadow-sm"
                                                         >
-                                                            <Minus className="h-4 w-4" />
+                                                            <Minus className="h-3.5 w-3.5" />
                                                         </button>
                                                         <span className="text-xs font-bold w-4 text-center">{item.quantity}</span>
                                                         <button
                                                             onClick={() => onUpdateQuantity(item.id, 1)}
-                                                            className="p-1 hover:bg-white dark:hover:bg-black/20 rounded-lg transition-colors"
+                                                            className="p-1 hover:bg-white dark:hover:bg-black/20 rounded-lg transition-colors shadow-sm"
                                                         >
-                                                            <Plus className="h-4 w-4" />
+                                                            <Plus className="h-3.5 w-3.5" />
                                                         </button>
                                                     </div>
                                                 </div>
@@ -207,13 +231,22 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
                                 </div>
                             </div>
 
-                            <Button
-                                onClick={onCheckout}
-                                disabled={items.length === 0}
-                                className="w-full h-14 rounded-[1.25rem] bg-purple-600 hover:bg-purple-700 text-white font-bold text-lg shadow-xl shadow-purple-500/20"
-                            >
-                                Finalizar Pedido
-                            </Button>
+                            <div className="flex flex-col gap-3">
+                                <Button
+                                    onClick={onCheckout}
+                                    disabled={items.length === 0}
+                                    className="w-full h-14 rounded-[1.25rem] bg-purple-600 hover:bg-purple-700 text-white font-bold text-lg shadow-xl shadow-purple-500/20"
+                                >
+                                    Finalizar Pedido
+                                </Button>
+                                <Button 
+                                    variant="ghost" 
+                                    onClick={onClose}
+                                    className="w-full h-12 rounded-[1.25rem] font-bold text-gray-500 hover:text-gray-900 dark:hover:text-white"
+                                >
+                                    Continuar Comprando
+                                </Button>
+                            </div>
                         </div>
                     </motion.div>
                 </>

@@ -66,7 +66,6 @@ function CrudSection({
             const { data, error } = await supabase
                 .from(tableName as any)
                 .select('*')
-                .eq('franchisee_user_id', franchiseeId)
                 .order('name');
             if (error) throw error;
             return data as any[];
@@ -294,7 +293,6 @@ function FkCrudSection({
             let query = supabase
                 .from(tableName as any)
                 .select('*, parent_rel:' + parentFkColumn + '(name)')
-                .eq('franchisee_user_id', franchiseeId)
                 .order('name');
 
             if (filterParent) {
@@ -634,7 +632,6 @@ function ClientsSection() {
                     *,
                     accounts_receivable(amount, paid)
                 `)
-                .eq('created_by', franchiseeId)
                 .order('name');
 
             if (error) throw error;
@@ -797,7 +794,6 @@ function AccountsSection() {
             const { data, error } = await supabase
                 .from('financial_accounts' as any)
                 .select('*')
-                .eq('franchisee_user_id', franchiseeId)
                 .order('name');
 
             if (error) throw error;
@@ -996,7 +992,6 @@ function SuppliersSection() {
                     *,
                     expenses(amount, paid)
                 `)
-                .eq('franchisee_user_id', user?.id)
                 .order('name');
 
             if (error) throw error;

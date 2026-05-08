@@ -1,7 +1,6 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { createClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 
 interface BusinessHours {
@@ -48,6 +47,7 @@ interface CreateFranchiseeData {
   acceptsCard: boolean;
   acceptsPix: boolean;
   requiresChange: boolean;
+  distribution_center_id?: string | null;
 }
 
 export function useCreateFranchisee() {
@@ -55,10 +55,8 @@ export function useCreateFranchisee() {
 
   return useMutation({
     mutationFn: async (data: CreateFranchiseeData) => {
-      // Tentar usar Edge Function primeiro
+      // Tentar Edge Function primeiro; se falhar, usar método direto
       try {
-        console.log('Tentando criar via Edge Function...');
-        // Preparar arquivo de logo se fornecido
         let logoFile = null;
         if (data.logoFile) {
           const base64 = await fileToBase64(data.logoFile);
@@ -94,19 +92,16 @@ export function useCreateFranchisee() {
             acceptsCard: data.acceptsCard,
             acceptsPix: data.acceptsPix,
             requiresChange: data.requiresChange,
+            distribution_center_id: data.distribution_center_id,
             logoFile
           }
         });
 
-        if (error) {
-          throw error;
-        }
-
+        if (error) throw error;
         return result;
-      } catch (err) {
-        // Se Edge Function falhar (ex: não deployada), usar método direto
-        console.warn('Edge Function indisponível, usando método direto:', err);
-        return await createFranchiseeDirect(data);
+      } catch (edgeFnErr) {
+        console.warn('Edge Function indisponível, usando método direto:', edgeFnErr);
+        return createFranchiseeDirect(data);
       }
     },
     onSuccess: () => {
@@ -124,45 +119,26 @@ export function useCreateFranchisee() {
 }
 
 /**
- * Método alternativo: cria franqueado diretamente sem Edge Function
- * Cria usuário (signUp), atribui role e cria loja.
+ * Método direto: cria franqueado sem Edge Function.
+ * Usa RPC SECURITY DEFINER para criar o usuário direto em auth.users
+ * com e-mail já confirmado, evitando FK inválida e bloqueio de login.
  */
 async function createFranchiseeDirect(data: CreateFranchiseeData) {
-  // 1. Criar novo cliente Supabase isolado para o cadastro do usuário
-  // Isso evita que o login atual (Master) seja substituído
-  const tempClient = createClient(
-    import.meta.env.VITE_SUPABASE_URL || '',
-    import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || '',
-    {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false, // Importante: não salvar sessão
-        detectSessionInUrl: false
-      }
-    }
+  const adminUser = (await supabase.auth.getUser()).data.user;
+
+  // 1. Criar usuário via função SQL SECURITY DEFINER (insere direto em auth.users)
+  const { data: userId, error: rpcError } = await (supabase as any).rpc(
+    'create_auth_user_for_franchisee',
+    { p_email: data.email, p_password: data.password, p_name: data.fullName }
   );
 
-  // 2. Criar usuário e senha
-  const { data: authData, error: authError } = await tempClient.auth.signUp({
-    email: data.email,
-    password: data.password,
-    options: {
-      data: {
-        full_name: data.fullName
-      }
-    }
-  });
-
-  if (authError) {
-    throw new Error('Falha ao criar usuário: ' + authError.message);
+  if (rpcError) {
+    throw new Error('Falha ao criar usuário: ' + rpcError.message);
   }
 
-  if (!authData.user) {
-    throw new Error('Usuário não retornado após cadastro.');
+  if (!userId) {
+    throw new Error('Usuário não foi criado. O e-mail pode já estar em uso.');
   }
-
-  const userId = authData.user.id;
-  const adminUser = (await supabase.auth.getUser()).data.user;
 
   // 3. Atribuir role 'admin' (usando o cliente admin principal)
   const { error: roleError } = await supabase
@@ -199,7 +175,7 @@ async function createFranchiseeDirect(data: CreateFranchiseeData) {
     }
   }
 
-  // 5. Criar loja vinculada ao novo usuário
+  // 5. Criar loja — franchisee_user_id null inicialmente para evitar FK
   const { data: storeData, error: storeError } = await supabase
     .from('stores')
     .insert({
@@ -224,21 +200,36 @@ async function createFranchiseeDirect(data: CreateFranchiseeData) {
       accepts_card: data.acceptsCard,
       accepts_pix: data.acceptsPix,
       requires_change: data.requiresChange,
-      franchisee_user_id: userId,
+      distribution_center_id: data.distribution_center_id,
+      franchisee_user_id: null,
       created_by: adminUser?.id,
-      approved_by: adminUser?.id, // Auto-aprovação pois foi criado pelo Master
+      approved_by: adminUser?.id,
       approved_at: new Date().toISOString(),
       status: 'active',
       active: true
-    })
+    } as any)
     .select()
     .single();
 
   if (storeError) {
-    if (storeError.code === '23505') { // Unique constraint violation
+    if (storeError.code === '23505') {
       throw new Error('Já existe uma loja registrada com esta URL (slug).');
     }
     throw new Error('Erro ao criar loja: ' + storeError.message);
+  }
+
+  // 5b. Vincular o usuário à loja via UPDATE (FK só é checada aqui)
+  if (storeData?.id && userId) {
+    const { error: linkError } = await supabase
+      .from('stores')
+      .update({ franchisee_user_id: userId } as any)
+      .eq('id', storeData.id);
+
+    if (linkError) {
+      // Usuário pode não ter sido criado de fato (email já existia / confirmação pendente)
+      // A loja já foi criada — link pode ser feito manualmente depois
+      console.warn('Não foi possível vincular o usuário à loja:', linkError.message);
+    }
   }
 
   // 6. Criar registro de solicitação (apenas para histórico)

@@ -176,6 +176,11 @@ const FranchiseesPage = () => {
       ),
     },
     {
+      key: 'distribution_center',
+      label: 'CD',
+      render: (item: any) => item.distribution_center?.name || '-',
+    },
+    {
       key: 'city',
       label: 'Localização',
       render: (item: any) =>

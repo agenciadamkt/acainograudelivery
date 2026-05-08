@@ -35,14 +35,12 @@ export default function DistributionCenterSelect({ value, onChange, placeholder 
     const { data: franchiseeId } = useFranchiseeId();
 
     const { data: centers = [], isLoading } = useQuery({
-        queryKey: ['distribution_centers', franchiseeId],
+        queryKey: ['distribution_centers'],
         queryFn: async () => {
-            if (!franchiseeId) return [];
             const { data, error } = await supabase
                 .from('distribution_centers' as any)
                 .select('*')
                 .eq('active', true)
-                .eq('franchisee_user_id', franchiseeId)
                 .order('name');
 
             if (error) throw error;

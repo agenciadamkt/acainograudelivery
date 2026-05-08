@@ -1,19 +1,23 @@
 import { ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/contexts/PermissionContext';
 
 interface PrivateRouteProps {
   children: ReactNode;
   requiredRole?: 'admin' | 'manager' | 'staff' | 'franchisee_master';
+  requiredPermission?: string; // código RBAC ex: 'sis.usuarios'
+  requiredNivel?: number;      // nível mínimo (padrão: 1)
 }
 
-export function PrivateRoute({ children, requiredRole }: PrivateRouteProps) {
+export function PrivateRoute({ children, requiredRole, requiredPermission, requiredNivel = 1 }: PrivateRouteProps) {
   const { user, isLoading, hasRole } = useAuth();
+  const { can, isLoading: permLoading } = usePermissions();
 
-  if (isLoading) {
+  if (isLoading || permLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
       </div>
     );
   }
@@ -22,17 +26,14 @@ export function PrivateRoute({ children, requiredRole }: PrivateRouteProps) {
     return <Navigate to="/admin/login" replace />;
   }
 
+  // Verifica role (sistema legado)
   if (requiredRole && !hasRole(requiredRole)) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-6">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Acesso Negado</h1>
-          <p className="text-muted-foreground">
-            Você não tem permissão para acessar esta página.
-          </p>
-        </div>
-      </div>
-    );
+    return <Navigate to="/admin/unauthorized" replace />;
+  }
+
+  // Verifica permissão RBAC granular (nova camada)
+  if (requiredPermission && !can(requiredPermission, requiredNivel)) {
+    return <Navigate to="/admin/unauthorized" replace />;
   }
 
   return <>{children}</>;

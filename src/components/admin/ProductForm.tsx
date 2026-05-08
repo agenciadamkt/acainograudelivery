@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { ImageUpload } from './ImageUpload';
+import GlobalDistributionCenterSelect from './GlobalDistributionCenterSelect';
 import { useCategories } from '@/hooks/useCategories';
 import { useUploadProductImage } from '@/hooks/useProducts';
 import { useState, useEffect } from 'react';
@@ -38,6 +39,7 @@ const productSchema = z.object({
   description: z.string().optional().nullable(),
   category_id: z.string().min(1, 'Selecione uma categoria válida'),
   code: z.string().optional().nullable(),
+  distribution_center_id: z.string().optional().nullable(),
   sale_price: z.number().min(0, 'Preço de venda deve ser maior que 0'),
   cost_price: z.number().min(0, 'Preço de custo deve ser maior ou igual a 0').default(0),
   profit_margin: z.number().optional(), // Calculated, but can be submitted
@@ -76,6 +78,7 @@ export function ProductForm({
       description: '',
       category_id: '',
       code: '',
+      distribution_center_id: null,
       sale_price: 0,
       cost_price: 0,
       sale_type: 'unidade',
@@ -96,6 +99,7 @@ export function ProductForm({
         description: product.description || '',
         category_id: product.category?.id || product.category_id || '',
         code: product.code || '',
+        distribution_center_id: product.distribution_center_id || null,
         sale_price: product.sale_price || 0,
         cost_price: product.cost_price || 0,
         sale_type: product.sale_type || 'unidade',
@@ -378,6 +382,26 @@ export function ProductForm({
                             onChange={e => field.onChange(parseFloat(e.target.value))}
                           />
                         </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="distribution_center_id"
+                    render={({ field }) => (
+                      <FormItem className="col-span-2">
+                        <FormLabel>Centro de Distribuição</FormLabel>
+                        <FormControl>
+                          <GlobalDistributionCenterSelect 
+                            value={field.value} 
+                            onChange={field.onChange} 
+                            placeholder="Selecione o CD de estoque"
+                          />
+                        </FormControl>
+                        <FormDescription className="text-[10px]">
+                          Vincule este produto a um CD para controle de logística centralizada.
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}

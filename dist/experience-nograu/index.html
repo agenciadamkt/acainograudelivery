@@ -4,6 +4,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Experience NoGrau 2026 — Imersão estratégica para franqueados Açaí no Grau</title>
+<link rel="icon" type="image/png" href="assets/favicon.png" />
+<link rel="apple-touch-icon" href="assets/favicon.png" />
 <meta name="description" content="Imersão estratégica da rede Açaí no Grau. Vendas, Delivery e Tecnologia. Apresentação exclusiva do GrauOS. Teresina, PI — 2026." />
 
 <!-- Open Graph -->
@@ -751,7 +753,8 @@
   /* ============ FINAL CTA ============ */
   .final{
     position:relative; overflow:hidden;
-    padding: 160px 0 140px;
+    padding: 0 0 140px;
+    margin-top: -80px;
     text-align:center;
   }
   .final .glow{
@@ -771,10 +774,6 @@
     margin: 0;
     background: linear-gradient(180deg, #fff 0%, #C084FC 60%, #6B1D9E 100%);
     -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
-  }
-  .final h2 span{
-    display:inline-block;
-    transform: skew(-3deg, 0);
   }
   .final .sub{
     font-family:var(--display); font-weight:600;
@@ -1015,7 +1014,7 @@
 
       <div class="stats reveal-stagger">
         <div class="stat">
-          <div class="num">500<small>+</small></div>
+          <div class="num">30<small>+</small></div>
           <div class="label">Franqueados convocados</div>
         </div>
         <div class="stat">
@@ -1382,7 +1381,7 @@
   <section class="final">
     <div class="glow"></div>
     <div class="container">
-      <h2 class="reveal"><span>BORA!</span></h2>
+      <canvas id="bora-canvas" style="width:100%;max-width:1000px;height:auto;display:block;margin:0 auto;"></canvas>
       <p class="sub reveal" style="transition-delay:.1s">
         suas <b>vendas</b>. sua <b>marca</b>. sua <b>história</b>.
       </p>
@@ -1503,6 +1502,7 @@
   }, { threshold: .12 });
   document.querySelectorAll('.reveal, .reveal-stagger').forEach(el => io.observe(el));
 
+
   // Nav scrolled state + progress bar
   const nav = document.getElementById('nav');
   const progress = document.getElementById('progress');
@@ -1618,6 +1618,130 @@
     else if (v.length > 2) phone.value = `(${v.slice(0,2)}) ${v.slice(2)}`;
     else phone.value = v;
   });
+
+  // ============ PARTICLE TEXT EFFECT ============
+  (function(){
+    const canvas = document.getElementById('bora-canvas');
+    if(!canvas) return;
+    canvas.width = 1000;
+    canvas.height = 280;
+    const ctx = canvas.getContext('2d');
+    const WORDS = ['BORA!','TRANSFORME','SUA FRANQUIA','MÁQUINA DE LUCRO'];
+    const PIXEL_STEPS = 6;
+    let particles = [], frameCount = 0, wordIndex = 0;
+    const mouse = { x:0, y:0, pressed:false, right:false };
+
+    function randPos(cx, cy, mag){
+      const rx = Math.random()*canvas.width, ry = Math.random()*canvas.height;
+      let dx = rx-cx, dy = ry-cy;
+      const m = Math.sqrt(dx*dx+dy*dy);
+      if(m>0){ dx=dx/m*mag; dy=dy/m*mag; }
+      return { x:cx+dx, y:cy+dy };
+    }
+
+    function Particle(){
+      this.pos={x:0,y:0}; this.vel={x:0,y:0}; this.acc={x:0,y:0}; this.target={x:0,y:0};
+      this.maxSpeed=1; this.maxForce=0.1; this.size=8; this.killed=false;
+      this.sc={r:0,g:0,b:0}; this.tc={r:0,g:0,b:0}; this.cw=0; this.cbr=0.01;
+    }
+    Particle.prototype.move = function(){
+      const dist = Math.sqrt((this.pos.x-this.target.x)**2+(this.pos.y-this.target.y)**2);
+      const pm = dist < 100 ? dist/100 : 1;
+      let tx=this.target.x-this.pos.x, ty=this.target.y-this.pos.y;
+      const tm=Math.sqrt(tx*tx+ty*ty);
+      if(tm>0){ tx=tx/tm*this.maxSpeed*pm; ty=ty/tm*this.maxSpeed*pm; }
+      let sx=tx-this.vel.x, sy=ty-this.vel.y;
+      const sm=Math.sqrt(sx*sx+sy*sy);
+      if(sm>0){ sx=sx/sm*this.maxForce; sy=sy/sm*this.maxForce; }
+      this.acc.x+=sx; this.acc.y+=sy;
+      this.vel.x+=this.acc.x; this.vel.y+=this.acc.y;
+      this.pos.x+=this.vel.x; this.pos.y+=this.vel.y;
+      this.acc.x=0; this.acc.y=0;
+    };
+    Particle.prototype.draw = function(){
+      if(this.cw<1) this.cw=Math.min(this.cw+this.cbr,1);
+      const r=Math.round(this.sc.r+(this.tc.r-this.sc.r)*this.cw);
+      const g=Math.round(this.sc.g+(this.tc.g-this.sc.g)*this.cw);
+      const b=Math.round(this.sc.b+(this.tc.b-this.sc.b)*this.cw);
+      ctx.fillStyle=`rgb(${r},${g},${b})`;
+      ctx.fillRect(this.pos.x, this.pos.y, 2, 2);
+    };
+    Particle.prototype.kill = function(){
+      if(!this.killed){
+        const p=randPos(canvas.width/2,canvas.height/2,(canvas.width+canvas.height)/2);
+        this.target.x=p.x; this.target.y=p.y;
+        this.sc={r:this.sc.r+(this.tc.r-this.sc.r)*this.cw,g:this.sc.g+(this.tc.g-this.sc.g)*this.cw,b:this.sc.b+(this.tc.b-this.sc.b)*this.cw};
+        this.tc={r:0,g:0,b:0}; this.cw=0; this.killed=true;
+      }
+    };
+
+    function nextWord(word){
+      const off=document.createElement('canvas');
+      off.width=canvas.width; off.height=canvas.height;
+      const octx=off.getContext('2d');
+      let fs=Math.min(canvas.width/(word.length*0.52),130);
+      octx.font=`900 ${fs}px Arial`;
+      const measured=octx.measureText(word).width;
+      if(measured>canvas.width*0.9) fs=fs*(canvas.width*0.9)/measured;
+      octx.font=`900 ${fs}px Arial`;
+      octx.fillStyle='white';
+      octx.textAlign='center'; octx.textBaseline='middle';
+      octx.fillText(word,canvas.width/2,canvas.height/2);
+      const data=octx.getImageData(0,0,canvas.width,canvas.height).data;
+      const nc={r:Math.random()*120+135,g:Math.random()*80,b:Math.random()*160+95};
+      let pi=0;
+      const coords=[];
+      for(let i=0;i<data.length;i+=PIXEL_STEPS*4) coords.push(i);
+      for(let i=coords.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[coords[i],coords[j]]=[coords[j],coords[i]];}
+      for(const ci of coords){
+        if(data[ci+3]>0){
+          const x=(ci/4)%canvas.width, y=Math.floor(ci/4/canvas.width);
+          let p;
+          if(pi<particles.length){ p=particles[pi]; p.killed=false; pi++; }
+          else{
+            p=new Particle();
+            const rp=randPos(canvas.width/2,canvas.height/2,(canvas.width+canvas.height)/2);
+            p.pos.x=rp.x; p.pos.y=rp.y;
+            p.maxSpeed=Math.random()*6+4; p.maxForce=p.maxSpeed*0.05;
+            p.cbr=Math.random()*0.0275+0.0025;
+            particles.push(p);
+          }
+          p.sc={r:p.sc.r+(p.tc.r-p.sc.r)*p.cw,g:p.sc.g+(p.tc.g-p.sc.g)*p.cw,b:p.sc.b+(p.tc.b-p.sc.b)*p.cw};
+          p.tc=nc; p.cw=0; p.target.x=x; p.target.y=y;
+        }
+      }
+      for(let i=pi;i<particles.length;i++) particles[i].kill();
+    }
+
+    function animate(){
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      for(let i=particles.length-1;i>=0;i--){
+        const p=particles[i];
+        p.move(); p.draw();
+        if(p.killed&&(p.pos.x<0||p.pos.x>canvas.width||p.pos.y<0||p.pos.y>canvas.height))
+          particles.splice(i,1);
+      }
+      if(mouse.pressed&&mouse.right){
+        particles.forEach(p=>{
+          const d=Math.sqrt((p.pos.x-mouse.x)**2+(p.pos.y-mouse.y)**2);
+          if(d<60) p.kill();
+        });
+      }
+      frameCount++;
+      if(frameCount%240===0){ wordIndex=(wordIndex+1)%WORDS.length; nextWord(WORDS[wordIndex]); }
+      requestAnimationFrame(animate);
+    }
+
+    const rect=()=>canvas.getBoundingClientRect();
+    const sx=()=>canvas.width/rect().width, sy=()=>canvas.height/rect().height;
+    canvas.addEventListener('mousedown',e=>{ mouse.pressed=true; mouse.right=e.button===2; const r=rect(); mouse.x=(e.clientX-r.left)*sx(); mouse.y=(e.clientY-r.top)*sy(); });
+    canvas.addEventListener('mouseup',()=>{ mouse.pressed=false; mouse.right=false; });
+    canvas.addEventListener('mousemove',e=>{ const r=rect(); mouse.x=(e.clientX-r.left)*sx(); mouse.y=(e.clientY-r.top)*sy(); });
+    canvas.addEventListener('contextmenu',e=>e.preventDefault());
+
+    nextWord(WORDS[0]);
+    animate();
+  })();
 
   // GrauOS Carousel
   const carTrack = document.querySelector('.car-track');

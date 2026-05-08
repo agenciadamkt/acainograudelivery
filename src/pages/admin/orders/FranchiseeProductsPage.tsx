@@ -37,6 +37,7 @@ import {
     useDeleteFranchiseeProduct
 } from '@/hooks/useFranchiseeProducts';
 import { FranchiseeProductForm } from './components/FranchiseeProductForm';
+import { CategoryManagementDialog } from './components/CategoryManagementDialog';
 import { formatBRL, cn } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -63,6 +64,7 @@ export default function FranchiseeProductsPage() {
     const deleteProduct = useDeleteFranchiseeProduct();
 
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState<any>();
     const [deletingProduct, setDeletingProduct] = useState<any>();
 
@@ -126,6 +128,24 @@ export default function FranchiseeProductsPage() {
             render: (product: any) => (
                 <Badge variant="outline" className="rounded-xl border-gray-100 dark:border-white/10 font-bold text-xs px-3 py-1 bg-white/50 dark:bg-white/5 backdrop-blur-sm">
                     {product.category?.name || '-'}
+                </Badge>
+            )
+        },
+        {
+            key: 'code',
+            label: 'Código',
+            render: (product: any) => (
+                <span className="font-mono text-xs text-gray-400 font-bold bg-gray-50 dark:bg-white/5 px-2 py-1 rounded">
+                    {product.code || '-'}
+                </span>
+            )
+        },
+        {
+            key: 'distribution_center',
+            label: 'CD',
+            render: (product: any) => (
+                <Badge variant="secondary" className="bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400 border-0 font-bold text-[10px] rounded-lg">
+                    {product.distribution_center?.name || 'Geral'}
                 </Badge>
             )
         },
@@ -250,7 +270,17 @@ export default function FranchiseeProductsPage() {
                     <motion.div
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
+                        className="flex items-center gap-4"
                     >
+                        <Button
+                            onClick={() => setIsCategoryDialogOpen(true)}
+                            variant="outline"
+                            className="rounded-3xl h-16 px-8 border-purple-200 dark:border-white/10 hover:bg-purple-50 dark:hover:bg-purple-500/10 text-purple-600 dark:text-purple-400 font-black tracking-tight transition-all active:scale-95 group shadow-lg shadow-purple-500/5"
+                        >
+                            <Tag className="h-5 w-5 mr-3 group-hover:rotate-12 transition-transform duration-300" />
+                            Gerenciar Categorias
+                        </Button>
+
                         <Button
                             onClick={() => setIsDialogOpen(true)}
                             className="bg-purple-600 hover:bg-purple-700 rounded-3xl h-16 px-10 shadow-2xl shadow-purple-500/30 text-lg font-black tracking-tight transition-all active:scale-95 group"
@@ -309,6 +339,11 @@ export default function FranchiseeProductsPage() {
                     />
                 </motion.div>
             </div>
+
+            <CategoryManagementDialog 
+                open={isCategoryDialogOpen}
+                onOpenChange={setIsCategoryDialogOpen}
+            />
 
             <Dialog
                 open={isDialogOpen}

@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Check, ChevronsUpDown, Plus, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { useFranchiseeId } from '@/hooks/useFranchiseeId';
 
 interface OperatorSelectProps {
     value: string;
@@ -31,6 +32,7 @@ export default function OperatorSelect({ value, onChange, placeholder = 'Selecio
     const [open, setOpen] = useState(false);
     const [search, setSearch] = useState('');
     const queryClient = useQueryClient();
+    const { data: franchiseeId } = useFranchiseeId();
 
     const { data: operators = [], isLoading } = useQuery({
         queryKey: ['cash_operators'],
@@ -49,7 +51,7 @@ export default function OperatorSelect({ value, onChange, placeholder = 'Selecio
         mutationFn: async (name: string) => {
             const { data, error } = await supabase
                 .from('cash_operators' as any)
-                .insert({ name })
+                .insert({ name, franchisee_user_id: franchiseeId })
                 .select()
                 .single();
             if (error) throw error;

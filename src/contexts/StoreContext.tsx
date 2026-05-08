@@ -54,21 +54,48 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      let query = supabase.from('stores').select('*');
+      let storesData: Store[] = [];
 
-      // Franchisee master can see all stores
       if (userRole?.includes('franchisee_master')) {
-        query = query.order('name');
+        // Master vê todas as lojas
+        const { data, error } = await supabase.from('stores').select('*').order('name');
+        if (error) throw error;
+        storesData = (data as unknown as Store[]) || [];
       } else {
-        // Admin, manager, and staff only see their own stores
-        query = query.eq('franchisee_user_id', user.id);
+        // 1. Lojas vinculadas pelo franchisee_user_id legado
+        const { data: legacyStores } = await supabase
+          .from('stores')
+          .select('*')
+          .eq('franchisee_user_id', user.id);
+
+        // 2. Lojas vinculadas via user_unidades (novo sistema RBAC)
+        const { data: unitLinks } = await (supabase as any)
+          .from('user_unidades')
+          .select('store_id')
+          .eq('usuario_id', user.id);
+
+        const linkedStoreIds = (unitLinks || []).map((u: any) => u.store_id as string);
+
+        let rbacStores: Store[] = [];
+        if (linkedStoreIds.length > 0) {
+          const { data: rbacData } = await supabase
+            .from('stores')
+            .select('*')
+            .in('id', linkedStoreIds);
+          rbacStores = (rbacData as unknown as Store[]) || [];
+        }
+
+        // Merge sem duplicatas
+        const allStores = [...(legacyStores as unknown as Store[] || []), ...rbacStores];
+        const seen = new Set<string>();
+        storesData = allStores.filter(s => {
+          if (seen.has(s.id)) return false;
+          seen.add(s.id);
+          return true;
+        });
+        storesData.sort((a, b) => a.name.localeCompare(b.name));
       }
 
-      const { data, error } = await query;
-
-      if (error) throw error;
-
-      const storesData = (data as unknown as Store[]) || [];
       setStores(storesData);
 
       // Set current store from localStorage or first available store

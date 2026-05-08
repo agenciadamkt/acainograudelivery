@@ -22,7 +22,13 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, UserPlus, Trash2, Users, ShieldCheck, ShieldAlert, Crown } from 'lucide-react';
+import { Loader2, UserPlus, Trash2, Users, ShieldCheck, ShieldAlert, Crown, Check, Building2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover';
 
 interface ManageUsersDialogProps {
     open: boolean;
@@ -35,6 +41,25 @@ export function ManageUsersDialog({ open, onOpenChange }: ManageUsersDialogProps
     const [newName, setNewName] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [newRole, setNewRole] = useState<'admin' | 'operator'>('operator');
+    const [selectedCDs, setSelectedCDs] = useState<string[]>([]);
+
+    // Fetch all available CDs for the current franchisee/admin
+    const { data: allCDs } = useQuery({
+        queryKey: ['all_distribution_centers'],
+        queryFn: async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return [];
+            
+            const { data, error } = await supabase
+                .from('distribution_centers' as any)
+                .select('*')
+                .eq('active', true)
+                .order('name');
+            if (error) throw error;
+            return data as any[];
+        },
+        enabled: open,
+    });
 
     // Fetch authorized users
     const { data: users, isLoading } = useQuery({
@@ -58,24 +83,43 @@ export function ManageUsersDialog({ open, onOpenChange }: ManageUsersDialogProps
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error('Não autenticado');
 
-            // 1. Cria a conta no sistema de Autenticação com a senha providenciada
-            const { error: authError } = await supabase.auth.signUp({
-                email: newEmail.trim().toLowerCase(),
-                password: newPassword,
-                options: {
-                    data: { full_name: newName.trim() }
-                }
-            });
+            // 0. Check if user already exists in auth
+            const { data: existingAuth } = await supabase
+                .from('financial_users' as any)
+                .select('user_id')
+                .eq('email', newEmail.trim().toLowerCase())
+                .maybeSingle();
 
-            if (authError && !authError.message.includes('already registered')) {
-                throw new Error(authError.message);
+            let targetUserId = (existingAuth as any)?.user_id;
+
+            if (!targetUserId) {
+                // 1. Cria a conta no sistema de Autenticação com a senha providenciada
+                const { data: signUpData, error: authError } = await supabase.auth.signUp({
+                    email: newEmail.trim().toLowerCase(),
+                    password: newPassword,
+                    options: {
+                        data: { full_name: newName.trim() }
+                    }
+                });
+
+                if (authError && !authError.message.includes('already registered')) {
+                    throw new Error(authError.message);
+                }
+                
+                targetUserId = signUpData.user?.id;
+
+                // 2. Confirma o e-mail secretamente no banco para o usuário logar imediatamente 
+                await (supabase.rpc as any)('confirm_user_email', { user_email: newEmail.trim().toLowerCase() });
+                
+                // If signUp didn't return user (already exists), we need to fetch the ID
+                if (!targetUserId) {
+                    const { data: userData } = await (supabase.rpc as any)('get_user_id_by_email', { user_email: newEmail.trim().toLowerCase() });
+                    targetUserId = userData;
+                }
             }
 
-            // 2. Confirma o e-mail secretamente no banco para o usuário logar imediatamente 
-            await supabase.rpc('confirm_user_email', { user_email: newEmail.trim().toLowerCase() });
-
             // 3. Cadastra na lista de permissões financeiras
-            const { error } = await supabase
+            const { data: finUser, error } = await supabase
                 .from('financial_users' as any)
                 .insert({
                     email: newEmail.trim().toLowerCase(),
@@ -83,11 +127,24 @@ export function ManageUsersDialog({ open, onOpenChange }: ManageUsersDialogProps
                     role: newRole,
                     active: true,
                     created_by: user.id,
-                });
+                    user_id: targetUserId
+                })
+                .select()
+                .single();
 
             if (error) {
                 if (error.code === '23505') throw new Error('Este email já está cadastrado');
                 throw error;
+            }
+
+            // 4. Cadastra os vínculos com CDs
+            if (selectedCDs.length > 0 && targetUserId) {
+                const links = selectedCDs.map(cdId => ({
+                    user_id: targetUserId,
+                    distribution_center_id: cdId,
+                    created_by: user.id
+                }));
+                await supabase.from('financial_user_cd_links' as any).insert(links);
             }
         },
         onSuccess: () => {
@@ -98,6 +155,7 @@ export function ManageUsersDialog({ open, onOpenChange }: ManageUsersDialogProps
             setNewName('');
             setNewPassword('');
             setNewRole('operator');
+            setSelectedCDs([]);
         },
         onError: (error) => toast.error(error.message),
     });
@@ -153,6 +211,51 @@ export function ManageUsersDialog({ open, onOpenChange }: ManageUsersDialogProps
         onError: (error: any) => toast.error('Erro: ' + error.message),
     });
 
+    // Update individual CD links mutation
+    const updateCDLinksMutation = useMutation({
+        mutationFn: async ({ userId, cdIds }: { userId: string; cdIds: string[] }) => {
+            if (!userId) throw new Error('O usuário precisa ter um ID válido vinculado (user_id)');
+            
+            const { data: { user } } = await supabase.auth.getUser();
+            
+            // Delete existing
+            const { error: deleteError } = await supabase
+                .from('financial_user_cd_links' as any)
+                .delete()
+                .eq('user_id', userId);
+            
+            if (deleteError) throw deleteError;
+            
+            // Insert new
+            if (cdIds.length > 0) {
+                const links = cdIds.map(cdId => ({
+                    user_id: userId,
+                    distribution_center_id: cdId,
+                    created_by: user?.id
+                }));
+                const { error: insertError } = await supabase.from('financial_user_cd_links' as any).insert(links);
+                if (insertError) throw insertError;
+            }
+        },
+        onSuccess: () => {
+            toast.success('CDs vinculados com sucesso');
+            queryClient.invalidateQueries({ queryKey: ['financial_users'] });
+            queryClient.invalidateQueries({ queryKey: ['user_cd_links'] });
+        },
+        onError: (error: any) => toast.error('Erro: ' + error.message),
+    });
+
+    // Fetch existing links
+    const { data: userLinks } = useQuery({
+        queryKey: ['user_cd_links'],
+        queryFn: async () => {
+            const { data, error } = await supabase.from('financial_user_cd_links' as any).select('*');
+            if (error) return [];
+            return data as any[];
+        },
+        enabled: open,
+    });
+
     const getRoleBadge = (role: string) => {
         if (role === 'admin') {
             return (
@@ -170,14 +273,14 @@ export function ManageUsersDialog({ open, onOpenChange }: ManageUsersDialogProps
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[600px] bg-white dark:bg-[#1A1A1A] border-gray-200 dark:border-white/10">
+            <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto bg-white dark:bg-[#1A1A1A] border-gray-200 dark:border-white/10">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-gray-900 dark:text-white">
                         <Users className="h-5 w-5 text-indigo-500" />
                         Gerenciar Equipe Financeira
                     </DialogTitle>
                     <DialogDescription className="text-gray-500 dark:text-white/40">
-                        Cadastre admins e operadores para o módulo financeiro.
+                        Gerencie o acesso à equipe financeira e ao Hub Administrativo completo.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -240,6 +343,46 @@ export function ManageUsersDialog({ open, onOpenChange }: ManageUsersDialogProps
                             </Select>
                         </div>
                     </div>
+
+                    {/* CD Selection */}
+                    {allCDs && allCDs.length > 0 && (
+                        <div className="space-y-2 pt-2 border-t border-gray-100 dark:border-white/5">
+                            <Label className="text-xs text-gray-500 flex items-center gap-1.5">
+                                <Building2 className="h-3 w-3" /> Vincular CDs (Obrigatório para Operadores)
+                            </Label>
+                            <div className="grid grid-cols-2 gap-2 max-h-[140px] overflow-y-auto p-1 pr-2 scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-white/10">
+                                {allCDs.map(cd => (
+                                    <div 
+                                        key={cd.id} 
+                                        className={cn(
+                                            "flex items-center gap-2 p-2 rounded border cursor-pointer transition-all",
+                                            selectedCDs.includes(cd.id) 
+                                                ? "bg-indigo-50 border-indigo-200 dark:bg-indigo-900/20 dark:border-indigo-500/30" 
+                                                : "bg-white dark:bg-white/5 border-gray-100 dark:border-white/10"
+                                        )}
+                                        onClick={() => {
+                                            if (selectedCDs.includes(cd.id)) {
+                                                setSelectedCDs(selectedCDs.filter(id => id !== cd.id));
+                                            } else {
+                                                setSelectedCDs([...selectedCDs, cd.id]);
+                                            }
+                                        }}
+                                    >
+                                        <div className={cn(
+                                            "h-4 w-4 rounded-full border flex items-center justify-center transition-all",
+                                            selectedCDs.includes(cd.id) 
+                                                ? "bg-indigo-500 border-indigo-500" 
+                                                : "border-gray-300 dark:border-white/20"
+                                        )}>
+                                            {selectedCDs.includes(cd.id) && <Check className="h-2.5 w-2.5 text-white" />}
+                                        </div>
+                                        <span className="text-[11px] truncate">{cd.name}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     <Button
                         onClick={() => addMutation.mutate()}
                         disabled={addMutation.isPending || !newEmail.trim() || !newName.trim() || !newPassword.trim()}
@@ -311,18 +454,62 @@ export function ManageUsersDialog({ open, onOpenChange }: ManageUsersDialogProps
                                         {u.active ? 'Ativo' : 'Inativo'}
                                     </Badge>
 
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-7 w-7 text-gray-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20"
-                                        onClick={() => {
-                                            if (confirm(`Remover ${u.name} do módulo financeiro?`)) {
-                                                deleteMutation.mutate(u.id);
-                                            }
-                                        }}
-                                    >
-                                        <Trash2 className="h-3.5 w-3.5" />
-                                    </Button>
+                                    <div className="flex flex-col gap-2">
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                 <Button variant="ghost" size="sm" className="h-7 px-2 text-[10px] gap-1.5 text-indigo-600 dark:text-indigo-400">
+                                                    <Building2 className="h-3 w-3" /> 
+                                                    {userLinks?.filter(l => u.user_id && l.user_id === u.user_id).length || 0} CDs
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-56 p-2" align="end">
+                                                <p className="text-[10px] font-bold text-gray-400 mb-2 uppercase px-1">CDs Vinculados</p>
+                                                <div className="space-y-1">
+                                                     {allCDs?.map(cd => {
+                                                        const isLinked = userLinks?.some(l => u.user_id && l.user_id === u.user_id && l.distribution_center_id === cd.id);
+                                                        return (
+                                                            <div 
+                                                                key={cd.id}
+                                                                className="flex items-center gap-2 p-1.5 rounded hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer"
+                                                                 onClick={() => {
+                                                                     if (!u.user_id) {
+                                                                         toast.error("ID de usuário não encontrado. Tente atualizar a página ou re-cadastrar o usuário.");
+                                                                         return;
+                                                                     }
+                                                                     const currentLinks = userLinks?.filter(l => u.user_id && l.user_id === u.user_id).map(l => l.distribution_center_id) || [];
+                                                                     const newLinks = isLinked 
+                                                                         ? currentLinks.filter(id => id !== cd.id)
+                                                                         : [...currentLinks, cd.id];
+                                                                     updateCDLinksMutation.mutate({ userId: u.user_id, cdIds: newLinks });
+                                                                 }}
+                                                            >
+                                                                <div className={cn(
+                                                                    "h-3.5 w-3.5 rounded-full border flex items-center justify-center",
+                                                                    isLinked ? "bg-indigo-500 border-indigo-500" : "border-gray-300 dark:border-white/20"
+                                                                )}>
+                                                                    {isLinked && <Check className="h-2 w-2 text-white" />}
+                                                                </div>
+                                                                {cd.name}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </PopoverContent>
+                                        </Popover>
+
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-7 w-7 text-gray-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20"
+                                            onClick={() => {
+                                                if (confirm(`Remover ${u.name} do módulo financeiro?`)) {
+                                                    deleteMutation.mutate(u.id);
+                                                }
+                                            }}
+                                        >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                        </Button>
+                                    </div>
                                 </div>
                             </div>
                         ))
@@ -333,11 +520,11 @@ export function ManageUsersDialog({ open, onOpenChange }: ManageUsersDialogProps
                 <div className="text-xs text-gray-400 dark:text-white/30 bg-gray-50 dark:bg-white/[0.03] p-3 rounded-lg border border-gray-100 dark:border-white/[0.06] space-y-2">
                     <div className="flex items-start gap-2">
                         <Crown className="h-3.5 w-3.5 text-amber-500 mt-0.5 shrink-0" />
-                        <span><strong className="text-amber-600 dark:text-amber-400">Admin</strong> — Acesso total: cria, edita, aprova, rejeita, cancela e gerencia equipe</span>
+                        <span><strong className="text-amber-600 dark:text-amber-400">Admin</strong> — Acesso total ao sistema: Distribuição (Master), Franqueados, Financeiro e Cardápio</span>
                     </div>
                     <div className="flex items-start gap-2">
                         <ShieldCheck className="h-3.5 w-3.5 text-blue-500 mt-0.5 shrink-0" />
-                        <span><strong className="text-blue-600 dark:text-blue-400">Operador</strong> — Cria, edita e visualiza lançamentos. <em>Não pode</em> aprovar, rejeitar ou cancelar</span>
+                        <span><strong className="text-blue-600 dark:text-blue-400">Operador</strong> — Acesso ao Hub (Pedidos, Produtos) e lançamentos financeiros. <em>Não pode</em> aprovar ou cancelar</span>
                     </div>
                 </div>
             </DialogContent>

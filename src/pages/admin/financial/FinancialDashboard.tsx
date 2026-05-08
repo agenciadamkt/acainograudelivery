@@ -35,6 +35,7 @@ import { format, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import DistributionCenterSelect from './components/DistributionCenterSelect';
 import { useFranchiseeId } from '@/hooks/useFranchiseeId';
+import { QuoteWidget } from '@/components/admin/quotes/QuoteWidget';
 
 /* ─── Helpers ─── */
 const formatBRL = (val: number) =>
@@ -69,8 +70,6 @@ export default function FinancialDashboard() {
 
             if (selectedCD) {
                 query = query.eq('distribution_center_id', selectedCD);
-            } else {
-                query = query.eq('distribution_center.franchisee_user_id', franchiseeId);
             }
 
             const { data, error } = await query;
@@ -95,8 +94,6 @@ export default function FinancialDashboard() {
 
             if (selectedCD) {
                 query = query.eq('distribution_center_id', selectedCD);
-            } else {
-                query = query.eq('distribution_center.franchisee_user_id', franchiseeId);
             }
 
             const { data, error } = await query;
@@ -119,7 +116,6 @@ export default function FinancialDashboard() {
                 .select('*')
                 .eq('status', 'active')
                 .eq('goal_type', 'revenue')
-                .eq('franchisee_user_id', franchiseeId)
                 .lte('start_date', endOfMonthDate)
                 .gte('end_date', startOfMonthDate)
                 .order('created_at', { ascending: false })
@@ -147,8 +143,6 @@ export default function FinancialDashboard() {
 
             if (selectedCD) {
                 query = query.eq('distribution_center_id', selectedCD);
-            } else {
-                query = query.eq('franchisee_user_id', franchiseeId);
             }
 
             const { data, error } = await query;
@@ -172,8 +166,6 @@ export default function FinancialDashboard() {
 
             if (selectedCD) {
                 query = query.eq('distribution_center_id', selectedCD);
-            } else {
-                query = query.eq('distribution_center.franchisee_user_id', franchiseeId);
             }
 
             const { data, error } = await query;
@@ -197,8 +189,6 @@ export default function FinancialDashboard() {
 
             if (selectedCD) {
                 query = query.eq('distribution_center_id', selectedCD);
-            } else {
-                query = query.eq('franchisee_user_id', franchiseeId);
             }
 
             const { data, error } = await query;
@@ -216,8 +206,7 @@ export default function FinancialDashboard() {
             const { data, error } = await supabase
                 .from('financial_accounts' as any)
                 .select('name, balance')
-                .eq('active', true)
-                .eq('franchisee_user_id', franchiseeId);
+                .eq('active', true);
 
             if (error) throw error;
             return data as any[];
@@ -239,8 +228,6 @@ export default function FinancialDashboard() {
 
             if (selectedCD) {
                 query = query.eq('distribution_center_id', selectedCD);
-            } else {
-                query = query.eq('distribution_center.franchisee_user_id', franchiseeId);
             }
 
             const { data, error } = await query;
@@ -258,15 +245,13 @@ export default function FinancialDashboard() {
             // 1. Fetch all cash closings for the franchisee
             const { data: closingsRes } = await supabase
                 .from('cash_closings' as any)
-                .select('distribution_center_id, total_cash, cash_settlement, distribution_center:distribution_centers!inner(franchisee_user_id)')
-                .eq('distribution_center.franchisee_user_id', franchiseeId);
+                .select('distribution_center_id, total_cash, cash_settlement, distribution_center:distribution_centers!inner(franchisee_user_id)');
 
             // 2. Fetch all expenses paid with cash for the franchisee
             const { data: expensesRes } = await supabase
                 .from('expenses' as any)
                 .select('distribution_center_id, amount, distribution_center:distribution_centers!inner(franchisee_user_id)')
-                .eq('paid_with_cash_balance', true)
-                .eq('distribution_center.franchisee_user_id', franchiseeId);
+                .eq('paid_with_cash_balance', true);
 
             // Calculate balance per CD
             const balances: Record<string, number> = {};
@@ -415,6 +400,8 @@ export default function FinancialDashboard() {
                     )}
                 </div>
             </div>
+
+            <QuoteWidget />
 
             {/* ─── Alerts & Notifications ─── */}
             {(overdueExpenses.length > 0 || overdueReceivables.length > 0) && (

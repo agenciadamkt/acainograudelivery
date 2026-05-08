@@ -764,6 +764,143 @@ export type Database = {
         }
         Relationships: []
       }
+      game_inventory: {
+        Row: {
+          id: string
+          is_equipped: boolean | null
+          item_id: string
+          item_type: string
+          purchased_at: string | null
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          is_equipped?: boolean | null
+          item_id: string
+          item_type: string
+          purchased_at?: string | null
+          user_id: string
+        }
+        Update: {
+          id?: string
+          is_equipped?: boolean | null
+          item_id?: string
+          item_type?: string
+          purchased_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_inventory_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      game_missions: {
+        Row: {
+          id: string
+          mission_id: string
+          progress: number | null
+          status: string | null
+          target: number
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          mission_id: string
+          progress?: number | null
+          status?: string | null
+          target: number
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          id?: string
+          mission_id?: string
+          progress?: number | null
+          status?: string | null
+          target?: number
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_missions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      game_profiles: {
+        Row: {
+          acai_coins: number
+          created_at: string | null
+          current_streak: number
+          last_played_at: string | null
+          level: number
+          user_id: string
+          xp: number
+        }
+        Insert: {
+          acai_coins?: number
+          created_at?: string | null
+          current_streak?: number
+          last_played_at?: string | null
+          level?: number
+          user_id: string
+          xp?: number
+        }
+        Update: {
+          acai_coins?: number
+          created_at?: string | null
+          current_streak?: number
+          last_played_at?: string | null
+          level?: number
+          user_id?: string
+          xp?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_profiles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      game_scores: {
+        Row: {
+          score: number
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          score?: number
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          score?: number
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_scores_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ingredients: {
         Row: {
           category: string

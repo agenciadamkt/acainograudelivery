@@ -41,23 +41,28 @@ export function usePdvCashRegister() {
         enabled: !!currentRegister
     });
 
-    // 3. Get Cash Sales for Current Register
+    // 3. Get Sales for Current Register (all payment methods)
     const { data: salesSummary } = useQuery({
         queryKey: ['pdv_register_sales', currentRegister?.id],
         queryFn: async () => {
-            if (!currentRegister) return { total: 0, count: 0 };
-            // Sum only completed money sales for cash balance
+            if (!currentRegister) return { total: 0, count: 0, byMethod: {} };
             const { data, error } = await supabase
                 .from('pdv_orders')
-                .select('amount_paid')
+                .select('amount_paid, payment_method')
                 .eq('cash_register_id', currentRegister.id)
-                .eq('status', 'paid')
-                .eq('payment_method', 'money');
+                .eq('status', 'paid');
 
             if (error) throw error;
 
-            const total = data.reduce((acc, curr) => acc + Number(curr.amount_paid), 0);
-            return { total, count: data.length };
+            const byMethod: Record<string, number> = {};
+            let moneyTotal = 0;
+            data.forEach(row => {
+                const method = row.payment_method || 'money';
+                byMethod[method] = (byMethod[method] || 0) + Number(row.amount_paid);
+                if (method === 'money') moneyTotal += Number(row.amount_paid);
+            });
+
+            return { total: moneyTotal, count: data.length, byMethod };
         },
         enabled: !!currentRegister
     });

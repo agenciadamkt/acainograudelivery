@@ -30,18 +30,16 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { useFranchiseeCart } from '@/hooks/useFranchiseeCart';
 
 const CheckoutPage = () => {
     const navigate = useNavigate();
     const { user } = useAuth();
     const queryClient = useQueryClient();
-    const [paymentMethod, setPaymentMethod] = useState('PIX');
+    const [paymentMethod, setPaymentMethod] = useState('A-vista');
     const [notes, setNotes] = useState('');
 
-    const cartItems = useMemo(() => {
-        const saved = localStorage.getItem('franchisee_cart');
-        return saved ? JSON.parse(saved) : [];
-    }, []);
+    const { cartItems, clearCart, totalPrice } = useFranchiseeCart();
 
     const totals = useMemo(() => {
         let subtotal = 0;
@@ -51,10 +49,13 @@ const CheckoutPage = () => {
         cartItems.forEach((item: any) => {
             const itemBaseTotal = item.price * item.quantity;
             const itemBoletoFee = paymentMethod === 'Boleto' ? (item.taxa * item.quantity) : 0;
+            
+            // Fundo de Publicidade incide sobre (Valor Base + Taxa de Boleto)
+            const itemTotalForAdv = itemBaseTotal + itemBoletoFee;
             const itemAdvFee = (item.has_advertising_fee)
-                ? (itemBaseTotal * (item.advertising_fee_percentage / 100))
+                ? (itemTotalForAdv * (item.advertising_fee_percentage / 100))
                 : 0;
-
+ 
             subtotal += itemBaseTotal + itemBoletoFee;
             feesTotal += itemBoletoFee;
             advertisingFee += itemAdvFee;
@@ -107,7 +108,7 @@ const CheckoutPage = () => {
             return order;
         },
         onSuccess: () => {
-            localStorage.removeItem('franchisee_cart');
+            clearCart();
             queryClient.invalidateQueries({ queryKey: ['franchisee_orders_history'] });
             toast.success("Pedido Enviado com Sucesso!", {
                 icon: <ShieldCheck className="h-5 w-5 text-emerald-500" />,
@@ -123,23 +124,11 @@ const CheckoutPage = () => {
 
     const paymentMethods = [
         {
-            id: 'PIX',
-            name: 'PIX (Instantâneo)',
-            desc: 'Aprovação imediata do pedido.',
-            icon: <Zap className="h-5 w-5 text-emerald-500" />
-        },
-        {
-            id: 'Boleto',
-            name: 'Boleto Bancário',
-            desc: 'Vencimento em 3 dias úteis.',
-            icon: <CreditCard className="h-5 w-5 text-purple-500" />,
-            note: 'Acresce taxa de boleto nos itens elegíveis'
-        },
-        {
-            id: 'Card',
-            name: 'Cartão de Crédito',
-            desc: 'Parcele em até 6x sem juros.',
-            icon: <ShieldCheck className="h-5 w-5 text-blue-500" />
+            id: 'A-vista',
+            name: 'A vista',
+            desc: 'Vencimento em 7 dias corridos.',
+            icon: <Zap className="h-5 w-5 text-emerald-500" />,
+            note: 'PIX (Instantâneo) ou Cartão de Crédito.'
         },
     ];
 

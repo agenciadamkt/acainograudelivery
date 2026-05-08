@@ -75,6 +75,7 @@ interface OrderItem {
     franchisee_products: {
         name: string;
         unit: string;
+        code: string | null;
     };
 }
 
@@ -84,7 +85,7 @@ const OrderDetailsDialog = ({ order }: { order: Order }) => {
         queryFn: async () => {
             const { data, error } = await supabase
                 .from('franchisee_order_items' as any)
-                .select('*, franchisee_products(name, unit)')
+                .select('*, franchisee_products(name, unit, code)')
                 .eq('order_id', order.id);
             if (error) throw error;
             return (data as any) as OrderItem[];
@@ -137,6 +138,7 @@ const OrderDetailsDialog = ({ order }: { order: Order }) => {
                         <Table>
                             <TableHeader className="bg-gray-50/50 dark:bg-white/5">
                                 <TableRow className="border-b border-gray-100 dark:border-white/10">
+                                    <TableHead className="font-black text-xs uppercase tracking-wider h-12">Cód.</TableHead>
                                     <TableHead className="font-black text-xs uppercase tracking-wider h-12">Item / Unidade</TableHead>
                                     <TableHead className="text-center font-black text-xs uppercase tracking-wider h-12">Qtd</TableHead>
                                     <TableHead className="text-right font-black text-xs uppercase tracking-wider h-12">Unit.</TableHead>
@@ -154,6 +156,11 @@ const OrderDetailsDialog = ({ order }: { order: Order }) => {
                                     </TableCell></TableRow>
                                 ) : items?.map((item) => (
                                     <TableRow key={item.id} className="border-b border-gray-50 dark:border-white/5 hover:bg-gray-50/30 dark:hover:bg-white/5 transition-colors">
+                                        <TableCell className="py-4">
+                                            <span className="font-mono text-[10px] text-gray-400 font-bold">
+                                                {item.franchisee_products?.code || '—'}
+                                            </span>
+                                        </TableCell>
                                         <TableCell className="font-bold py-4">
                                             {item.franchisee_products?.name}
                                             <p className="text-[10px] text-gray-400 font-medium tracking-tight uppercase">{item.franchisee_products?.unit}</p>

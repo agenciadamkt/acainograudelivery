@@ -18,10 +18,11 @@ export interface Store {
   min_order_value: number | null;
   delivery_radius_km: number | null;
   preparation_time: number | null;
-  delivery_time: string | null;
+  delivery_time: number | null;
   mercadopago_public_key: string | null;
   mercadopago_access_token: string | null;
   business_hours: any;
+  distribution_center_id: string | null;
   franchisee_user_id: string | null;
   created_by: string | null;
   approved_by: string | null;
@@ -29,6 +30,11 @@ export interface Store {
   active: boolean;
   created_at: string;
   updated_at: string;
+  // Perfil do franqueado (opcional, pode ser carregado separadamente)
+  franchisee_profile?: {
+    email: string;
+    full_name: string | null;
+  } | null;
 }
 
 export function useStores() {
@@ -37,7 +43,7 @@ export function useStores() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('stores')
-        .select('*')
+        .select('*, distribution_center:distribution_centers(id, name)')
         .order('name');
 
       if (error) throw error;
