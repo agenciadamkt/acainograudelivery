@@ -309,7 +309,12 @@ export function AdminSidebar() {
         <SidebarMenuButton
           asChild
           isActive={isActive(item.url)}
-          className={item.highlight ? 'bg-primary/10 hover:bg-primary/20 font-semibold' : ''}
+          className={cn(
+            'transition-colors duration-150',
+            item.highlight
+              ? 'bg-primary/10 hover:bg-primary/20 font-semibold text-primary'
+              : 'hover:text-primary data-[active=true]:text-primary data-[active=true]:font-semibold'
+          )}
         >
           <NavLink to={item.url}>
             <item.icon className={cn('h-4 w-4 shrink-0', item.highlight && 'text-primary')} />
@@ -410,7 +415,7 @@ export function AdminSidebar() {
               <SidebarGroup key={section.id}>
                 {!isCollapsed && (
                   <SidebarGroupLabel
-                    className="cursor-pointer select-none hover:text-foreground transition-colors flex items-center justify-between px-2 py-1"
+                    className="cursor-pointer select-none hover:text-primary transition-colors duration-150 flex items-center justify-between px-2 py-1"
                     onClick={() => toggleSection(section.id)}
                   >
                     <span>{section.label}</span>
