@@ -59,6 +59,8 @@ import UpdatePasswordPage from "./pages/admin/UpdatePasswordPage";
 import Signup from "./pages/admin/Signup";
 import DriverLogin from "./pages/driver/DriverLogin";
 import DriverDashboard from "./pages/driver/DriverDashboard";
+import MotoristaLogin from "./pages/frota/MotoristaLogin";
+import MotoristaDashboard from "./pages/frota/MotoristaDashboard";
 import OrderTracking from "./pages/tracking/OrderTracking";
 import Dashboard from "./pages/admin/Dashboard";
 import FranchiseRequest from "./pages/FranchiseRequest";
@@ -231,6 +233,8 @@ const App = () => {
                       {/* Driver Module */}
                       <Route path="/driver/login" element={<DriverLogin />} />
                       <Route path="/driver/dashboard" element={<DriverDashboard />} />
+                      <Route path="/frota/login" element={<MotoristaLogin />} />
+                      <Route path="/frota/dashboard" element={<MotoristaDashboard />} />
 
                       {/* GrauOS Hub & Modules */}
                       <Route
