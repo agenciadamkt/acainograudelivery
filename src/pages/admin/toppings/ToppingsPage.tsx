@@ -1,8 +1,15 @@
-import { useState } from 'react';
-import { Plus, Pencil, Trash2, Image as ImageIcon, FolderPlus } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Plus, Pencil, Trash2, Image as ImageIcon, FolderPlus, FilterX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -54,6 +61,8 @@ export default function ToppingsPage() {
   const [editingCategory, setEditingCategory] = useState<ToppingCategory | undefined>();
   const [deletingTopping, setDeletingTopping] = useState<Topping | undefined>();
   const [deletingCategory, setDeletingCategory] = useState<ToppingCategory | undefined>();
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
 
   const handleCreateTopping = async (data: any) => {
     await createTopping.mutateAsync(data);
@@ -164,6 +173,30 @@ export default function ToppingsPage() {
     },
   ];
 
+  // Filtrar por uma categoria pai também inclui os complementos das suas
+  // subcategorias.
+  const filteredToppings = useMemo(() => {
+    let result = toppings || [];
+
+    if (categoryFilter === 'none') {
+      result = result.filter((t) => !t.category_id);
+    } else if (categoryFilter !== 'all') {
+      const childIds = (categories || [])
+        .filter((c) => c.parent_id === categoryFilter)
+        .map((c) => c.id);
+      const matchIds = new Set([categoryFilter, ...childIds]);
+      result = result.filter((t) => t.category_id && matchIds.has(t.category_id));
+    }
+
+    if (statusFilter !== 'all') {
+      result = result.filter((t) => t.active === (statusFilter === 'active'));
+    }
+
+    return result;
+  }, [toppings, categories, categoryFilter, statusFilter]);
+
+  const hasActiveFilters = categoryFilter !== 'all' || statusFilter !== 'all';
+
   // Agrupa cada subcategoria logo abaixo da sua categoria pai, para a
   // hierarquia ficar visível na tabela.
   const sortedCategories = (() => {
@@ -248,19 +281,67 @@ export default function ToppingsPage() {
         </TabsList>
 
         <TabsContent value="toppings" className="space-y-4">
-          <div className="flex justify-end">
-            <Button onClick={() => setIsToppingDialogOpen(true)}>
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger className="w-full sm:w-[220px]">
+                <SelectValue placeholder="Categoria" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas as categorias</SelectItem>
+                <SelectItem value="none">Sem categoria</SelectItem>
+                {sortedCategories.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id}>
+                    {cat.parent_id ? `↳ ${cat.name}` : cat.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-[150px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os status</SelectItem>
+                <SelectItem value="active">Ativos</SelectItem>
+                <SelectItem value="inactive">Inativos</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {hasActiveFilters && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setCategoryFilter('all');
+                  setStatusFilter('all');
+                }}
+              >
+                <FilterX className="h-4 w-4 mr-2" />
+                Limpar filtros
+              </Button>
+            )}
+
+            <span className="text-sm text-muted-foreground">
+              {filteredToppings.length} de {toppings?.length || 0} complementos
+            </span>
+
+            <Button className="ml-auto" onClick={() => setIsToppingDialogOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Novo Complemento
             </Button>
           </div>
 
           <DataTable
-            data={toppings || []}
+            data={filteredToppings}
             columns={toppingColumns}
             isLoading={toppingsLoading}
             searchPlaceholder="Buscar complementos..."
-            emptyMessage="Nenhum complemento cadastrado"
+            emptyMessage={
+              hasActiveFilters
+                ? 'Nenhum complemento encontrado com os filtros aplicados'
+                : 'Nenhum complemento cadastrado'
+            }
           />
         </TabsContent>
 
