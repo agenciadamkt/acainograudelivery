@@ -39,7 +39,7 @@ const CheckoutPage = () => {
     const [paymentMethod, setPaymentMethod] = useState('A-vista');
     const [notes, setNotes] = useState('');
 
-    const { cartItems, clearCart, totalPrice } = useFranchiseeCart();
+    const { cartItems, clearCart, removeItem, totalPrice } = useFranchiseeCart();
 
     const totals = useMemo(() => {
         let subtotal = 0;
@@ -72,11 +72,34 @@ const CheckoutPage = () => {
 
     const confirmOrderMutation = useMutation({
         mutationFn: async () => {
+            if (!user?.id) {
+                throw new Error('Sessão expirada. Faça login novamente para enviar o pedido.');
+            }
+
+            // 0. Valida se os produtos do carrinho ainda existem no catálogo
+            // (carrinho fica salvo no localStorage e pode referenciar produtos antigos/recriados)
+            const productIds = cartItems.map((item: any) => item.id);
+            const { data: validProducts, error: checkError } = await supabase
+                .from('franchisee_products' as any)
+                .select('id')
+                .in('id', productIds);
+
+            if (checkError) throw checkError;
+
+            const validIds = new Set((validProducts ?? []).map((p: any) => (p as any).id));
+            const invalidItems = cartItems.filter((item: any) => !validIds.has(item.id));
+
+            if (invalidItems.length > 0) {
+                invalidItems.forEach((item: any) => removeItem(item.id));
+                const names = invalidItems.map((item: any) => item.name).join(', ');
+                throw new Error(`STALE_CART:${names}`);
+            }
+
             // 1. Create Order Header
             const { data: order, error: orderError } = await supabase
                 .from('franchisee_orders' as any)
                 .insert({
-                    franchisee_user_id: user?.id,
+                    franchisee_user_id: user.id,
                     status: 'pending',
                     payment_method: paymentMethod,
                     notes,
@@ -103,7 +126,11 @@ const CheckoutPage = () => {
                 .from('franchisee_order_items' as any)
                 .insert(orderItems);
 
-            if (itemsError) throw itemsError;
+            if (itemsError) {
+                // Reverte o cabeçalho do pedido se os itens falharem (evita pedido "fantasma" sem itens)
+                await supabase.from('franchisee_orders' as any).delete().eq('id', (order as any).id);
+                throw itemsError;
+            }
 
             return order;
         },
@@ -116,9 +143,21 @@ const CheckoutPage = () => {
             });
             navigate('/admin/orders/history');
         },
-        onError: (error) => {
+        onError: (error: any) => {
             console.error(error);
-            toast.error("Erro ao enviar pedido. Tente novamente.");
+            let message = 'Erro ao enviar pedido. Tente novamente.';
+            if (typeof error?.message === 'string' && error.message.startsWith('STALE_CART:')) {
+                const names = error.message.replace('STALE_CART:', '');
+                message = `${names}: este produto foi atualizado no catálogo. Removemos do carrinho — adicione novamente e confirme o pedido.`;
+            } else if (error?.code === '23503') {
+                const detail = error?.details || error?.message || '';
+                message = `Um ou mais produtos do carrinho não estão mais disponíveis. Remova-os e adicione novamente.${detail ? ` (${detail})` : ''}`;
+            } else if (error?.code === '42501' || error?.code === 'PGRST301' || /JWT|session/i.test(error?.message ?? '')) {
+                message = 'Sessão expirada. Faça login novamente.';
+            } else if (error?.message) {
+                message = `Erro ao enviar pedido: ${error.message}`;
+            }
+            toast.error(message, { duration: 12000 });
         }
     });
 

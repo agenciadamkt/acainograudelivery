@@ -184,21 +184,34 @@ export const exportOrderDetailsPDF = async (
         // ─── TABELA DE ITENS ───
         y += 25;
 
+        // Coluna "Taxa" sempre visível, com o valor real por linha
+        // (preço unit. + taxa) × qtd = subtotal — nunca traço, nunca
+        // coluna escondida.
         const tableData = items.map(item => [
             item.franchisee_products?.code || '—',
             item.franchisee_products?.name || 'Item',
             item.franchisee_products?.unit || '—',
             String(item.quantity),
             formatBRL(item.unit_price),
-            order.payment_method === 'Boleto'
-                ? formatBRL((item.taxa_boleto_unit_applied || 0) * item.quantity)
-                : '—',
-            formatBRL(item.subtotal)
+            formatBRL((item.taxa_boleto_unit_applied || 0) * item.quantity),
+            formatBRL(item.subtotal),
         ]);
+
+        const head = ['Cód.', 'Produto', 'Unid.', 'Qtd', 'Preço Unit.', 'Taxa', 'Subtotal'];
+
+        const columnStyles = {
+            0: { halign: 'left' as const, fontStyle: 'bold' as const, cellWidth: 12 },
+            1: { halign: 'left' as const, cellWidth: 68 },
+            2: { halign: 'left' as const, cellWidth: 12 },
+            3: { halign: 'left' as const, fontStyle: 'bold' as const, cellWidth: 12 },
+            4: { halign: 'left' as const, cellWidth: 22 },
+            5: { halign: 'left' as const, cellWidth: 22 },
+            6: { halign: 'left' as const, fontStyle: 'bold' as const, cellWidth: 25 },
+        };
 
         autoTable(doc, {
             startY: y,
-            head: [['Cód.', 'Produto', 'Unid.', 'Qtd', 'Preço Unit.', 'Taxas', 'Subtotal']],
+            head: [head],
             body: tableData,
             theme: 'plain',
             headStyles: {
@@ -218,15 +231,7 @@ export const exportOrderDetailsPDF = async (
                 lineWidth: 0,
                 overflow: 'linebreak',
             },
-            columnStyles: {
-                0: { halign: 'left', fontStyle: 'bold', cellWidth: 12 },
-                1: { halign: 'left', cellWidth: 68 },
-                2: { halign: 'left', cellWidth: 12 },
-                3: { halign: 'left', fontStyle: 'bold', cellWidth: 12 },
-                4: { halign: 'left', cellWidth: 22 },
-                5: { halign: 'left', cellWidth: 22 },
-                6: { halign: 'left', fontStyle: 'bold', cellWidth: 25 }
-            },
+            columnStyles,
         });
 
         // ─── RESUMO FINANCEIRO ───

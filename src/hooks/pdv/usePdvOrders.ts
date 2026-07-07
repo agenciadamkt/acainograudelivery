@@ -150,6 +150,8 @@ export function usePdvOrders() {
         onSuccess: () => {
             toast.success('Venda realizada com sucesso!');
             queryClient.invalidateQueries({ queryKey: ['pdv_orders'] });
+            queryClient.invalidateQueries({ queryKey: ['pdv_unified_history'] });
+            queryClient.invalidateQueries({ queryKey: ['pdv_register_sales'] });
             queryClient.invalidateQueries({ queryKey: ['pdv_tables'] });
             queryClient.invalidateQueries({ queryKey: ['inventory'] });
             queryClient.invalidateQueries({ queryKey: ['inventory_movements'] });

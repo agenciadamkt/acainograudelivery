@@ -27,6 +27,8 @@ export interface Order {
   ready_at: string | null;
   delivered_at: string | null;
   cancelled_at: string | null;
+  out_for_delivery_at: string | null;
+  delivery_observation: string | null;
   created_at: string;
   updated_at: string;
   customer?: any;
@@ -197,6 +199,7 @@ export function useUpdateOrderStatus() {
       if (status === 'confirmed') updates.confirmed_at = new Date().toISOString();
       if (status === 'preparing') updates.prepared_at = new Date().toISOString();
       if (status === 'ready') updates.ready_at = new Date().toISOString();
+      if (status === 'out_for_delivery') updates.out_for_delivery_at = new Date().toISOString();
       if (status === 'delivered') {
         updates.delivered_at = new Date().toISOString();
         updates.payment_status = 'paid';

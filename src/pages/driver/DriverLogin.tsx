@@ -28,27 +28,24 @@ export default function DriverLogin() {
             // Find driver by phone (simple auth for now)
             const cleanPhone = phone.replace(/\D/g, '');
 
-            const { data, error } = await supabase
+            const { data: rows, error } = await supabase
                 .from('delivery_drivers' as any)
                 .select('*')
                 .eq('phone', cleanPhone)
-                .single(); // Removed .eq('active', true) temporarily to debug
+                .eq('active', true)
+                .limit(1);
 
             if (error) {
                 console.error("Supabase Query Error:", error);
-                toast.error(`Erro Query: ${error.message} (${error.code})`);
+                toast.error(`Erro ao buscar entregador. Tente novamente.`);
                 setIsLoading(false);
                 return;
             }
+
+            const data = rows?.[0];
 
             if (!data) {
-                toast.error('Nenhum motorista encontrado com este número.');
-                setIsLoading(false);
-                return;
-            }
-
-            if (!data.active) {
-                toast.error('Motorista encontrado, mas está INATIVO.');
+                toast.error('Nenhum entregador ativo encontrado com este número.');
                 setIsLoading(false);
                 return;
             }

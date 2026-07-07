@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Entregas</string>
+    <string name="title_activity_main">Entregas</string>
+    <string name="package_name">com.acainograu.motorista</string>
+    <string name="custom_url_scheme">com.acainograu.motorista</string>
+</resources>

@@ -1,5 +1,6 @@
 import { Fragment, useState, useEffect, useMemo } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { APP_VERSION, APP_BUILD_NUMBER, APP_COMMIT } from '@/version';
 import {
   LayoutDashboard,
   ShoppingBag,
@@ -42,6 +43,10 @@ import {
   ChevronRight,
   Star,
   Search,
+  Headphones,
+  Video,
+  CalendarDays,
+  CalendarRange,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -124,6 +129,7 @@ const menuSections: MenuSection[] = [
       { title: 'Caixa', url: '/admin/pdv/caixa', icon: Wallet },
       { title: 'Entregas', url: '/admin/delivery', icon: Truck },
       { title: 'Histórico PDV', url: '/admin/pdv/historico', icon: History },
+      { title: 'Extrato Financeiro', url: '/admin/pdv/extrato', icon: FileText },
     ],
   },
   {
@@ -168,7 +174,7 @@ const menuSections: MenuSection[] = [
       { title: 'Food Analytics', url: '/admin/analytics', icon: BarChart3, requireRole: 'manager' },
       { title: 'Clientes (CRM)', url: '/admin/customers', icon: Users },
       { title: 'Avaliações NPS', url: '/admin/feedback', icon: MessageSquare, requireRole: 'manager' },
-      { title: 'Controle de Frota', url: '/admin/frota', icon: Truck, requireRole: 'manager' },
+      { title: 'Controle de Frota', url: '/admin/frota', icon: Truck },
     ],
   },
   {
@@ -191,9 +197,38 @@ const menuSections: MenuSection[] = [
     items: [
       { title: 'Pedido de Insumos', url: '/admin/orders/catalog', icon: ShoppingCart },
       { title: 'Meus Pedidos', url: '/admin/orders/history', icon: History },
-      { title: 'Gestão de Cargas', url: '/admin/orders/management', icon: Package, isMasterOnly: true },
-      { title: 'Catálogo de Insumos', url: '/admin/orders/products', icon: Grid, isMasterOnly: true },
-      { title: 'Lista de Franqueados', url: '/admin/franchisees', icon: Store, isMasterOnly: true },
+      { title: 'Gestão de Cargas', url: '/admin/orders/management', icon: Package, requiredPermission: 'mas.cargas' },
+      { title: 'Relatórios', url: '/admin/orders/reports', icon: BarChart2, requiredPermission: 'mas.relatorios' },
+      { title: 'Catálogo de Insumos', url: '/admin/orders/products', icon: Grid, requiredPermission: 'mas.catalogo' },
+      { title: 'Lista de Franqueados', url: '/admin/franchisees', icon: Store, requiredPermission: 'mas.franqueados' },
+    ],
+  },
+  {
+    id: 'caf',
+    label: '🎯 ATENDIMENTO CAF',
+    defaultOpen: false,
+    requireRole: 'staff',
+    items: [
+      { title: 'Dashboard CAF', url: '/admin/caf/dashboard', icon: Headphones },
+      { title: 'Atendimentos', url: '/admin/caf/atendimentos', icon: MessageSquare },
+      { title: 'Base de Conhecimento', url: '/admin/caf/base-conhecimento', icon: BookOpen },
+      { title: 'Relatórios CAF', url: '/admin/caf/relatorios', icon: BarChart2, requireRole: 'manager' },
+      { title: 'Cadastros CAF', url: '/admin/caf/cadastros', icon: Settings2, requireRole: 'manager' },
+      { title: 'CAF Connect', url: '/admin/caf/connect', icon: Video },
+    ],
+  },
+  {
+    id: 'agenda',
+    label: '📅 AGENDA',
+    defaultOpen: false,
+    requireRole: 'staff',
+    items: [
+      { title: 'Calendário', url: '/admin/agenda/calendario', icon: CalendarRange },
+      { title: 'Dashboard', url: '/admin/agenda/dashboard', icon: LayoutDashboard },
+      { title: 'Minha Agenda', url: '/admin/agenda/minha', icon: CalendarDays },
+      { title: 'Equipe', url: '/admin/agenda/equipe', icon: Users },
+      { title: 'Compromissos', url: '/admin/agenda/compromissos', icon: ListChecks },
+      { title: 'Relatórios', url: '/admin/agenda/relatorios', icon: FileText },
     ],
   },
   {
@@ -478,6 +513,11 @@ export function AdminSidebar() {
             <LogOut className="h-4 w-4" />
             {!isCollapsed && <span className="ml-2">Sair</span>}
           </Button>
+          {!isCollapsed && (
+            <p className="text-[10px] text-center text-muted-foreground pt-1" title={`Build ${APP_BUILD_NUMBER} · ${APP_COMMIT}`}>
+              GrauOS <span className="font-bold text-foreground">{APP_VERSION}</span>
+            </p>
+          )}
         </SidebarFooter>
       </Sidebar>
 

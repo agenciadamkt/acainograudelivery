@@ -98,7 +98,7 @@ const InstallPWAModal = () => {
 
           <DialogHeader className="mb-4">
             <DialogTitle className="text-xl font-bold text-gray-900 mb-2">
-              Instale o App PedeGrau
+              Instale o App GrauOS
             </DialogTitle>
             <DialogDescription className="text-gray-500 text-sm leading-relaxed">
               {platform === 'ios'

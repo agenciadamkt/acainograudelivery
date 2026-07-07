@@ -25,6 +25,8 @@ interface Store {
   business_hours: any;
   zip_code: string | null;
   neighborhood: string | null;
+  latitude: number | null;
+  longitude: number | null;
 }
 
 interface StoreContextType {

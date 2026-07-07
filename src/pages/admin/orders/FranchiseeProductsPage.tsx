@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Pencil, Trash2, Package, Search, Filter, Sparkles, LayoutGrid, Tag } from 'lucide-react';
+import { Plus, Pencil, Trash2, Package, Search, Filter, Sparkles, LayoutGrid, Tag, Upload, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -38,6 +38,9 @@ import {
 } from '@/hooks/useFranchiseeProducts';
 import { FranchiseeProductForm } from './components/FranchiseeProductForm';
 import { CategoryManagementDialog } from './components/CategoryManagementDialog';
+import { ImportSpreadsheetDialog } from './components/ImportSpreadsheetDialog';
+import { ExportProductsDialog } from './components/ExportProductsDialog';
+import { ProductImagePlaceholder } from './components/ProductImagePlaceholder';
 import { formatBRL, cn } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -65,6 +68,8 @@ export default function FranchiseeProductsPage() {
 
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
+    const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+    const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState<any>();
     const [deletingProduct, setDeletingProduct] = useState<any>();
 
@@ -105,7 +110,7 @@ export default function FranchiseeProductsPage() {
                                 className="w-full h-full object-cover"
                             />
                         ) : (
-                            <Package className="h-6 w-6" />
+                            <ProductImagePlaceholder compact className="bg-transparent" />
                         )}
                     </div>
                     <div>
@@ -273,6 +278,24 @@ export default function FranchiseeProductsPage() {
                         className="flex items-center gap-4"
                     >
                         <Button
+                            onClick={() => setIsExportDialogOpen(true)}
+                            variant="outline"
+                            className="rounded-3xl h-16 px-8 border-purple-200 dark:border-white/10 hover:bg-purple-50 dark:hover:bg-purple-500/10 text-purple-600 dark:text-purple-400 font-black tracking-tight transition-all active:scale-95 group shadow-lg shadow-purple-500/5"
+                        >
+                            <Download className="h-5 w-5 mr-3 group-hover:translate-y-0.5 transition-transform duration-300" />
+                            Exportar
+                        </Button>
+
+                        <Button
+                            onClick={() => setIsImportDialogOpen(true)}
+                            variant="outline"
+                            className="rounded-3xl h-16 px-8 border-purple-200 dark:border-white/10 hover:bg-purple-50 dark:hover:bg-purple-500/10 text-purple-600 dark:text-purple-400 font-black tracking-tight transition-all active:scale-95 group shadow-lg shadow-purple-500/5"
+                        >
+                            <Upload className="h-5 w-5 mr-3 group-hover:-translate-y-0.5 transition-transform duration-300" />
+                            Importar Planilha
+                        </Button>
+
+                        <Button
                             onClick={() => setIsCategoryDialogOpen(true)}
                             variant="outline"
                             className="rounded-3xl h-16 px-8 border-purple-200 dark:border-white/10 hover:bg-purple-50 dark:hover:bg-purple-500/10 text-purple-600 dark:text-purple-400 font-black tracking-tight transition-all active:scale-95 group shadow-lg shadow-purple-500/5"
@@ -340,9 +363,20 @@ export default function FranchiseeProductsPage() {
                 </motion.div>
             </div>
 
-            <CategoryManagementDialog 
+            <CategoryManagementDialog
                 open={isCategoryDialogOpen}
                 onOpenChange={setIsCategoryDialogOpen}
+            />
+
+            <ImportSpreadsheetDialog
+                open={isImportDialogOpen}
+                onOpenChange={setIsImportDialogOpen}
+            />
+
+            <ExportProductsDialog
+                open={isExportDialogOpen}
+                onOpenChange={setIsExportDialogOpen}
+                categorias={categories || []}
             />
 
             <Dialog

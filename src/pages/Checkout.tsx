@@ -23,13 +23,13 @@ import { isStoreOpen, getTodayHoursString } from '@/utils/businessHours';
 export default function Checkout() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { items, subtotal, clearCart, calculateDelivery, deliveryFee: cartDeliveryFee } = useCart();
+  const { items, subtotal, clearCart } = useCart();
   const createOrder = useCreateOrder();
   // Removed unused hook
   // const { createCheckout, isLoading: isCreatingCheckout } = useInfinitePayCheckout();
 
   const [orderType, setOrderType] = useState<'delivery' | 'pickup' | 'dine_in'>('delivery');
-  const [paymentMethod, setPaymentMethod] = useState('credit_card'); // Default to online
+  const [paymentMethod, setPaymentMethod] = useState('dinheiro');
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [customerId, setCustomerId] = useState<string>();
@@ -63,13 +63,18 @@ export default function Checkout() {
           .select('id, delivery_fee, slug, business_hours, mercadopago_public_key')
           .eq('slug', storeSlug)
           .single();
-        if (data) setStore(data);
+        if (data) {
+          setStore(data);
+          if (!data.mercadopago_public_key) {
+            setPaymentMethod(prev => prev === 'credit_card' ? 'dinheiro' : prev);
+          }
+        }
       }
     };
     fetchStore();
   }, []);
 
-  // Calculate delivery fee when address changes - defined before useEffects that use it
+  // Cálculo de frete direto no frontend — sem depender do edge function
   const handleAddressSelect = useCallback(async (addressId: string) => {
     setSelectedAddressId(addressId);
 
@@ -77,54 +82,156 @@ export default function Checkout() {
 
     setIsCalculatingFee(true);
     try {
-      // Fetch address coordinates
-      const { data: address } = await supabase
+      // 1. Buscar endereço do cliente
+      const { data: addr } = await supabase
         .from('customer_addresses')
-        .select('latitude, longitude')
+        .select('latitude, longitude, street, number, neighborhood, city, state, zipcode')
         .eq('id', addressId)
         .single();
 
-      if (address?.latitude && address?.longitude) {
-        const result = await calculateDelivery(address.latitude, address.longitude, store.id);
+      // 2. Buscar áreas de entrega ativas da loja
+      const { data: areas } = await (supabase as any)
+        .from('delivery_areas')
+        .select('id, name, center_lat, center_lng, radius_meters, fee, active')
+        .eq('store_id', store.id)
+        .eq('active', true)
+        .order('radius_meters', { ascending: true });
 
-        if (result.allowed) {
-          setCalculatedDeliveryFee(result.fee);
-          setDeliveryAllowed(true);
-        } else {
-          // Check if there are any delivery areas configured
-          const { data: areas } = await supabase
-            .from('delivery_areas' as any)
-            .select('id')
-            .eq('store_id', store.id)
-            .eq('active', true)
-            .limit(1);
+      // Sem áreas configuradas → usar taxa base da loja
+      if (!areas || areas.length === 0) {
+        setCalculatedDeliveryFee(store.delivery_fee ?? 0);
+        setDeliveryAllowed(true);
+        return;
+      }
 
-          if (areas && areas.length > 0) {
-            // Areas are configured but address is outside all of them
-            setDeliveryAllowed(false);
-            setCalculatedDeliveryFee(0);
-            sonnerToast.error('Endereço fora da área de entrega');
-          } else {
-            // No areas configured, use store base fee
-            setCalculatedDeliveryFee(store?.delivery_fee || 0);
-            setDeliveryAllowed(true);
+      // 3. Verificar se alguma área tem centro válido configurado
+      const areasComCentro = areas.filter((a: any) =>
+        a.center_lat && a.center_lng &&
+        !(a.center_lat === 0 && a.center_lng === 0)
+      );
+
+      // Nenhuma área tem centro válido → liberar com taxa base
+      if (areasComCentro.length === 0) {
+        setCalculatedDeliveryFee(store.delivery_fee ?? 0);
+        setDeliveryAllowed(true);
+        return;
+      }
+
+      // Menor taxa de área — usada como fallback quando não conseguimos verificar localização
+      const minAreaFee = Math.min(...areasComCentro.map((a: any) => Number(a.fee) || 0));
+
+      // 4. Geocodificar o ENDEREÇO DE ENTREGA (não GPS — frete é para o endereço, não localização do device)
+      let clientLat: number | null = null;
+      let clientLng: number | null = null;
+      let coordSource = '';
+      let cityLevelOnly = false;
+
+      if (addr) {
+        const { street, number: num, neighborhood, city, state } = addr as any;
+        if (city && state) {
+          const tryNominatim = async (q: string) => {
+            try {
+              const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br&q=${encodeURIComponent(q)}`;
+              const r = await fetch(url);
+              const data = await r.json();
+              if (data?.length > 0) {
+                const lat = parseFloat(data[0].lat);
+                const lng = parseFloat(data[0].lon);
+                if (!isNaN(lat) && !isNaN(lng) && !(lat === 0 && lng === 0)) return { lat, lng };
+              }
+            } catch { /* ignore */ }
+            return null;
+          };
+
+          let geo = null;
+          if (street) {
+            geo = await tryNominatim(`${street}, ${num || ''}, ${neighborhood || ''}, ${city}, ${state}, Brasil`);
+            if (!geo) geo = await tryNominatim(`${street}, ${city}, ${state}, Brasil`);
+          }
+          if (!geo) {
+            geo = await tryNominatim(`${city}, ${state}, Brasil`);
+            if (geo) cityLevelOnly = true;
+          }
+          if (geo) {
+            clientLat = geo.lat;
+            clientLng = geo.lng;
+            coordSource = cityLevelOnly ? 'nominatim-cidade' : 'nominatim-rua';
           }
         }
-      } else {
-        // No coordinates, use store base fee
-        setCalculatedDeliveryFee(store?.delivery_fee || 0);
-        setDeliveryAllowed(true);
       }
+
+      // Fallback: coords salvas no banco
+      if (!clientLat && addr?.latitude && addr?.longitude) {
+        clientLat = Number(addr.latitude);
+        clientLng = Number(addr.longitude);
+        if (isNaN(clientLat) || isNaN(clientLng)) { clientLat = null; clientLng = null; }
+        else coordSource = 'db';
+      }
+
+      // Geocoding apenas de cidade → impreciso demais para raio pequeno → usar menor taxa
+      if (cityLevelOnly) {
+        setCalculatedDeliveryFee(minAreaFee);
+        setDeliveryAllowed(true);
+        return;
+      }
+
+      // Sem coords → não bloquear, usar menor taxa de área
+      if (!clientLat || !clientLng) {
+        setCalculatedDeliveryFee(minAreaFee);
+        setDeliveryAllowed(true);
+        return;
+      }
+
+      // 5. Haversine — encontrar menor área que contém o cliente
+      const haversine = (lat1: number, lng1: number, lat2: number, lng2: number) => {
+        const R = 6371000;
+        const p1 = lat1 * Math.PI / 180, p2 = lat2 * Math.PI / 180;
+        const dp = (lat2 - lat1) * Math.PI / 180, dl = (lng2 - lng1) * Math.PI / 180;
+        const a = Math.sin(dp / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) ** 2;
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      };
+
+      // GPS é preciso (~5m); Nominatim/banco podem divergir 200-400m do Google Maps
+      const geoTolerance = coordSource === 'gps' ? 0 : 300;
+
+      let matched: any = null;
+      const debugLines: string[] = [];
+
+      for (const area of areasComCentro) {
+        const cLat = Number(area.center_lat);
+        const cLng = Number(area.center_lng);
+        if (isNaN(cLat) || isNaN(cLng)) {
+          debugLines.push(`${area.name}: centro inválido`);
+          continue;
+        }
+        const dist = haversine(clientLat, clientLng, cLat, cLng);
+        const effectiveRadius = Number(area.radius_meters) + geoTolerance;
+        const inside = dist <= effectiveRadius;
+        debugLines.push(`${area.name}: ${Math.round(dist)}m / ${area.radius_meters}+${geoTolerance}m ${inside ? '✓' : '✗'} R$${area.fee}`);
+        if (inside && !matched) { matched = area; }
+      }
+
+      console.log('[Delivery]', coordSource, debugLines, clientLat, clientLng);
+
+      if (matched) {
+        setCalculatedDeliveryFee(matched.fee);
+        setDeliveryAllowed(true);
+      } else {
+        // Fora das áreas — não bloquear, usar menor taxa de área
+        setCalculatedDeliveryFee(minAreaFee);
+        setDeliveryAllowed(true);
+        sonnerToast.warning('Endereço pode estar fora da área configurada', { duration: 5000 });
+      }
+
     } catch (error) {
-      console.error('Error calculating delivery:', error);
-      // Fallback to store base fee on error
-      setCalculatedDeliveryFee(store?.delivery_fee || 0);
+      console.error('Erro ao calcular frete:', error);
+      setCalculatedDeliveryFee(store?.delivery_fee ?? 0);
       setDeliveryAllowed(true);
     } finally {
       setIsCalculatingFee(false);
       setHasDoneInitialFeeCalc(true);
     }
-  }, [store?.id, store?.delivery_fee, orderType, calculateDelivery]);
+  }, [store?.id, store?.delivery_fee, orderType]);
 
   // Auto-select default address and calculate delivery fee when customer loads
   useEffect(() => {
@@ -160,8 +267,11 @@ export default function Checkout() {
     }
   }, [orderType, store?.id, selectedAddressId, hasDoneInitialFeeCalc, isCalculatingFee, handleAddressSelect]);
 
-  // Use calculated fee if available, otherwise fallback to store base fee
-  const deliveryFee = orderType === 'delivery' ? (calculatedDeliveryFee || store?.delivery_fee || 0) : 0;
+  // After calculation runs, use its result (even if 0 = free delivery).
+  // Before calculation, show store base fee as estimate.
+  const deliveryFee = orderType === 'delivery'
+    ? (hasDoneInitialFeeCalc ? calculatedDeliveryFee : (store?.delivery_fee ?? 0))
+    : 0;
   const total = subtotal + deliveryFee;
 
   // Função para criar o pedido APÓS o pagamento online ser aprovado
@@ -473,13 +583,15 @@ export default function Checkout() {
         <Card className="p-6">
           <h3 className="font-bold text-lg mb-4">Forma de Pagamento</h3>
           <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod}>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="credit_card" id="credit_card" />
-              <Label htmlFor="credit_card" className="flex-1 cursor-pointer flex items-center gap-2">
-                <Wallet className="w-4 h-4" />
-                Pagar Online (Cartão / Pix)
-              </Label>
-            </div>
+            {store?.mercadopago_public_key && (
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="credit_card" id="credit_card" />
+                <Label htmlFor="credit_card" className="flex-1 cursor-pointer flex items-center gap-2">
+                  <Wallet className="w-4 h-4" />
+                  Pagar Online (Cartão / Pix)
+                </Label>
+              </div>
+            )}
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="dinheiro" id="dinheiro" />
               <Label htmlFor="dinheiro" className="flex-1 cursor-pointer">
@@ -577,13 +689,6 @@ export default function Checkout() {
             <span>Total:</span>
             <span>R$ {total.toFixed(2)}</span>
           </div>
-
-          {/* Warning for out of area */}
-          {orderType === 'delivery' && !deliveryAllowed && (
-            <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3 mb-4 text-sm text-destructive">
-              ⚠️ Infelizmente não entregamos neste endereço. Escolha outro endereço ou retire na loja.
-            </div>
-          )}
 
           {paymentMethod !== 'credit_card' && (
             <Button

@@ -15,7 +15,9 @@ import {
     Eye,
     FileText,
     Volume2,
-    AlertCircle
+    AlertCircle,
+    Pencil,
+    AlertTriangle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,6 +34,9 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { exportOrderDetailsPDF, exportOrdersReportPDF } from '@/lib/pdf-export';
+import { useRotaDoDia } from '@/hooks/useRotaDoDia';
+import { DespacharCargaDialog } from './components/DespacharCargaDialog';
+import { EditOrderDialog } from './components/EditOrderDialog';
 
 interface Order {
     id: string;
@@ -44,6 +49,9 @@ interface Order {
     payment_method: string;
     notes: string | null;
     created_at: string;
+    edited_by_admin: boolean;
+    edit_reason: string | null;
+    edited_at: string | null;
     profiles: {
         full_name: string;
     };
@@ -98,9 +106,10 @@ const OrderDetailsDialog = ({ order }: { order: Order }) => {
     };
 
     return (
-        <DialogContent className="max-w-3xl rounded-[2rem] p-0 overflow-hidden border-0 bg-white/80 dark:bg-black/80 backdrop-blur-2xl shadow-[0_32px_64px_rgba(0,0,0,0.2)]">
-            <div className="print-area">
-                <DialogHeader className="p-8 bg-purple-600 text-white">
+        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col rounded-[2rem] p-0 overflow-hidden border-0 bg-background shadow-2xl">
+            <div className="print-area flex flex-col flex-1 min-h-0">
+                {/* Cabeçalho fixo */}
+                <DialogHeader className="shrink-0 p-8 bg-purple-600 text-white">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
                             <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center">
@@ -118,26 +127,41 @@ const OrderDetailsDialog = ({ order }: { order: Order }) => {
                     </div>
                 </DialogHeader>
 
-                <div className="p-8 max-h-[70vh] md:max-h-none overflow-y-auto md:overflow-visible">
+                {/* Conteúdo rolável */}
+                <div className="flex-1 overflow-y-auto p-8 min-h-0">
+                    {order.edited_by_admin && (
+                        <div className="mb-6 p-4 rounded-2xl bg-blue-50 border border-blue-200 flex items-start gap-3">
+                            <AlertTriangle className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
+                            <div>
+                                <p className="text-sm font-bold text-blue-800">Este pedido foi alterado pela franqueadora</p>
+                                {order.edit_reason && <p className="text-sm text-blue-700 mt-0.5">{order.edit_reason}</p>}
+                                {order.edited_at && (
+                                    <p className="text-xs text-blue-500 mt-1">
+                                        {format(new Date(order.edited_at), "dd/MM/yyyy 'às' HH:mm")}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                    )}
                     <div className="grid md:grid-cols-2 gap-8 mb-8">
-                        <div className="p-6 rounded-3xl bg-gray-50/50 dark:bg-white/5 border border-gray-100/50 dark:border-white/5">
-                            <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">Dados do Franqueado</h4>
+                        <div className="p-6 rounded-3xl bg-muted/50 border border-border/50">
+                            <h4 className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-3">Dados do Franqueado</h4>
                             <p className="font-bold text-xl text-purple-700 dark:text-purple-400">{order.profiles?.full_name}</p>
                             <div className="flex items-center gap-2 mt-2">
                                 <Badge variant="outline" className="rounded-lg border-purple-200 text-purple-600">{order.payment_method}</Badge>
                             </div>
                         </div>
-                        <div className="p-6 rounded-3xl bg-gray-50/50 dark:bg-white/5 border border-gray-100/50 dark:border-white/5">
-                            <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">Data e Hora</h4>
+                        <div className="p-6 rounded-3xl bg-muted/50 border border-border/50">
+                            <h4 className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-3">Data e Hora</h4>
                             <p className="font-bold text-xl">{format(new Date(order.created_at), "dd/MM/yyyy")}</p>
-                            <p className="text-sm text-gray-500">{format(new Date(order.created_at), "HH:mm'h'")}</p>
+                            <p className="text-sm text-muted-foreground">{format(new Date(order.created_at), "HH:mm'h'")}</p>
                         </div>
                     </div>
 
-                    <div className="rounded-[2rem] border border-gray-100 dark:border-white/10 overflow-hidden mb-8 shadow-sm">
+                    <div className="rounded-[2rem] border border-border overflow-hidden mb-8 shadow-sm">
                         <Table>
-                            <TableHeader className="bg-gray-50/50 dark:bg-white/5">
-                                <TableRow className="border-b border-gray-100 dark:border-white/10">
+                            <TableHeader className="bg-muted/50">
+                                <TableRow className="border-b border-border">
                                     <TableHead className="font-black text-xs uppercase tracking-wider h-12">Cód.</TableHead>
                                     <TableHead className="font-black text-xs uppercase tracking-wider h-12">Item / Unidade</TableHead>
                                     <TableHead className="text-center font-black text-xs uppercase tracking-wider h-12">Qtd</TableHead>
@@ -150,29 +174,29 @@ const OrderDetailsDialog = ({ order }: { order: Order }) => {
                                 {isLoading ? (
                                     <TableRow><TableCell colSpan={5} className="text-center py-12">
                                         <div className="flex flex-col items-center gap-2">
-                                            <Package className="h-8 w-8 text-gray-200 animate-bounce" />
-                                            <span className="text-sm text-gray-400">Carregando itens...</span>
+                                            <Package className="h-8 w-8 text-muted-foreground/40 animate-bounce" />
+                                            <span className="text-sm text-muted-foreground">Carregando itens...</span>
                                         </div>
                                     </TableCell></TableRow>
                                 ) : items?.map((item) => (
-                                    <TableRow key={item.id} className="border-b border-gray-50 dark:border-white/5 hover:bg-gray-50/30 dark:hover:bg-white/5 transition-colors">
+                                    <TableRow key={item.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
                                         <TableCell className="py-4">
-                                            <span className="font-mono text-[10px] text-gray-400 font-bold">
+                                            <span className="font-mono text-[10px] text-muted-foreground font-bold">
                                                 {item.franchisee_products?.code || '—'}
                                             </span>
                                         </TableCell>
                                         <TableCell className="font-bold py-4">
                                             {item.franchisee_products?.name}
-                                            <p className="text-[10px] text-gray-400 font-medium tracking-tight uppercase">{item.franchisee_products?.unit}</p>
+                                            <p className="text-[10px] text-muted-foreground font-medium tracking-tight uppercase">{item.franchisee_products?.unit}</p>
                                         </TableCell>
-                                        <TableCell className="text-center font-black text-gray-700 dark:text-gray-300">{item.quantity}</TableCell>
+                                        <TableCell className="text-center font-black text-foreground">{item.quantity}</TableCell>
                                         <TableCell className="text-right text-sm">{formatBRL(item.unit_price)}</TableCell>
                                         {order.payment_method === 'Boleto' && (
                                             <TableCell className="text-right text-purple-600 font-bold text-xs">
                                                 +{formatBRL((item.taxa_boleto_unit_applied || 0) * item.quantity)}
                                             </TableCell>
                                         )}
-                                        <TableCell className="text-right font-black text-gray-900 dark:text-white">{formatBRL(item.subtotal)}</TableCell>
+                                        <TableCell className="text-right font-black text-foreground">{formatBRL(item.subtotal)}</TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
@@ -181,24 +205,24 @@ const OrderDetailsDialog = ({ order }: { order: Order }) => {
 
                     <div className="space-y-4 bg-purple-50/50 dark:bg-purple-900/10 p-8 rounded-[2rem] border border-purple-100/50 dark:border-purple-500/10 shadow-inner">
                         <div className="flex justify-between items-center text-sm">
-                            <span className="font-medium text-gray-500">Subtotal Bruto</span>
+                            <span className="font-medium text-muted-foreground">Subtotal Bruto</span>
                             <span className="font-bold">{formatBRL(order.subtotal)}</span>
                         </div>
                         {order.fees_total > 0 && (
                             <div className="flex justify-between items-center">
                                 <div className="flex items-center gap-2">
-                                    <span className="text-gray-500 text-sm">Taxa Boleto Bancário</span>
+                                    <span className="text-muted-foreground text-sm">Taxa Boleto Bancário</span>
                                     <Badge variant="secondary" className="bg-purple-100 text-purple-700 text-[10px] rounded-md font-bold">EMBUTIDO</Badge>
                                 </div>
                                 <span className="font-bold text-purple-600">{formatBRL(order.fees_total)}</span>
                             </div>
                         )}
                         <div className="flex justify-between items-center text-sm">
-                            <span className="font-medium text-gray-500">Taxa de Publicidade</span>
+                            <span className="font-medium text-muted-foreground">Taxa de Publicidade</span>
                             <span className="font-bold text-blue-600">{formatBRL(order.advertising_fee)}</span>
                         </div>
                         <div className="pt-4 border-t border-purple-200/50 dark:border-purple-500/20 flex justify-between items-center">
-                            <span className="font-black text-xl uppercase tracking-tighter text-gray-900 dark:text-white">Total Líquido</span>
+                            <span className="font-black text-xl uppercase tracking-tighter text-foreground">Total Líquido</span>
                             <span className="font-black text-3xl text-purple-600 drop-shadow-sm">{formatBRL(order.total_amount)}</span>
                         </div>
                     </div>
@@ -211,21 +235,22 @@ const OrderDetailsDialog = ({ order }: { order: Order }) => {
                             </p>
                         </div>
                     )}
+                </div>
 
-                    <div className="mt-8 flex gap-3 no-print">
-                        <Button
-                            onClick={handlePrint}
-                            className="flex-1 h-14 rounded-2xl bg-white hover:bg-gray-100 border border-gray-200 text-gray-900 font-bold gap-2 shadow-sm"
-                        >
-                            <FileText className="h-5 w-5" /> Imprimir Pedido
-                        </Button>
-                        <Button
-                            onClick={async () => await exportOrderDetailsPDF(order, items || [])}
-                            className="flex-1 h-14 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white font-bold gap-2 shadow-lg shadow-purple-500/20"
-                        >
-                            <FileText className="h-5 w-5" /> Exportar PDF
-                        </Button>
-                    </div>
+                {/* Área de ação fixa */}
+                <div className="shrink-0 flex gap-3 p-8 pt-4 border-t border-border no-print">
+                    <Button
+                        onClick={handlePrint}
+                        className="flex-1 h-14 rounded-2xl bg-background hover:bg-muted border border-border text-foreground font-bold gap-2 shadow-sm"
+                    >
+                        <FileText className="h-5 w-5" /> Imprimir Pedido
+                    </Button>
+                    <Button
+                        onClick={async () => await exportOrderDetailsPDF(order, items || [])}
+                        className="flex-1 h-14 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white font-bold gap-2 shadow-lg shadow-purple-500/20"
+                    >
+                        <FileText className="h-5 w-5" /> Exportar PDF
+                    </Button>
                 </div>
             </div>
         </DialogContent>
@@ -236,37 +261,18 @@ const OrderManagement = () => {
     const queryClient = useQueryClient();
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState<string | null>(null);
+    const [despachando, setDespachando] = useState<{ id: string; name: string } | null>(null);
+    const [editando, setEditando] = useState<Order | null>(null);
 
-    /* ─── Real-time Sound Notification ─── */
-    useEffect(() => {
-        const channel = supabase
-            .channel('public:franchisee_orders')
-            .on(
-                'postgres_changes',
-                { event: 'INSERT', schema: 'public', table: 'franchisee_orders' },
-                (payload) => {
-                    playNotificationSound();
-                    toast.success('Novo pedido recebido!', {
-                        description: `Um novo pedido acaba de chegar.`,
-                        action: {
-                            label: 'Ver Pedido',
-                            onClick: () => console.log('Ver pedido', payload.new.id)
-                        }
-                    });
-                    queryClient.invalidateQueries({ queryKey: ['admin_orders'] });
-                }
-            )
-            .subscribe();
+    // Rotas do dia (de todos os motoristas) — usadas no diálogo de Despachar
+    // Carga pra agrupar o pedido numa rota existente, em vez de criar uma
+    // nova rota a cada despacho.
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const { data: rotasDoDia = [] } = useRotaDoDia(today);
 
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, [queryClient]);
-
-    const playNotificationSound = () => {
-        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-        audio.play().catch(e => console.error("Erro ao tocar som:", e));
-    };
+    // Alerta sonoro + visual de novo pedido agora é global (independente da
+    // tela), montado em AdminLayout via useRealtimeFranchiseeOrders — ver
+    // src/hooks/useRealtimeFranchiseeOrders.ts e NewFranchiseeOrderAlert.tsx.
 
     /* ─── Queries ─── */
     const { data: orders, isLoading, error } = useQuery({
@@ -288,7 +294,49 @@ const OrderManagement = () => {
                 throw error;
             }
             console.log('Pedidos encontrados:', data?.length);
-            return (data as any) as Order[];
+
+            const result = (data as any) as Order[];
+
+            // Exibe o nome da LOJA/FRANQUIA, não da pessoa logada — resolve via
+            // stores.franchisee_user_id (vínculo direto) e, pra quem só opera a
+            // unidade via user_unidades (ex: conta promovida de cliente comum a
+            // operadora), cai nesse fallback. profiles.full_name só é mantido
+            // como último recurso se nenhuma loja for encontrada.
+            const franchiseeUserIds = [...new Set(result.map(o => o.franchisee_user_id).filter(Boolean))];
+
+            if (franchiseeUserIds.length > 0) {
+                const nomeLojaPorUsuario: Record<string, string> = {};
+
+                const { data: lojasDirectas } = await supabase
+                    .from('stores')
+                    .select('franchisee_user_id, name')
+                    .in('franchisee_user_id', franchiseeUserIds);
+                (lojasDirectas || []).forEach((s: any) => {
+                    if (s.franchisee_user_id) nomeLojaPorUsuario[s.franchisee_user_id] = s.name;
+                });
+
+                const semVinculoDireto = franchiseeUserIds.filter(id => !nomeLojaPorUsuario[id]);
+                if (semVinculoDireto.length > 0) {
+                    const { data: unidades } = await (supabase as any)
+                        .from('user_unidades')
+                        .select('usuario_id, store:stores(name)')
+                        .in('usuario_id', semVinculoDireto);
+                    (unidades || []).forEach((u: any) => {
+                        if (u.store?.name && !nomeLojaPorUsuario[u.usuario_id]) {
+                            nomeLojaPorUsuario[u.usuario_id] = u.store.name;
+                        }
+                    });
+                }
+
+                result.forEach(o => {
+                    const nomeLoja = nomeLojaPorUsuario[o.franchisee_user_id];
+                    if (nomeLoja) {
+                        o.profiles = { ...o.profiles, full_name: nomeLoja };
+                    }
+                });
+            }
+
+            return result;
         }
     });
 
@@ -306,6 +354,7 @@ const OrderManagement = () => {
             toast.success('Status atualizado com sucesso!');
         }
     });
+
 
     const getStatusBadge = (status: string) => {
         switch (status) {
@@ -332,7 +381,11 @@ const OrderManagement = () => {
                     <p className="text-muted-foreground mt-1 font-medium">Controle de abastecimento das unidades da rede.</p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <Button variant="outline" onClick={playNotificationSound} className="gap-2">
+                    <Button
+                        variant="outline"
+                        onClick={() => new Audio('/sounds/chegou.mp3').play().catch(() => {})}
+                        className="gap-2"
+                    >
                         <Volume2 className="h-4 w-4" />
                         Testar Som
                     </Button>
@@ -402,6 +455,11 @@ const OrderManagement = () => {
                                         <div className="flex items-center gap-2 mb-1">
                                             <h3 className="font-bold text-lg">{order.profiles?.full_name || 'Unidade não identificada'}</h3>
                                             <span className="text-xs text-gray-400 font-medium">#{order.id.slice(0, 8).toUpperCase()}</span>
+                                            {order.edited_by_admin && (
+                                                <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-0 gap-1 text-[10px]">
+                                                    <Pencil className="h-3 w-3" /> Alterado
+                                                </Badge>
+                                            )}
                                         </div>
                                         <div className="flex items-center gap-3 text-sm">
                                             <span className="text-gray-500">{format(new Date(order.created_at), "dd 'de' MMMM 'às' HH:mm", { locale: ptBR })}</span>
@@ -430,7 +488,17 @@ const OrderManagement = () => {
                                                 <DropdownMenuItem onClick={() => updateStatusMutation.mutate({ orderId: order.id, status: 'approved' })} className="rounded-lg gap-2">
                                                     <CheckCircle2 className="h-4 w-4 text-emerald-500" /> Aprovar Pedido
                                                 </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => updateStatusMutation.mutate({ orderId: order.id, status: 'shipping' })} className="rounded-lg gap-2">
+                                                <DropdownMenuItem onClick={() => setEditando(order)} className="rounded-lg gap-2">
+                                                    <Pencil className="h-4 w-4 text-blue-500" /> Editar Pedido
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem
+                                                    onClick={() => setDespachando({
+                                                        id: order.id,
+                                                        name: order.profiles?.full_name ?? 'Franqueado',
+                                                    })}
+                                                    disabled={order.status === 'shipping' || order.status === 'delivered'}
+                                                    className="rounded-lg gap-2"
+                                                >
                                                     <PackageIcon className="h-4 w-4 text-purple-500" /> Despachar Carga
                                                 </DropdownMenuItem>
                                                 <DropdownMenuItem onClick={() => updateStatusMutation.mutate({ orderId: order.id, status: 'delivered' })} className="rounded-lg gap-2">
@@ -456,6 +524,27 @@ const OrderManagement = () => {
                         </Card>
                     ))}
                 </div>
+            )}
+
+            {despachando && (
+                <DespacharCargaDialog
+                    open={!!despachando}
+                    onOpenChange={(v) => !v && setDespachando(null)}
+                    franchiseeOrderId={despachando.id}
+                    franchiseeName={despachando.name}
+                    rotas={rotasDoDia}
+                />
+            )}
+
+            {editando && (
+                <EditOrderDialog
+                    open={!!editando}
+                    onOpenChange={(v) => !v && setEditando(null)}
+                    orderId={editando.id}
+                    originalSubtotal={editando.subtotal}
+                    originalAdvertisingFee={editando.advertising_fee}
+                    paymentMethod={editando.payment_method}
+                />
             )}
         </div>
     );

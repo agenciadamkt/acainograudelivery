@@ -16,9 +16,10 @@ interface AccountSelectProps {
     value: string;
     onChange: (value: string) => void;
     placeholder?: string;
+    disabled?: boolean;
 }
 
-export default function AccountSelect({ value, onChange, placeholder = "Selecionar conta..." }: AccountSelectProps) {
+export default function AccountSelect({ value, onChange, placeholder = "Selecionar conta...", disabled = false }: AccountSelectProps) {
     const { data: franchiseeId } = useFranchiseeId();
 
     const { data: accounts, isLoading } = useQuery({
@@ -44,7 +45,7 @@ export default function AccountSelect({ value, onChange, placeholder = "Selecion
     };
 
     return (
-        <Select value={value} onValueChange={onChange} disabled={isLoading}>
+        <Select value={value} onValueChange={onChange} disabled={isLoading || disabled}>
             <SelectTrigger className="bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10 h-10">
                 <SelectValue placeholder={isLoading ? "Carregando..." : placeholder} />
             </SelectTrigger>

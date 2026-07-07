@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Search, Plus, Minus, X, Check } from 'lucide-react';
 import { useProductToppingCategories } from '@/hooks/useProductToppingCategories';
 import { useToppings } from '@/hooks/useToppings';
+import { useParentToppingCategoriesLimits } from '@/hooks/useToppingCategories';
 import { cn } from '@/lib/utils';
 
 interface SelectedTopping {
@@ -89,6 +90,43 @@ export function ToppingSelectionModal({
             .reduce((sum, t) => sum + t.quantity, 0);
     };
 
+    // Categorias que são subcategorias (têm parent_id) compartilham o limite
+    // máximo de seleções da Categoria Pai entre si — mesma regra do site do cliente.
+    const parentCategoryIds = useMemo(() => {
+        if (!toppingCategories) return [];
+        return toppingCategories
+            .map(cat => cat.topping_category?.parent_id)
+            .filter((id): id is string => !!id);
+    }, [toppingCategories]);
+
+    const { data: parentCategoryLimits } = useParentToppingCategoriesLimits(parentCategoryIds);
+
+    // Para uma categoria com parent_id, retorna a contagem/limite agregados entre
+    // todas as subcategorias-irmãs do mesmo pai. Sem parent_id, retorna a
+    // contagem/limite de sempre (próprios da categoria no produto).
+    const getCategoryLimitInfo = (categoryId: string) => {
+        const category = toppingCategories?.find(c => c.topping_category_id === categoryId);
+        const parentId = category?.topping_category?.parent_id;
+
+        if (parentId) {
+            const parent = parentCategoryLimits?.find(p => p.id === parentId);
+            const siblingCategoryIds = (toppingCategories || [])
+                .filter(c => c.topping_category?.parent_id === parentId)
+                .map(c => c.topping_category_id);
+            const count = selectedToppings
+                .filter(t => siblingCategoryIds.includes(t.categoryId))
+                .reduce((sum, t) => sum + t.quantity, 0);
+            return { count, max: parent?.max_selections || 0, isShared: true, parentName: parent?.name as string | undefined };
+        }
+
+        return {
+            count: getSelectedCountForCategory(categoryId),
+            max: category?.max_quantity || 0,
+            isShared: false,
+            parentName: undefined as string | undefined,
+        };
+    };
+
     // Check if a category's requirements are met
     const isCategoryValid = (cat: any) => {
         const count = getSelectedCountForCategory(cat.topping_category_id);
@@ -111,8 +149,8 @@ export function ToppingSelectionModal({
         const category = toppingCategories?.find(c => c.topping_category_id === categoryId);
         if (!category) return;
 
-        const currentCount = getSelectedCountForCategory(categoryId);
-        if (currentCount >= category.max_quantity) return; // Max reached
+        const { count, max } = getCategoryLimitInfo(categoryId);
+        if (max > 0 && count >= max) return; // Max reached (own or shared with parent group)
 
         setSelectedToppings(prev => {
             const existing = prev.find(t => t.id === topping.id);
@@ -230,10 +268,9 @@ export function ToppingSelectionModal({
                     ) : (
                         <div className="space-y-6 py-4">
                             {Array.from(toppingsByCategory.entries()).map(([categoryId, { category, toppings }]) => {
-                                const selectedCount = getSelectedCountForCategory(categoryId);
+                                const { count: selectedCount, max: maxQty, isShared, parentName } = getCategoryLimitInfo(categoryId);
                                 const isRequired = category.required;
                                 const minQty = category.min_quantity;
-                                const maxQty = category.max_quantity;
                                 const isValid = isCategoryValid(category);
                                 const filteredToppings = filterToppings(toppings);
 
@@ -250,6 +287,7 @@ export function ToppingSelectionModal({
                                                         ? `Escolha ${minQty === maxQty ? minQty : `${minQty} a ${maxQty}`} opção${maxQty > 1 ? 'es' : ''}.`
                                                         : `Escolha até ${maxQty} opção${maxQty > 1 ? 'es' : ''}.`
                                                     }
+                                                    {isShared && ` (compartilhado com "${parentName}")`}
                                                 </p>
                                             </div>
                                             <Badge

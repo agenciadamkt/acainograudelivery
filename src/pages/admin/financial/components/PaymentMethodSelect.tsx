@@ -34,9 +34,10 @@ import { toast } from 'sonner';
 interface PaymentMethodSelectProps {
     value: string;
     onChange: (value: string, isCredit: boolean) => void;
+    disabled?: boolean;
 }
 
-export function PaymentMethodSelect({ value, onChange }: PaymentMethodSelectProps) {
+export function PaymentMethodSelect({ value, onChange, disabled = false }: PaymentMethodSelectProps) {
     const [open, setOpen] = useState(false);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
 
@@ -93,12 +94,13 @@ export function PaymentMethodSelect({ value, onChange }: PaymentMethodSelectProp
 
     return (
         <>
-            <Popover open={open} onOpenChange={setOpen}>
+            <Popover open={open} onOpenChange={(o) => !disabled && setOpen(o)}>
                 <PopoverTrigger asChild>
                     <Button
                         variant="outline"
                         role="combobox"
                         aria-expanded={open}
+                        disabled={disabled}
                         className="w-full justify-between"
                     >
                         {selectedMethod ? (

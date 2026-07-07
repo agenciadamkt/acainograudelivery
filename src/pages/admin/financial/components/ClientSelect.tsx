@@ -33,9 +33,10 @@ import { useFranchiseeId } from '@/hooks/useFranchiseeId';
 interface ClientSelectProps {
     value: string;
     onChange: (value: string) => void;
+    disabled?: boolean;
 }
 
-export function ClientSelect({ value, onChange }: ClientSelectProps) {
+export function ClientSelect({ value, onChange, disabled = false }: ClientSelectProps) {
     const [open, setOpen] = useState(false);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -155,12 +156,13 @@ export function ClientSelect({ value, onChange }: ClientSelectProps) {
 
     return (
         <>
-            <Popover open={open} onOpenChange={setOpen}>
+            <Popover open={open} onOpenChange={(o) => !disabled && setOpen(o)}>
                 <PopoverTrigger asChild>
                     <Button
                         variant="outline"
                         role="combobox"
                         aria-expanded={open}
+                        disabled={disabled}
                         className="w-full justify-between"
                     >
                         {value

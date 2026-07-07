@@ -35,6 +35,7 @@ import { cn } from '@/lib/utils';
 
 import CartDrawer from './components/CartDrawer';
 import { CategorySection } from './components/CategorySection';
+import { ProductImagePlaceholder } from './components/ProductImagePlaceholder';
 import { useFranchiseeCart } from '@/hooks/useFranchiseeCart';
 import { SpringElement } from '@/components/ui/spring-element';
 import { MASCOTE_BASE64 } from '@/assets/mascote-data';
@@ -112,6 +113,26 @@ const OrderCatalog = () => {
         },
         enabled: !!user?.id
     });
+
+    // Nome de exibição do usuário logado: prioriza user_profiles.nome (RBAC
+    // novo, mantido ativamente via tela de Usuários) sobre profiles.full_name
+    // — esse último é um campo legado que já apareceu vazio ou com o nome da
+    // unidade em vez do nome da pessoa, dependendo de como a conta foi
+    // criada.
+    const { data: userProfileNome } = useQuery({
+        queryKey: ['user_profile_nome', user?.id],
+        queryFn: async () => {
+            const { data } = await (supabase as any)
+                .from('user_profiles')
+                .select('nome')
+                .eq('id', user?.id)
+                .single();
+            return data?.nome as string | undefined;
+        },
+        enabled: !!user?.id
+    });
+
+    const displayName = userProfileNome || profile?.full_name || 'Franqueado';
 
     // Fetch franchisee store
     const { data: store } = useQuery({
@@ -284,7 +305,7 @@ const OrderCatalog = () => {
                             </Badge>
                         </div>
                         <h1 className="text-4xl md:text-5xl font-black tracking-tight flex items-center gap-3">
-                            Olá, {profile?.full_name?.split(' ')[0] || 'Franqueado'}
+                            Olá, {displayName.split(' ')[0]}
                             <span className="hidden sm:inline animate-bounce">👋</span>
                         </h1>
                         <p className="text-gray-500 font-medium text-lg leading-relaxed">Prepare sua unidade para um dia de sucesso. 🍦</p>
@@ -301,7 +322,7 @@ const OrderCatalog = () => {
                                     <img src={profile.avatar_url} className="w-full h-full rounded-lg object-cover" alt="User" />
                                 ) : (
                                     <div className="w-full h-full rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center font-black text-purple-600">
-                                        {profile?.full_name?.charAt(0) || 'U'}
+                                        {displayName.charAt(0)}
                                     </div>
                                 )}
                                 {isFranchisee && (
@@ -311,7 +332,7 @@ const OrderCatalog = () => {
                                 )}
                             </div>
                             <div className="hidden sm:block mr-2 text-right">
-                                <p className="text-sm font-black leading-tight">{profile?.full_name || 'Franqueado'}</p>
+                                <p className="text-sm font-black leading-tight">{displayName}</p>
                                 <p className="text-[10px] text-purple-600 font-bold uppercase tracking-wider">
                                     {store?.name || 'Carregando...'} • CD: {store?.distribution_center?.name || 'Geral'}
                                 </p>
@@ -609,15 +630,19 @@ const OrderCatalog = () => {
                                                         )}
                                                         onClick={() => p.current_stock > 0 && navigate(`/admin/orders/catalog/${p.id}`)}
                                                     >
-                                                        <img
-                                                            src={p.image_url || `https://images.unsplash.com/photo-1579954115545-a95291e68b98?auto=format&fit=crop&w=800&q=80`}
-                                                            loading="lazy"
-                                                            className={cn(
-                                                                "w-full h-full object-contain transition-transform duration-700",
-                                                                p.current_stock === 0 ? "opacity-40 grayscale" : "group-hover:scale-110"
-                                                            )}
-                                                            alt={p.name}
-                                                        />
+                                                        {p.image_url ? (
+                                                            <img
+                                                                src={p.image_url}
+                                                                loading="lazy"
+                                                                className={cn(
+                                                                    "w-full h-full object-contain transition-transform duration-700",
+                                                                    p.current_stock === 0 ? "opacity-40 grayscale" : "group-hover:scale-110"
+                                                                )}
+                                                                alt={p.name}
+                                                            />
+                                                        ) : (
+                                                            <ProductImagePlaceholder className={cn(p.current_stock === 0 && "opacity-60")} />
+                                                        )}
                                                         {p.current_stock > 0 && <div className="absolute inset-0 bg-gradient-to-t from-black/5 to-transparent group-hover:opacity-100 opacity-0 transition-opacity" />}
                                                     </div>
 

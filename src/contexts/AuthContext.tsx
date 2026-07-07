@@ -3,6 +3,7 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { getAppUrl } from '@/lib/utils';
 
 export type UserRole = 'admin' | 'manager' | 'staff' | 'franchisee_master';
 
@@ -186,7 +187,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const resetPassword = async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/admin/update-password`,
+      redirectTo: `${getAppUrl()}/admin/update-password`,
     });
     return { error };
   };

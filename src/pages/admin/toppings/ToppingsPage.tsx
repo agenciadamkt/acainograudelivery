@@ -164,10 +164,35 @@ export default function ToppingsPage() {
     },
   ];
 
+  // Agrupa cada subcategoria logo abaixo da sua categoria pai, para a
+  // hierarquia ficar visível na tabela.
+  const sortedCategories = (() => {
+    const list = categories || [];
+    const topLevel = list.filter((c) => !c.parent_id);
+    const childrenByParent = new Map<string, ToppingCategory[]>();
+    list.forEach((c) => {
+      if (c.parent_id) {
+        childrenByParent.set(c.parent_id, [...(childrenByParent.get(c.parent_id) || []), c]);
+      }
+    });
+
+    const result: ToppingCategory[] = [];
+    topLevel.forEach((parent) => {
+      result.push(parent);
+      (childrenByParent.get(parent.id) || []).forEach((child) => result.push(child));
+    });
+    return result;
+  })();
+
   const categoryColumns = [
     {
       key: 'name',
       label: 'Nome',
+      render: (cat: ToppingCategory) => (
+        <span className={cat.parent_id ? 'pl-6 flex items-center gap-1 text-muted-foreground' : 'font-medium'}>
+          {cat.parent_id && '↳'} {cat.name}
+        </span>
+      ),
     },
     {
       key: 'max_selections',
@@ -248,7 +273,7 @@ export default function ToppingsPage() {
           </div>
 
           <DataTable
-            data={categories || []}
+            data={sortedCategories}
             columns={categoryColumns}
             isLoading={categoriesLoading}
             searchPlaceholder="Buscar categorias..."

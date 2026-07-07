@@ -17,6 +17,7 @@ import { saveDriverOnlineCache, readDriverOnlineCache } from '@/hooks/frota/useD
 import { useLocationQueue } from '@/hooks/frota/useLocationQueue';
 import { useEventosDaRota } from '@/hooks/frota/useRouteEvents';
 import { watchPosition, type GeoPosition } from '@/lib/platform/geolocation';
+import { App as CapacitorApp } from '@capacitor/app';
 import { useRotaDoDia, useIniciarRota, useConcluirRota, calcularStatusRota, type RotaOrdem, type RotaDoDia } from '@/hooks/useRotaDoDia';
 import { EntregaComprovanteDialog } from '@/components/frota/motorista/EntregaComprovanteDialog';
 import { OcorrenciaDialog } from '@/components/frota/motorista/OcorrenciaDialog';
@@ -196,19 +197,25 @@ export default function MotoristaDashboard() {
   // volta a funcionar sozinho quando o app é reaberto — sem erro nenhum,
   // simplesmente para de mandar localização. Forçar o efeito de GPS a
   // reiniciar (novo watchPosition) sempre que a aba volta a ficar visível
-  // corrige isso. Os eventos freeze/resume (Page Lifecycle, Chrome/Android)
-  // complementam o visibilitychange — alguns navegadores disparam um e não
-  // o outro, então ouvir os dois aumenta a chance de perceber a suspensão.
+  // corrige isso. `visibilitychange` cobre o navegador; `@capacitor/app`
+  // (`resume`) cobre o app nativo voltando de segundo plano — no Capacitor,
+  // isso é bem mais confiável que o antigo `document.addEventListener('resume', ...)`,
+  // que nunca disparava de verdade (não existe esse DOM event nativamente,
+  // era um nome herdado do Cordova). Fora de contexto nativo, o listener do
+  // plugin simplesmente nunca dispara — sem erro, sem efeito colateral.
   useEffect(() => {
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') setTrackingResumeKey(k => k + 1);
     };
-    const handleResume = () => setTrackingResumeKey(k => k + 1);
     document.addEventListener('visibilitychange', handleVisibility);
-    document.addEventListener('resume', handleResume as any);
+
+    const resumeListener = CapacitorApp.addListener('resume', () => {
+      setTrackingResumeKey(k => k + 1);
+    });
+
     return () => {
       document.removeEventListener('visibilitychange', handleVisibility);
-      document.removeEventListener('resume', handleResume as any);
+      resumeListener.then(listener => listener.remove());
     };
   }, []);
 
@@ -310,11 +317,15 @@ export default function MotoristaDashboard() {
         }
       },
       (error) => {
+        console.error('[Frota] Erro de localização:', error.code, error.message);
         switch (error.code) {
           case 1: setLocationError('Permissão de localização negada. Ative nas configurações.'); break;
           case 2: setLocationError('Localização indisponível. Verifique o GPS do dispositivo.'); break;
           case 3: setLocationError('Tempo esgotado ao obter localização. Tente novamente.'); break;
-          default: setLocationError('Erro ao obter localização.');
+          // Erros vindos do plugin nativo (background-geolocation) não têm
+          // um dos 3 códigos acima — mostrar a mensagem real em vez de um
+          // texto genérico, senão fica impossível diagnosticar em campo.
+          default: setLocationError(error.message ? `Erro ao obter localização: ${error.message}` : 'Erro ao obter localização.');
         }
         setGpsAccuracy(null);
       },

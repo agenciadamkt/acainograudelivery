@@ -1,0 +1,30 @@
+require_relative '../../../node_modules/@capacitor/ios/scripts/pods_helpers'
+
+platform :ios, '14.0'
+use_frameworks!
+
+# workaround to avoid Xcode caching of Pods that requires
+# Product -> Clean Build Folder after new Cordova plugins installed
+# Requires CocoaPods 1.6 or newer
+install! 'cocoapods', :disable_input_output_paths => true
+
+def capacitor_pods
+  pod 'Capacitor', :path => '../../../node_modules/@capacitor/ios'
+  pod 'CapacitorCordova', :path => '../../../node_modules/@capacitor/ios'
+  pod 'CapacitorApp', :path => '../../../node_modules/@capacitor/app'
+  pod 'CapacitorPushNotifications', :path => '../../../node_modules/@capacitor/push-notifications'
+end
+
+target 'App' do
+  capacitor_pods
+  # Firebase Cloud Messaging — usado pra converter o token APNs (que o
+  # @capacitor/push-notifications já obtém nativamente) num token FCM, pra
+  # o backend (edge function do Supabase) enviar push pras duas plataformas
+  # através da mesma API do FCM, sem precisar assinar requisições HTTP/2
+  # direto pra APNs.
+  pod 'Firebase/Messaging'
+end
+
+post_install do |installer|
+  assertDeploymentTarget(installer)
+end

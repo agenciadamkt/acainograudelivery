@@ -17,7 +17,8 @@ import {
     BarChart3,
     Bot,
     Users,
-    Home
+    Home,
+    Truck,
 } from 'lucide-react';
 import logoCircular from '@/assets/logo-circular.png';
 
@@ -33,6 +34,7 @@ const moduleConfig: Record<string, { title: string; icon: any; gradient: string 
     '/admin/performance': { title: 'Performance', icon: BarChart3, gradient: 'from-emerald-500 to-green-400' },
     '/admin/assistente': { title: 'Assistente IA', icon: Bot, gradient: 'from-purple-600 to-indigo-500' },
     '/admin/comunidade': { title: 'Comunidade Grau', icon: Users, gradient: 'from-pink-500 to-rose-500' },
+    '/admin/frota': { title: 'Controle de Frota', icon: Truck, gradient: 'from-orange-500 to-amber-400' },
 };
 
 interface GrauOSLayoutProps {

@@ -7,9 +7,32 @@ export interface ToppingCategory {
   id: string;
   name: string;
   store_id: string | null;
+  parent_id: string | null;
   max_selections: number | null;
   display_order: number;
   created_at: string;
+}
+
+// Busca só os dados de limite (nome + max_selections) de categorias específicas
+// pelo id. Usado no fluxo de compra (cliente) para aplicar o limite compartilhado
+// da Categoria Pai entre suas subcategorias, sem depender do contexto de loja do
+// admin (useToppingCategories exige currentStore).
+export function useParentToppingCategoriesLimits(parentIds: string[]) {
+  const uniqueIds = Array.from(new Set(parentIds)).sort();
+
+  return useQuery({
+    queryKey: ['topping-categories-limits', uniqueIds],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('topping_categories')
+        .select('id, name, max_selections')
+        .in('id', uniqueIds);
+
+      if (error) throw error;
+      return data as Pick<ToppingCategory, 'id' | 'name' | 'max_selections'>[];
+    },
+    enabled: uniqueIds.length > 0,
+  });
 }
 
 export function useToppingCategories() {

@@ -14,6 +14,7 @@ export interface ProductToppingCategory {
         id: string;
         name: string;
         max_selections: number | null;
+        parent_id: string | null;
     };
 }
 
@@ -38,7 +39,8 @@ export function useProductToppingCategories(productId: string | undefined) {
           topping_category:topping_categories (
             id,
             name,
-            max_selections
+            max_selections,
+            parent_id
           )
         `)
                     .eq('product_id', productId)

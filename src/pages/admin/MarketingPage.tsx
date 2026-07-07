@@ -8,7 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
     Megaphone, Users, Send, Image as ImageIcon, Plus, Trash2,
-    Save, History, Filter, Clock, Calendar, Loader2, CheckCircle2, XCircle, Cake
+    Save, History, Filter, Clock, Calendar, Loader2, CheckCircle2, XCircle, Cake,
+    MessageCircle, Bell
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -47,11 +48,14 @@ interface Choice {
 }
 
 type Segment = 'all' | 'new' | 'inactive' | 'birthday' | 'vip';
+type Channel = 'whatsapp' | 'push';
 
 export default function MarketingPage() {
     const location = useLocation();
     const queryClient = useQueryClient();
+    const [channel, setChannel] = useState<Channel>('whatsapp');
     const [campaignName, setCampaignName] = useState('');
+    const [pushTitle, setPushTitle] = useState('');
     const [targetPhone, setTargetPhone] = useState('');
     const [message, setMessage] = useState('');
     const [imageUrl, setImageUrl] = useState('');
@@ -192,7 +196,9 @@ export default function MarketingPage() {
                     image_url: imageUrl || null,
                     footer_text: footerText,
                     choices: choices.filter(c => c.title),
-                    category: 'manual'
+                    category: 'manual',
+                    channel,
+                    title: channel === 'push' ? pushTitle : null,
                 })
                 .select()
                 .single();
@@ -246,7 +252,9 @@ export default function MarketingPage() {
                     choices: choices.filter(c => c.title),
                     segment: segment,
                     scheduled_for: scheduledForIso,
-                    status: 'pending' // Começa pendente
+                    status: 'pending', // Começa pendente
+                    channel,
+                    title: channel === 'push' ? pushTitle : null,
                 })
                 .select()
                 .single();
@@ -293,6 +301,33 @@ export default function MarketingPage() {
         }
     });
 
+    const processScheduledCampaigns = useMutation({
+        mutationFn: async () => {
+            const { data, error } = await supabase.functions.invoke('scheduled-campaigns-check', {
+                body: {},
+            });
+            if (error) throw error;
+            return data;
+        },
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: ['admin-scheduled-campaigns'] });
+
+            const report = data?.report as Array<{ name: string; sent?: number; failed?: number; status?: string }> | undefined;
+            if (!report || report.length === 0) {
+                toast({ title: 'Nada pendente', description: data?.message || 'Nenhuma campanha agendada para agora.' });
+                return;
+            }
+
+            const summary = report
+                .map((r) => r.status === 'empty' ? `${r.name}: segmento vazio` : `${r.name}: ${r.sent ?? 0} enviados, ${r.failed ?? 0} falhas`)
+                .join(' • ');
+            toast({ title: `${report.length} campanha(s) processada(s)`, description: summary });
+        },
+        onError: (error: any) => {
+            toast({ title: 'Erro ao processar campanhas', description: error.message, variant: 'destructive' });
+        },
+    });
+
     // ... (rest of helper functions addChoice, etc. same as before)
     const addChoice = () => {
         if (choices.length >= 3) {
@@ -315,19 +350,32 @@ export default function MarketingPage() {
         }
         setIsSending(true);
         try {
-            const { error } = await supabase.functions.invoke('whatsapp-notification', {
-                body: {
-                    test_phone: targetPhone,
-                    campaign_data: {
-                        text: message,
-                        imageButton: imageUrl || undefined,
-                        choices: choices.filter(c => c.title).map(c => `${c.title}|${c.value || c.title}`),
-                        footerText: footerText
+            if (channel === 'push') {
+                const { data, error } = await supabase.functions.invoke('send-customer-push', {
+                    body: {
+                        test_phone: targetPhone,
+                        test_title: pushTitle || 'Teste',
+                        test_message: message,
                     }
-                }
-            });
-            if (error) throw error;
-            toast({ title: 'Teste enviado!', description: `Para ${targetPhone}` });
+                });
+                if (error) throw error;
+                if (data?.error) throw new Error(data.error);
+                toast({ title: 'Push de teste enviado!', description: `Para ${targetPhone}` });
+            } else {
+                const { error } = await supabase.functions.invoke('whatsapp-notification', {
+                    body: {
+                        test_phone: targetPhone,
+                        campaign_data: {
+                            text: message,
+                            imageButton: imageUrl || undefined,
+                            choices: choices.filter(c => c.title).map(c => `${c.title}|${c.value || c.title}`),
+                            footerText: footerText
+                        }
+                    }
+                });
+                if (error) throw error;
+                toast({ title: 'Teste enviado!', description: `Para ${targetPhone}` });
+            }
         } catch (error: any) {
             toast({ title: 'Erro no envio', description: error.message, variant: 'destructive' });
         } finally {
@@ -342,7 +390,7 @@ export default function MarketingPage() {
                     <Megaphone className="h-8 w-8" />
                     Marketing Digital
                 </h1>
-                <p className="text-muted-foreground">Crie campanhas, promoções e engaje seus clientes via WhatsApp.</p>
+                <p className="text-muted-foreground">Crie campanhas, promoções e engaje seus clientes via WhatsApp ou push nativo.</p>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
@@ -354,6 +402,33 @@ export default function MarketingPage() {
                             <CardDescription>Configure sua mensagem de disparos em massa.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
+                            <div className="space-y-2">
+                                <Label>Canal</Label>
+                                <div className="flex gap-2">
+                                    <Button
+                                        type="button"
+                                        variant={channel === 'whatsapp' ? 'default' : 'outline'}
+                                        className={channel === 'whatsapp' ? 'bg-[#25D366] hover:bg-[#128C7E]' : ''}
+                                        onClick={() => setChannel('whatsapp')}
+                                    >
+                                        <MessageCircle className="h-4 w-4 mr-2" /> WhatsApp
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant={channel === 'push' ? 'default' : 'outline'}
+                                        className={channel === 'push' ? 'bg-[#8D42DD] hover:bg-[#7433b8]' : ''}
+                                        onClick={() => setChannel('push')}
+                                    >
+                                        <Bell className="h-4 w-4 mr-2" /> Push (app)
+                                    </Button>
+                                </div>
+                                {channel === 'push' && (
+                                    <p className="text-xs text-muted-foreground">
+                                        Só alcança clientes com o app "Açaí no Grau" instalado e notificações permitidas.
+                                    </p>
+                                )}
+                            </div>
+
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <Label>Nome da Campanha</Label>
@@ -383,7 +458,17 @@ export default function MarketingPage() {
                                 </div>
                             </div>
 
-                            {/* ... (Existing Message & Inputs UI) ... */}
+                            {channel === 'push' && (
+                                <div className="space-y-2">
+                                    <Label>Título da notificação</Label>
+                                    <Input
+                                        placeholder="Ex: Promoção especial! 🎉"
+                                        value={pushTitle}
+                                        onChange={(e) => setPushTitle(e.target.value)}
+                                    />
+                                </div>
+                            )}
+
                             <div className="space-y-2">
                                 <Label>Mensagem</Label>
                                 <Textarea
@@ -395,30 +480,34 @@ export default function MarketingPage() {
                                 <p className="text-xs text-muted-foreground">💡 Use <code>{'{name}'}</code> para o nome do cliente</p>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label>URL da Imagem</Label>
-                                    <Input placeholder="https://..." value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Rodapé</Label>
-                                    <Input placeholder="Açaí no Grau" value={footerText} onChange={(e) => setFooterText(e.target.value)} />
-                                </div>
-                            </div>
-
-                            <div className="space-y-3 pt-2 border-t">
-                                <div className="flex justify-between items-center">
-                                    <Label>Botões (Máx. 3)</Label>
-                                    <Button variant="outline" size="sm" onClick={addChoice}><Plus className="h-4 w-4 mr-1" /> Add Botão</Button>
-                                </div>
-                                {choices.map((choice, index) => (
-                                    <div key={index} className="flex gap-2">
-                                        <Input placeholder="TEXTO" value={choice.title} onChange={(e) => updateChoice(index, 'title', e.target.value)} className="flex-1" />
-                                        <Input placeholder="VALOR (opcional)" value={choice.value} onChange={(e) => updateChoice(index, 'value', e.target.value)} className="flex-1" />
-                                        <Button variant="ghost" size="icon" className="text-red-500" onClick={() => removeChoice(index)}><Trash2 className="h-4 w-4" /></Button>
+                            {channel === 'whatsapp' && (
+                                <>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label>URL da Imagem</Label>
+                                            <Input placeholder="https://..." value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Rodapé</Label>
+                                            <Input placeholder="Açaí no Grau" value={footerText} onChange={(e) => setFooterText(e.target.value)} />
+                                        </div>
                                     </div>
-                                ))}
-                            </div>
+
+                                    <div className="space-y-3 pt-2 border-t">
+                                        <div className="flex justify-between items-center">
+                                            <Label>Botões (Máx. 3)</Label>
+                                            <Button variant="outline" size="sm" onClick={addChoice}><Plus className="h-4 w-4 mr-1" /> Add Botão</Button>
+                                        </div>
+                                        {choices.map((choice, index) => (
+                                            <div key={index} className="flex gap-2">
+                                                <Input placeholder="TEXTO" value={choice.title} onChange={(e) => updateChoice(index, 'title', e.target.value)} className="flex-1" />
+                                                <Input placeholder="VALOR (opcional)" value={choice.value} onChange={(e) => updateChoice(index, 'value', e.target.value)} className="flex-1" />
+                                                <Button variant="ghost" size="icon" className="text-red-500" onClick={() => removeChoice(index)}><Trash2 className="h-4 w-4" /></Button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </>
+                            )}
 
                             <div className="flex justify-end gap-3 pt-4">
                                 <Button variant="outline" onClick={() => saveCampaign.mutate()} disabled={saveCampaign.isPending}>
@@ -444,7 +533,11 @@ export default function MarketingPage() {
                                     </DialogContent>
                                 </Dialog>
 
-                                <Button className="bg-[#25D366] hover:bg-[#128C7E]" onClick={() => scheduleOrSendCampaign.mutate({ isScheduled: false })} disabled={isSending}>
+                                <Button
+                                    className={channel === 'push' ? 'bg-[#8D42DD] hover:bg-[#7433b8]' : 'bg-[#25D366] hover:bg-[#128C7E]'}
+                                    onClick={() => scheduleOrSendCampaign.mutate({ isScheduled: false })}
+                                    disabled={isSending}
+                                >
                                     {isSending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
                                     Enviar Agora
                                 </Button>
@@ -476,6 +569,8 @@ export default function MarketingPage() {
                                                     setMessage(camp.message);
                                                     setImageUrl(camp.image_url || '');
                                                     setFooterText(camp.footer_text || 'Açaí no Grau');
+                                                    setChannel(camp.channel === 'push' ? 'push' : 'whatsapp');
+                                                    setPushTitle(camp.title || '');
                                                     if (camp.choices && Array.isArray(camp.choices)) {
                                                         // Ensure valid choices structure
                                                         const cleanChoices = camp.choices.map((c: any) => ({
@@ -525,26 +620,60 @@ export default function MarketingPage() {
                     <Card className="bg-muted/30">
                         <CardHeader><CardTitle className="text-sm">Prévia Mobile</CardTitle></CardHeader>
                         <CardContent className="flex justify-center py-6">
-                            <div className="w-[280px] bg-white rounded-xl shadow-lg border-4 border-gray-100 overflow-hidden">
-                                <div className="bg-[#075e54] p-2 text-white h-12 flex items-center">
-                                    <div className="text-[10px] font-bold">Loja Açaí no Grau</div>
-                                </div>
-                                {imageUrl && <img src={imageUrl} className="w-full h-40 object-cover" />}
-                                <div className="p-3 bg-[#e5ddd5] min-h-[100px]">
-                                    <div className="bg-white p-2 rounded-lg shadow-sm text-[13px] relative mb-2">
-                                        {message || 'Sua mensagem...'}
-                                        <span className="text-[8px] text-gray-400 block text-right mt-1">14:00</span>
+                            {channel === 'push' ? (
+                                <div className="w-[280px] bg-[#1c1c1e] rounded-xl shadow-lg p-3">
+                                    <div className="bg-[#2c2c2e] rounded-lg p-3 flex gap-2 items-start">
+                                        <div className="w-8 h-8 rounded-md bg-[#8D42DD] flex items-center justify-center shrink-0">
+                                            <Bell className="h-4 w-4 text-white" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex justify-between items-baseline">
+                                                <span className="text-[10px] font-semibold text-gray-300">Açaí no Grau</span>
+                                                <span className="text-[9px] text-gray-500">agora</span>
+                                            </div>
+                                            <p className="text-[12px] font-semibold text-white truncate">{pushTitle || 'Título da notificação'}</p>
+                                            <p className="text-[11px] text-gray-300 line-clamp-2">{message || 'Sua mensagem...'}</p>
+                                        </div>
                                     </div>
-                                    {choices.map((c, i) => c.title && (
-                                        <div key={i} className="bg-white py-1.5 text-center text-[#128c7e] text-xs font-bold rounded mb-1 shadow-sm">{c.title}</div>
-                                    ))}
                                 </div>
-                            </div>
+                            ) : (
+                                <div className="w-[280px] bg-white rounded-xl shadow-lg border-4 border-gray-100 overflow-hidden">
+                                    <div className="bg-[#075e54] p-2 text-white h-12 flex items-center">
+                                        <div className="text-[10px] font-bold">Loja Açaí no Grau</div>
+                                    </div>
+                                    {imageUrl && <img src={imageUrl} className="w-full h-40 object-cover" />}
+                                    <div className="p-3 bg-[#e5ddd5] min-h-[100px]">
+                                        <div className="bg-white p-2 rounded-lg shadow-sm text-[13px] relative mb-2">
+                                            {message || 'Sua mensagem...'}
+                                            <span className="text-[8px] text-gray-400 block text-right mt-1">14:00</span>
+                                        </div>
+                                        {choices.map((c, i) => c.title && (
+                                            <div key={i} className="bg-white py-1.5 text-center text-[#128c7e] text-xs font-bold rounded mb-1 shadow-sm">{c.title}</div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
 
                     <Card>
-                        <CardHeader><CardTitle className="text-sm">Histórico de Disparos</CardTitle></CardHeader>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                            <CardTitle className="text-sm">Histórico de Disparos</CardTitle>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-xs"
+                                disabled={processScheduledCampaigns.isPending}
+                                onClick={() => processScheduledCampaigns.mutate()}
+                            >
+                                {processScheduledCampaigns.isPending ? (
+                                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                ) : (
+                                    <Clock className="h-3 w-3 mr-1" />
+                                )}
+                                Processar Agendadas
+                            </Button>
+                        </CardHeader>
                         <CardContent>
                             <Table>
                                 <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>

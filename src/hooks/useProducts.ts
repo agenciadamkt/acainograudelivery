@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useStore } from '@/contexts/StoreContext';
 
 export interface Product {
   id: string;
@@ -34,19 +35,28 @@ export type ProductInput = Omit<Product, 'id' | 'created_at' | 'updated_at' | 'c
   category_id: string;
 };
 
-export function useProducts(categoryId?: string, activeOnly = false) {
+// Produtos não têm store_id próprio — pertencem a uma loja indiretamente
+// via category_id -> categories.store_id (mesmo modelo de useCategories/useToppings).
+export function useProducts(categoryId?: string, activeOnly = false, storeId?: string | null) {
+  const { currentStore } = useStore();
+  const effectiveStoreId = storeId !== undefined ? storeId : currentStore?.id;
+
   return useQuery({
-    queryKey: ['products', categoryId, activeOnly],
+    queryKey: ['products', categoryId, activeOnly, effectiveStoreId],
     queryFn: async () => {
       let query = supabase
         .from('products')
         .select(`
           *,
-          category:categories(id, name, icon),
+          category:categories!inner(id, name, icon, store_id),
           distribution_center:distribution_centers(id, name)
         `)
         .order('display_order', { ascending: true })
         .order('name', { ascending: true });
+
+      if (effectiveStoreId) {
+        query = query.eq('category.store_id', effectiveStoreId);
+      }
 
       if (categoryId && categoryId !== 'all') {
         query = query.eq('category_id', categoryId);
@@ -144,11 +154,28 @@ export function useDeleteProduct() {
         .delete()
         .eq('id', id);
 
-      if (error) throw error;
+      if (error) {
+        // 23503 = FK violation: o produto já tem pedidos (order_items) associados.
+        // Excluir apagaria histórico de vendas, então desativa em vez de excluir.
+        if (error.code === '23503') {
+          const { error: deactivateError } = await supabase
+            .from('products')
+            .update({ active: false })
+            .eq('id', id);
+          if (deactivateError) throw deactivateError;
+          return { deactivated: true };
+        }
+        throw error;
+      }
+      return { deactivated: false };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
-      toast.success('Produto excluído com sucesso!');
+      if (result?.deactivated) {
+        toast.info('Este produto já tem vendas registradas e não pode ser excluído — ele foi desativado em vez disso.');
+      } else {
+        toast.success('Produto excluído com sucesso!');
+      }
     },
     onError: (error: Error) => {
       toast.error(`Erro ao excluir produto: ${error.message}`);

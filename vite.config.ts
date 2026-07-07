@@ -21,11 +21,11 @@ export default defineConfig(({ mode }) => ({
       },
       includeAssets: ["favicon.ico", "robots.txt", "logo-192x192.png", "logo-512x512.png"],
       manifest: {
-        name: "PedeGrau - Delivery de Açaí no Grau",
+        name: "GrauOS - Sistema Operacional da Franquia",
         short_name: "PedeGrau",
         description: "Peça seu Açaí no Grau com delivery rápido e fácil. Encontre a loja mais próxima e aproveite nossas promoções exclusivas!",
-        theme_color: "#6854AB",
-        background_color: "#6854AB",
+        theme_color: "#532089",
+        background_color: "#532089",
         display: "standalone",
         orientation: "portrait",
         scope: "/",
@@ -47,12 +47,12 @@ export default defineConfig(({ mode }) => ({
       },
       workbox: {
         importScripts: ['/sw-custom.js'], // Import custom logic
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         skipWaiting: true, // FORCE immediate activation - critical for updates
         navigateFallback: "index.html",
-        navigateFallbackDenylist: [/^\/api/], // Only exclude API routes, allow admin SPA routes
+        navigateFallbackDenylist: [/^\/api/, /^\/experience-nograu/],
         runtimeCaching: [
           // HTML / Navigation - NetworkFirst
           {

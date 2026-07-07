@@ -1,0 +1,8 @@
+{
+  "name": "acainograu-ollama",
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "start-ollama-server": "node server/run-ollama-server.js"
+  }
+}

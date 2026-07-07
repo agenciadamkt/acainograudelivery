@@ -31,7 +31,7 @@ import {
     Bar,
     Cell,
 } from 'recharts';
-import { format, subDays } from 'date-fns';
+import { format, subDays, startOfMonth, endOfMonth, startOfYear, endOfYear, startOfDay, subDays as subD } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import DistributionCenterSelect from './components/DistributionCenterSelect';
 import { useFranchiseeId } from '@/hooks/useFranchiseeId';
@@ -46,31 +46,45 @@ export default function FinancialDashboard() {
     const navigate = useNavigate();
     const today = new Date();
     const [selectedCD, setSelectedCD] = useState('');
+    const [dateStart, setDateStart] = useState(format(startOfMonth(today), 'yyyy-MM-dd'));
+    const [dateEnd, setDateEnd] = useState(format(today, 'yyyy-MM-dd'));
+    const [quickFilter, setQuickFilter] = useState('month');
     const { data: franchiseeId } = useFranchiseeId();
-
-    const startOfMonthDate = format(new Date(today.getFullYear(), today.getMonth(), 1), 'yyyy-MM-dd');
 
     const todayStr = format(today, 'yyyy-MM-dd');
 
-    /* ── Fetch cash closings (mês corrente, até hoje) ── */
+    const applyQuickFilter = (key: string) => {
+        setQuickFilter(key);
+        switch (key) {
+            case 'today':
+                setDateStart(todayStr); setDateEnd(todayStr); break;
+            case '7days':
+                setDateStart(format(subD(today, 6), 'yyyy-MM-dd')); setDateEnd(todayStr); break;
+            case 'month':
+                setDateStart(format(startOfMonth(today), 'yyyy-MM-dd')); setDateEnd(format(endOfMonth(today), 'yyyy-MM-dd')); break;
+            case 'year':
+                setDateStart(format(startOfYear(today), 'yyyy-MM-dd')); setDateEnd(format(endOfYear(today), 'yyyy-MM-dd')); break;
+            case 'all':
+                setDateStart('2020-01-01'); setDateEnd(todayStr); break;
+        }
+    };
+
+    /* ── Fetch cash closings ── */
     const { data: closings } = useQuery({
-        queryKey: ['financial_dashboard', selectedCD, franchiseeId],
+        queryKey: ['financial_dashboard', selectedCD, franchiseeId, dateStart, dateEnd],
         queryFn: async () => {
             if (!franchiseeId) return [];
 
-            // Enforce franchisee isolation via inner join
             const selectStr = `*, distribution_center:distribution_centers!inner(name, franchisee_user_id), operator:cash_operators!operator_id(name)`;
 
             let query = supabase
                 .from('cash_closings' as any)
                 .select(selectStr)
-                .gte('closing_date', startOfMonthDate)
-                .lte('closing_date', todayStr)
+                .gte('closing_date', dateStart)
+                .lte('closing_date', dateEnd)
                 .order('closing_date', { ascending: false });
 
-            if (selectedCD) {
-                query = query.eq('distribution_center_id', selectedCD);
-            }
+            if (selectedCD) query = query.eq('distribution_center_id', selectedCD);
 
             const { data, error } = await query;
             if (error) throw error;
@@ -78,23 +92,21 @@ export default function FinancialDashboard() {
         },
     });
 
-    /* ── Fetch expenses (last 30 days) ── */
+    /* ── Fetch expenses ── */
     const { data: expensesData } = useQuery({
-        queryKey: ['financial_dashboard_expenses', selectedCD, franchiseeId],
+        queryKey: ['financial_dashboard_expenses', selectedCD, franchiseeId, dateStart, dateEnd],
         queryFn: async () => {
             if (!franchiseeId) return [];
 
-            // Enforce franchisee isolation via inner join
             const selectStr = `amount, expense_type, expense_date, paid_with_cash_balance, paid, distribution_center:distribution_centers!inner(franchisee_user_id)`;
 
             let query = supabase
                 .from('expenses' as any)
                 .select(selectStr)
-                .gte('expense_date', startOfMonthDate);
+                .gte('expense_date', dateStart)
+                .lte('expense_date', dateEnd);
 
-            if (selectedCD) {
-                query = query.eq('distribution_center_id', selectedCD);
-            }
+            if (selectedCD) query = query.eq('distribution_center_id', selectedCD);
 
             const { data, error } = await query;
             if (error) throw error;
@@ -236,22 +248,26 @@ export default function FinancialDashboard() {
         },
     });
 
-    /* ── Fetch all-time balance for each CD (In + Settlement - Expenses) ── */
+    /* ── Fetch balance for each CD filtered by selected period ── */
     const { data: cdBalances } = useQuery({
-        queryKey: ['financial_cd_balances', franchiseeId],
+        queryKey: ['financial_cd_balances', franchiseeId, dateStart, dateEnd],
         queryFn: async () => {
             if (!franchiseeId) return {};
 
-            // 1. Fetch all cash closings for the franchisee
+            // 1. Fechamentos do período selecionado
             const { data: closingsRes } = await supabase
                 .from('cash_closings' as any)
-                .select('distribution_center_id, total_cash, cash_settlement, distribution_center:distribution_centers!inner(franchisee_user_id)');
+                .select('distribution_center_id, total_cash, cash_settlement, distribution_center:distribution_centers!inner(franchisee_user_id)')
+                .gte('closing_date', dateStart)
+                .lte('closing_date', dateEnd);
 
-            // 2. Fetch all expenses paid with cash for the franchisee
+            // 2. Despesas pagas com saldo em caixa no período
             const { data: expensesRes } = await supabase
                 .from('expenses' as any)
                 .select('distribution_center_id, amount, distribution_center:distribution_centers!inner(franchisee_user_id)')
-                .eq('paid_with_cash_balance', true);
+                .eq('paid_with_cash_balance', true)
+                .gte('expense_date', dateStart)
+                .lte('expense_date', dateEnd);
 
             // Calculate balance per CD
             const balances: Record<string, number> = {};
@@ -380,8 +396,31 @@ export default function FinancialDashboard() {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3">
-                    <div className="w-64">
+                <div className="flex flex-wrap items-center gap-3">
+                    {/* Quick date filter pills */}
+                    <div className="flex items-center gap-1 bg-gray-100 dark:bg-white/5 rounded-lg p-1">
+                        {[
+                            { key: 'today', label: 'Hoje' },
+                            { key: '7days', label: '7 dias' },
+                            { key: 'month', label: 'Mês' },
+                            { key: 'year', label: 'Ano' },
+                            { key: 'all', label: 'Tudo' },
+                        ].map(opt => (
+                            <button
+                                key={opt.key}
+                                onClick={() => applyQuickFilter(opt.key)}
+                                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                                    quickFilter === opt.key
+                                        ? 'bg-white dark:bg-white/10 text-purple-700 dark:text-purple-300 shadow-sm'
+                                        : 'text-gray-500 dark:text-white/40 hover:text-gray-700 dark:hover:text-white/60'
+                                }`}
+                            >
+                                {opt.label}
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="w-52">
                         <DistributionCenterSelect
                             value={selectedCD}
                             onChange={setSelectedCD}

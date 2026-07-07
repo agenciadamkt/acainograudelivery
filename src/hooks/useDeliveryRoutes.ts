@@ -10,6 +10,7 @@ export interface DeliveryRoute {
   status: 'pendente' | 'em_progresso' | 'concluida' | 'cancelada';
   started_at: string | null;
   completed_at: string | null;
+  estimated_duration: number | null;
   created_at: string;
   driver?: {
     name: string;

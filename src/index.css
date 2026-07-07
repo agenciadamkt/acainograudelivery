@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -265,4 +266,18 @@ body {
 body:has([data-state="open"][role="dialog"]),
 body:has([data-state="open"][role="alertdialog"]) {
   overflow: hidden !important;
+}
+
+/* Tooltip compacto dos marcadores do mapa de Rotas (Frota) — fundo branco
+   translúcido discreto, sem a caixa/seta padrão pesada do Leaflet, pra não
+   competir visualmente com o mapa. */
+.frota-compact-tooltip {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 6px !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12) !important;
+  padding: 2px 4px !important;
+}
+.frota-compact-tooltip::before {
+  display: none !important;
 }

@@ -26,9 +26,10 @@ interface DistributionCenterSelectProps {
     value: string;
     onChange: (value: string) => void;
     placeholder?: string;
+    disabled?: boolean;
 }
 
-export default function DistributionCenterSelect({ value, onChange, placeholder = 'Selecionar CD...' }: DistributionCenterSelectProps) {
+export default function DistributionCenterSelect({ value, onChange, placeholder = 'Selecionar CD...', disabled = false }: DistributionCenterSelectProps) {
     const [open, setOpen] = useState(false);
     const [search, setSearch] = useState('');
     const queryClient = useQueryClient();
@@ -71,12 +72,13 @@ export default function DistributionCenterSelect({ value, onChange, placeholder 
     const canCreate = search.trim().length > 1 && !centers.some((c: any) => c.name.toLowerCase() === search.trim().toLowerCase());
 
     return (
-        <Popover open={open} onOpenChange={setOpen}>
+        <Popover open={open} onOpenChange={(o) => !disabled && setOpen(o)}>
             <PopoverTrigger asChild>
                 <Button
                     variant="outline"
                     role="combobox"
                     aria-expanded={open}
+                    disabled={disabled}
                     className="w-full justify-between font-normal bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-700 dark:text-white/80 h-9"
                 >
                     <span className="flex items-center gap-2 truncate">

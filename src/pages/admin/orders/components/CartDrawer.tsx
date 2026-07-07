@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { formatBRL } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
+import { ProductImagePlaceholder } from './ProductImagePlaceholder';
 
 interface Product {
     id: string;
@@ -141,11 +142,15 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
                                     {items.map((item) => (
                                         <div key={item.id} className="flex gap-4 group">
                                             <div className="w-20 h-20 rounded-2xl bg-gray-100 dark:bg-white/5 overflow-hidden shrink-0">
-                                                <img
-                                                    src={item.image_url || 'https://images.unsplash.com/photo-1579954115545-a95291e68b98?auto=format&fit=crop&w=800&q=80'}
-                                                    className="w-full h-full object-cover"
-                                                    alt={item.name}
-                                                />
+                                                {item.image_url ? (
+                                                    <img
+                                                        src={item.image_url}
+                                                        className="w-full h-full object-cover"
+                                                        alt={item.name}
+                                                    />
+                                                ) : (
+                                                    <ProductImagePlaceholder compact />
+                                                )}
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-start justify-between gap-2 mb-1">

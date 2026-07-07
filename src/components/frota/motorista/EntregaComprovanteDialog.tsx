@@ -42,8 +42,12 @@ export function EntregaComprovanteDialog({ parada, open, onOpenChange }: Entrega
   };
 
   const handleTirarFoto = async () => {
-    const file = await capturePhoto();
-    if (file) handlePhotoChange(file);
+    try {
+      const file = await capturePhoto();
+      if (file) handlePhotoChange(file);
+    } catch (err: any) {
+      toast.error(`Não foi possível abrir a câmera: ${err?.message || 'erro desconhecido'}`);
+    }
   };
 
   const handleConfirm = async () => {

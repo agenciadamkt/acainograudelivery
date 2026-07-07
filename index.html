@@ -8,13 +8,13 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="PedeGrau" />
-  <meta name="theme-color" content="#673AB7" />
+  <meta name="theme-color" content="#532089" />
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="apple-touch-icon" href="/logo-192x192.png" />
   <link rel="manifest" href="/manifest.webmanifest" />
 
   <meta name="app-version" content="1.0.3-delivery-areas" />
-  <title>PedeGrau - Delivery de Açaí no Grau</title>
+  <title>GrauOS - Sistema Operacional da Franquia</title>
   <meta name="description"
     content="Peça seu Açaí no Grau com delivery rápido e fácil. Encontre a loja mais próxima e aproveite nossas promoções exclusivas!">
   <meta name="author" content="Açaí no Grau" />
@@ -29,8 +29,8 @@
   <meta name="twitter:site" content="@lovable_dev" />
   <meta name="twitter:image"
     content="https://storage.googleapis.com/gpt-engineer-file-uploads/l0e56IYkziPLJ8QKid7Db2w6UDM2/social-images/social-1762081541350-LOGO 2 - AÇAÍ NO GRAU.png">
-  <meta property="og:title" content="PedeGrau - Delivery de Açaí no Grau">
-  <meta name="twitter:title" content="PedeGrau - Delivery de Açaí no Grau">
+  <meta property="og:title" content="GrauOS - Sistema Operacional da Franquia">
+  <meta name="twitter:title" content="GrauOS - Sistema Operacional da Franquia">
   <meta property="og:description"
     content="Peça seu Açaí no Grau com delivery rápido e fácil. Encontre a loja mais próxima e aproveite nossas promoções exclusivas!">
   <meta name="twitter:description"
@@ -39,6 +39,22 @@
 
 <body>
   <div id="root"></div>
+<div id="error-log" style="position:fixed;top:0;left:0;width:100%;height:100%;background:red;color:white;z-index:9999;padding:20px;overflow:auto;display:none;"></div>
+<script>
+window.addEventListener('error', function(e) {
+  if (e.message && (e.message.includes('ResizeObserver') || e.message.includes('Resize observer'))) {
+    return;
+  }
+  var el = document.getElementById('error-log');
+  el.style.display = 'block';
+  el.innerHTML += '<p>' + e.message + '<br>' + e.filename + ':' + e.lineno + '</p>';
+});
+window.addEventListener('unhandledrejection', function(e) {
+  var el = document.getElementById('error-log');
+  el.style.display = 'block';
+  el.innerHTML += '<p>Promise Rejection: ' + e.reason + '</p>';
+});
+</script>
   <script type="module" src="/src/main.tsx"></script>
 </body>
 

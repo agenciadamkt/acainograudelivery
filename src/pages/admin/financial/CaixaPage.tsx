@@ -15,14 +15,18 @@ import {
     Search,
     Filter,
     ArrowUpRight,
-    Loader2
+    Loader2,
+    Printer
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
+import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { addPdfBranding } from './utils/pdfBranding';
 import AccountSelect from './components/AccountSelect';
 import CurrencyInput from './components/CurrencyInput';
 import { useFranchiseeId } from '@/hooks/useFranchiseeId';
@@ -42,6 +46,10 @@ export default function CaixaPage() {
         description: ''
     });
 
+    const now = new Date();
+    const [dateFrom, setDateFrom] = useState(format(startOfMonth(now), 'yyyy-MM-dd'));
+    const [dateTo, setDateTo] = useState(format(endOfMonth(now), 'yyyy-MM-dd'));
+
     /* ── Fetch Accounts ── */
     const { data: accounts, isLoading: loadingAccounts } = useQuery({
         queryKey: ['financial_accounts', franchiseeId],
@@ -60,19 +68,20 @@ export default function CaixaPage() {
 
     /* ── Fetch Transfers (Statement) ── */
     const { data: transfers, isLoading: loadingTransfers } = useQuery({
-        queryKey: ['financial_transfers_statement', franchiseeId],
+        queryKey: ['financial_transfers_statement', franchiseeId, dateFrom, dateTo],
         queryFn: async () => {
             if (!franchiseeId) return [];
             const { data, error } = await supabase
                 .from('financial_transfers' as any)
                 .select(`
                     *,
-                    origin:financial_accounts!from_account_id(name, franchisee_user_id),
+                    origin:financial_accounts!from_account_id!inner(name, franchisee_user_id),
                     destination:financial_accounts!to_account_id(name, franchisee_user_id)
                 `)
                 .order('created_at', { ascending: false })
                 .eq('origin.franchisee_user_id', franchiseeId)
-                .limit(20);
+                .gte('created_at', `${dateFrom}T00:00:00`)
+                .lte('created_at', `${dateTo}T23:59:59`);
             if (error) throw error;
             return data as any[];
         }
@@ -121,6 +130,59 @@ export default function CaixaPage() {
         }
     };
 
+    const handleExportPDF = async () => {
+        if (!transfers || transfers.length === 0) {
+            toast.error('Não há movimentações para exportar');
+            return;
+        }
+        try {
+            const doc = new jsPDF('p', 'mm', 'a4');
+            const brandColor: [number, number, number] = [141, 66, 221]; // #8D42DD
+            
+            const startY = await addPdfBranding(doc, 'Extrato de Caixa');
+
+            doc.setFontSize(14);
+            doc.text('EXTRATO DE CAIXA E CONTAS', 14, startY + 5);
+            doc.setFontSize(10);
+            doc.text(`Período: ${format(new Date(dateFrom + 'T12:00:00'), 'dd/MM/yyyy')} a ${format(new Date(dateTo + 'T12:00:00'), 'dd/MM/yyyy')}`, 14, startY + 12);
+
+            const tableBody = transfers.map(t => [
+                format(new Date(t.created_at), 'dd/MM/yyyy'),
+                t.origin?.name || '-',
+                t.destination?.name || '-',
+                t.description || 'Transferência interna',
+                formatBRL(Number(t.amount))
+            ]);
+
+            autoTable(doc, {
+                startY: startY + 18,
+                head: [['Data', 'Origem', 'Destino', 'Descrição', 'Valor']],
+                body: tableBody,
+                theme: 'striped',
+                headStyles: { fillColor: brandColor },
+                styles: { fontSize: 8 },
+                columnStyles: { 4: { halign: 'right', fontStyle: 'bold' } },
+            });
+
+            const finalY = (doc as any).lastAutoTable?.finalY + 10;
+            const total = transfers.reduce((acc, t) => acc + Number(t.amount), 0);
+            
+            doc.setFillColor(141, 66, 221); // brand color
+            doc.rect(14, finalY, 182, 10, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(10);
+            doc.setFont(doc.getFont().fontName, 'bold');
+            doc.text(`TOTAL MOVIMENTADO NO PERÍODO:`, 20, finalY + 6.5);
+            doc.text(formatBRL(total), 190, finalY + 6.5, { align: 'right' });
+
+            doc.save(`extrato_caixa_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+            toast.success('Extrato gerado com sucesso!');
+        } catch (error) {
+            console.error(error);
+            toast.error('Erro ao gerar PDF');
+        }
+    };
+
     return (
         <div className="p-4 lg:p-8 space-y-8 bg-gray-50/50 dark:bg-transparent min-h-screen">
             {/* Header Section */}
@@ -134,6 +196,14 @@ export default function CaixaPage() {
                     </p>
                 </div>
                 <div className="flex items-center gap-3">
+                    <Button
+                        onClick={handleExportPDF}
+                        variant="outline"
+                        className="bg-white hover:bg-gray-50 text-gray-700 font-semibold shadow-sm border-gray-200 rounded-xl dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200 dark:border-gray-700"
+                    >
+                        <Printer className="h-4 w-4 mr-2" />
+                        Imprimir Extrato
+                    </Button>
                     <Button
                         onClick={() => setIsTransferOpen(true)}
                         className="bg-purple-600 hover:bg-purple-700 text-white font-semibold shadow-lg shadow-purple-600/20 rounded-xl"
@@ -200,8 +270,11 @@ export default function CaixaPage() {
                             <CardTitle className="text-xl font-bold">Extrato de Movimentações</CardTitle>
                         </div>
                         <div className="flex items-center gap-2">
-                            <Button variant="ghost" size="icon" className="h-9 w-9 text-gray-500"><Filter className="h-4 w-4" /></Button>
-                            <Button variant="ghost" size="icon" className="h-9 w-9 text-gray-500"><Search className="h-4 w-4" /></Button>
+                            <div className="flex items-center gap-2 mr-2">
+                                <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="h-9 w-36 text-xs bg-white dark:bg-white/5 border-gray-200 dark:border-white/10" />
+                                <span className="text-gray-400 text-sm">até</span>
+                                <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="h-9 w-36 text-xs bg-white dark:bg-white/5 border-gray-200 dark:border-white/10" />
+                            </div>
                         </div>
                     </CardHeader>
                     <CardContent className="p-0">

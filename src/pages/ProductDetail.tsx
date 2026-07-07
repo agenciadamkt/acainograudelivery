@@ -10,6 +10,7 @@ import { useProduct, useProductVideos } from "@/hooks/useProducts";
 import { useProductSizes } from "@/hooks/useProductSizes";
 import { useProductToppingCategories } from "@/hooks/useProductToppingCategories";
 import { useToppings } from "@/hooks/useToppings";
+import { useParentToppingCategoriesLimits } from "@/hooks/useToppingCategories";
 import { useCart } from "@/contexts/CartContext";
 import { toast } from "sonner";
 import { FeedbackModal } from '@/components/common/FeedbackModal';
@@ -158,11 +159,47 @@ const ProductDetail = () => {
     }
   }, [productToppingCategories, allToppings]);
 
-  const handleIncrementTopping = (category: any, toppingId: string) => {
-    const currentCategoryCount = category.items.reduce((acc: number, item: any) => acc + (selectedToppings[item.id] || 0), 0);
+  // Categorias de topping que são subcategorias (têm parent_id) compartilham o
+  // limite máximo de seleções da Categoria Pai entre si — ver useParentToppingCategoriesLimits.
+  const parentCategoryIds = useMemo(() => {
+    return toppingsWithRules
+      .map(cat => cat.topping_category?.parent_id)
+      .filter((id): id is string => !!id);
+  }, [toppingsWithRules]);
 
-    if (category.max_quantity > 0 && currentCategoryCount >= category.max_quantity) {
-      toast.error(`Limite de ${category.max_quantity} opções atingido neste grupo.`);
+  const { data: parentCategoryLimits } = useParentToppingCategoriesLimits(parentCategoryIds);
+
+  // Para uma categoria com parent_id, retorna a contagem/limite agregados entre
+  // todas as subcategorias-irmãs do mesmo pai. Para uma categoria sem parent_id,
+  // retorna a contagem/limite de sempre (próprios da categoria no produto).
+  const getCategoryLimitInfo = (category: any) => {
+    const parentId = category?.topping_category?.parent_id;
+
+    if (parentId) {
+      const parent = parentCategoryLimits?.find(p => p.id === parentId);
+      const siblingCategories = toppingsWithRules.filter(
+        c => c.topping_category?.parent_id === parentId
+      );
+      const count = siblingCategories.reduce(
+        (sum, c) => sum + c.items.reduce((a: number, item: any) => a + (selectedToppings[item.id] || 0), 0),
+        0
+      );
+      return { count, max: parent?.max_selections || 0, isShared: true, parentName: parent?.name };
+    }
+
+    const count = category.items.reduce((acc: number, item: any) => acc + (selectedToppings[item.id] || 0), 0);
+    return { count, max: category.max_quantity || 0, isShared: false, parentName: null as string | null };
+  };
+
+  const handleIncrementTopping = (category: any, toppingId: string) => {
+    const { count, max, isShared, parentName } = getCategoryLimitInfo(category);
+
+    if (max > 0 && count >= max) {
+      toast.error(
+        isShared
+          ? `Limite de ${max} opções atingido no grupo "${parentName}".`
+          : `Limite de ${max} opções atingido neste grupo.`
+      );
       return;
     }
 
@@ -402,12 +439,11 @@ const ProductDetail = () => {
 
         {/* Dynamic Topping Groups */}
         {toppingsWithRules.map((category) => {
-          // Calculate total selected in this category
-          const currentCategoryCount = category.items.reduce((acc: number, item: any) => {
-            return acc + (selectedToppings[item.id] || 0);
-          }, 0);
+          // Se a categoria tem Categoria Pai, a contagem/limite são compartilhados
+          // com as demais subcategorias do mesmo pai (ver getCategoryLimitInfo).
+          const { count: currentCategoryCount, max: categoryMax, isShared, parentName } = getCategoryLimitInfo(category);
 
-          const isCategoryFinished = category.max_quantity > 0 && currentCategoryCount >= category.max_quantity;
+          const isCategoryFinished = categoryMax > 0 && currentCategoryCount >= categoryMax;
           const isCategoryMinSatisfied = category.min_quantity > 0 && currentCategoryCount >= category.min_quantity;
 
           return (
@@ -417,8 +453,10 @@ const ProductDetail = () => {
                   <h2 className="text-lg font-bold text-gray-900">{category?.topping_category?.name}</h2>
                   <div className="flex items-center gap-2">
                     <p className="text-xs text-gray-500">
-                      {category.max_quantity > 0
-                        ? `Escolha até ${category.max_quantity} opções`
+                      {categoryMax > 0
+                        ? isShared
+                          ? `Escolha até ${categoryMax} opções (compartilhado com "${parentName}")`
+                          : `Escolha até ${categoryMax} opções`
                         : 'Sem limite'}
                     </p>
                     {isCategoryFinished && <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Concluído</span>}
@@ -433,7 +471,7 @@ const ProductDetail = () => {
                   )}
                   {currentCategoryCount > 0 && (
                     <span className="text-xs font-medium text-gray-500">
-                      {currentCategoryCount} / {category.max_quantity > 0 ? category.max_quantity : '∞'}
+                      {currentCategoryCount} / {categoryMax > 0 ? categoryMax : '∞'}
                     </span>
                   )}
                 </div>
@@ -445,7 +483,7 @@ const ProductDetail = () => {
                   // Disable adding more if bucket is full, unless we are adding to an existing item (if we allowed >1 per item, but here usually it is toggling unique items vs quantity, let's assume quantity per item allowed up to bucket limit)
                   // Actually usually iFood style allows multiple of same item if not boolean. Let's assume quantity allowed.
 
-                  const canAdd = category.max_quantity === 0 || currentCategoryCount < category.max_quantity;
+                  const canAdd = categoryMax === 0 || currentCategoryCount < categoryMax;
 
                   return (
                     <div

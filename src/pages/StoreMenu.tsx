@@ -31,7 +31,7 @@ const StoreMenu = () => {
 
   const { data: store, isLoading: loadingStore, error: storeError } = useStoreBySlug(slug);
   const { data: categories, isLoading: loadingCategories } = useCategories(true, store?.id, { excludePdvOnly: true });
-  const { data: allProducts, isLoading: loadingProducts } = useProducts(selectedCategoryId, true);
+  const { data: allProducts, isLoading: loadingProducts } = useProducts(selectedCategoryId, true, store?.id);
   const { data: favorites } = useFavorites(customerId);
   const toggleFavorite = useToggleFavorite();
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,7 @@ import {
     FileText,
     ImageIcon,
     Download,
+    Trash2,
 } from 'lucide-react';
 import { format, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -22,6 +23,17 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import CashClosingFormDialog from './components/CashClosingFormDialog';
 import DistributionCenterSelect from './components/DistributionCenterSelect';
+import { toast } from 'sonner';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { addPdfBranding } from './utils/pdfBranding';
@@ -31,12 +43,40 @@ const formatBRL = (val: number) =>
 
 export default function CashClosingsPage() {
     const [isFormOpen, setIsFormOpen] = useState(false);
+    const [isReadOnly, setIsReadOnly] = useState(false);
     const [editData, setEditData] = useState<any>(null);
     const [filterCD, setFilterCD] = useState('');
     const [dateStart, setDateStart] = useState(format(subDays(new Date(), 30), 'yyyy-MM-dd'));
     const [dateEnd, setDateEnd] = useState(format(new Date(), 'yyyy-MM-dd'));
     const [calStartOpen, setCalStartOpen] = useState(false);
     const [calEndOpen, setCalEndOpen] = useState(false);
+    const [deletingRecord, setDeletingRecord] = useState<any>(null);
+
+    const queryClient = useQueryClient();
+
+    const deleteMutation = useMutation({
+        mutationFn: async (id: string) => {
+            const { error } = await supabase
+                .from('cash_closings' as any)
+                .delete()
+                .eq('id', id);
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['cash_closings'] });
+            toast.success('Fechamento excluído com sucesso!');
+            setDeletingRecord(null);
+        },
+        onError: (error: any) => {
+            toast.error(`Erro ao excluir fechamento: ${error.message}`);
+        }
+    });
+
+    const handleDelete = async () => {
+        if (deletingRecord) {
+            await deleteMutation.mutateAsync(deletingRecord.id);
+        }
+    };
 
     const { data: closings = [], isLoading, isError, error } = useQuery({
         queryKey: ['cash_closings', dateStart, dateEnd, filterCD],
@@ -66,40 +106,50 @@ export default function CashClosingsPage() {
     const totals = useMemo(() => {
         return closings.reduce(
             (acc, curr) => {
-                acc.sales += Number(curr.total_sales || 0);
-                acc.cash += Number(curr.total_cash || 0);
-                acc.cashSettlement += Number(curr.cash_settlement || 0);
-                acc.credit += Number(curr.credit_card_value || 0);
-                acc.debit += Number(curr.debit_card_value || 0);
-                acc.pix += Number(curr.pix_value || 0);
+                acc.sales         += Number(curr.total_sales || 0);
+                acc.cash          += Number(curr.total_cash || 0);
+                acc.cashSettlement+= Number(curr.cash_settlement || 0);
+                // Soma todas as maquininhas para cada tipo
+                acc.credit += Number(curr.credit_card_value || 0) + Number(curr.credit_moderninha || 0) + Number(curr.credit_cielo || 0);
+                acc.debit  += Number(curr.debit_card_value  || 0) + Number(curr.debit_moderninha  || 0) + Number(curr.debit_cielo  || 0);
+                acc.pix    += Number(curr.pix_value         || 0) + Number(curr.pix_moderninha    || 0) + Number(curr.pix_cielo    || 0);
+                acc.online += Number(curr.online_payment || 0);
                 acc.expenses += Number(curr.total_expenses || 0);
-                acc.balance += Number(curr.balance || 0);
+                acc.balance  += Number(curr.balance || 0);
                 return acc;
             },
-            { sales: 0, cash: 0, cashSettlement: 0, credit: 0, debit: 0, pix: 0, expenses: 0, balance: 0 }
+            { sales: 0, cash: 0, cashSettlement: 0, credit: 0, debit: 0, pix: 0, online: 0, expenses: 0, balance: 0 }
         );
     }, [closings]);
 
     const handleEdit = (record: any) => {
         setEditData(record);
+        setIsReadOnly(false);
+        setIsFormOpen(true);
+    };
+
+    const handleView = (record: any) => {
+        setEditData(record);
+        setIsReadOnly(true);
         setIsFormOpen(true);
     };
 
     const handleNew = () => {
         setEditData(null);
+        setIsReadOnly(false);
         setIsFormOpen(true);
     };
 
     const handleExportPDF = async () => {
-        const doc = new jsPDF();
+        const doc = new jsPDF({ orientation: 'landscape' });
+        const PW = doc.internal.pageSize.getWidth();
         let currentY = await addPdfBranding(doc);
 
-        // Título
-        doc.setFontSize(14);
+        doc.setFontSize(13);
         doc.setFont('helvetica', 'bold');
         doc.text('Relatório de Fechamento de Caixa', 14, currentY + 5);
 
-        doc.setFontSize(10);
+        doc.setFontSize(9);
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(107, 114, 128);
         doc.text(
@@ -117,98 +167,125 @@ export default function CashClosingsPage() {
             return;
         }
 
-        // Tabela principal
-        const tableData = closings.map((c: any) => [
-            format(new Date(c.closing_date + 'T12:00:00'), 'dd/MM/yyyy'),
-            c.distribution_center?.name || '—',
-            formatBRL(Number(c.total_sales || 0)),
-            formatBRL(Number(c.total_cash || 0)),
-            formatBRL(Number(c.cash_settlement || 0)),
-            formatBRL(Number(c.total_expenses || 0)),
-            formatBRL(Number(c.balance || 0)),
-            c.operator?.name || '—',
-        ]);
+        // Tabela principal — agrega todas as maquininhas por tipo
+        const tableData = closings.map((c: any) => {
+            const cr = Number(c.credit_card_value || 0) + Number(c.credit_moderninha || 0) + Number(c.credit_cielo || 0);
+            const db = Number(c.debit_card_value  || 0) + Number(c.debit_moderninha  || 0) + Number(c.debit_cielo  || 0);
+            const px = Number(c.pix_value         || 0) + Number(c.pix_moderninha    || 0) + Number(c.pix_cielo    || 0);
+            const ol = Number(c.online_payment || 0);
+            return [
+                format(new Date(c.closing_date + 'T12:00:00'), 'dd/MM/yyyy'),
+                c.distribution_center?.name || '—',
+                formatBRL(Number(c.total_sales || 0)),
+                formatBRL(Number(c.total_cash || 0)),
+                formatBRL(px),
+                formatBRL(cr),
+                formatBRL(db),
+                formatBRL(ol),
+                formatBRL(Number(c.cash_settlement || 0)),
+                formatBRL(Number(c.total_expenses || 0)),
+                formatBRL(Number(c.balance || 0)),
+            ];
+        });
+
+        const totalsRow = [
+            'TOTAL', '',
+            formatBRL(totals.sales),
+            formatBRL(totals.cash),
+            formatBRL(totals.pix),
+            formatBRL(totals.credit),
+            formatBRL(totals.debit),
+            formatBRL(totals.online),
+            formatBRL(totals.cashSettlement),
+            formatBRL(totals.expenses),
+            formatBRL(totals.balance),
+        ];
 
         autoTable(doc, {
-            head: [['Data', 'CD', 'Vendas', 'Dinheiro', 'Baixa Dinheiro', 'Saídas', 'Saldo', 'Operador']],
-            body: tableData,
+            head: [['Data', 'CD', 'Vendas', 'Dinheiro', 'Pix QR Code', 'Crédito', 'Débito', 'Pgto Online', 'Baixa Din.', 'Saídas', 'Saldo']],
+            body: [...tableData, totalsRow],
             startY: currentY,
             theme: 'grid',
-            styles: { fontSize: 8, cellPadding: 3 },
+            styles: { fontSize: 7.5, cellPadding: 2.5 },
             headStyles: { fillColor: [107, 76, 154], textColor: 255, fontStyle: 'bold' },
             alternateRowStyles: { fillColor: [248, 247, 252] },
+            didParseCell: (data) => {
+                if (data.row.index === tableData.length) {
+                    data.cell.styles.fontStyle = 'bold';
+                    data.cell.styles.fillColor = [240, 237, 250];
+                    data.cell.styles.textColor = [60, 20, 120];
+                }
+            },
             columnStyles: {
+                0: { cellWidth: 20 },
+                1: { cellWidth: 26 },
                 2: { halign: 'right', textColor: [5, 150, 105] },
                 3: { halign: 'right' },
                 4: { halign: 'right' },
-                5: { halign: 'right', textColor: [239, 68, 68] },
-                6: { halign: 'right', fontStyle: 'bold' },
+                5: { halign: 'right' },
+                6: { halign: 'right' },
+                7: { halign: 'right' },
+                8: { halign: 'right' },
+                9: { halign: 'right', textColor: [239, 68, 68] },
+                10: { halign: 'right', fontStyle: 'bold' },
             },
             margin: { left: 14, right: 14 },
         });
 
-        currentY = (doc as any).lastAutoTable.finalY + 6;
+        currentY = (doc as any).lastAutoTable.finalY + 8;
 
-        // Totais
+        // Abre nova página se não houver espaço para o resumo (~50mm)
+        const PH = doc.internal.pageSize.getHeight();
+        if (currentY + 50 > PH - 14) {
+            doc.addPage();
+            currentY = 14;
+        }
+
+        // Resumo formas de recebimento em duas colunas
         doc.setDrawColor(200, 200, 200);
-        doc.line(14, currentY, doc.internal.pageSize.getWidth() - 14, currentY);
-        currentY += 7;
-
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'bold');
-        doc.text('FORMAS DE RECEBIMENTO', 14, currentY);
+        doc.line(14, currentY, PW - 14, currentY);
         currentY += 6;
 
         doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.text('FORMAS DE RECEBIMENTO NO PERÍODO', 14, currentY);
+        doc.text('TOTAIS GERAIS', PW / 2 + 10, currentY);
+        currentY += 5;
+
+        doc.setFontSize(8.5);
         doc.setFont('helvetica', 'normal');
-        const paymentLines = [
-            ['Dinheiro (Local):', formatBRL(totals.cash), [0, 0, 0]],
-            ['Pix:', formatBRL(totals.pix), [0, 0, 0]],
-            ['Crédito:', formatBRL(totals.credit), [0, 0, 0]],
-            ['Débito:', formatBRL(totals.debit), [0, 0, 0]],
-            ['Baixa em Dinheiro:', formatBRL(totals.cashSettlement), [0, 0, 0]],
+
+        const leftCol = [
+            ['Dinheiro (Local):', formatBRL(totals.cash)],
+            ['Pix QR Code:', formatBRL(totals.pix)],
+            ['Cartão Crédito:', formatBRL(totals.credit)],
+            ['Cartão Débito:', formatBRL(totals.debit)],
+            ['Pagamento Online:', formatBRL(totals.online)],
+            ['Baixa em Dinheiro:', formatBRL(totals.cashSettlement)],
         ];
-
-        paymentLines.forEach(([label, value, color]: any) => {
-            doc.setTextColor(100, 100, 100);
-            doc.text(label, 14, currentY);
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor(color[0], color[1], color[2]);
-            doc.text(value, 70, currentY);
-            doc.setFont('helvetica', 'normal');
-            currentY += 5;
-        });
-
-        currentY += 4;
-        doc.setDrawColor(230, 230, 230);
-        doc.line(14, currentY, doc.internal.pageSize.getWidth() - 14, currentY);
-        currentY += 6;
-
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'bold');
-        doc.text('TOTAIS NO PERÍODO', 14, currentY);
-        currentY += 6;
-
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'normal');
-        const totalLines = [
+        const rightCol = [
             ['Total Vendas:', formatBRL(totals.sales), [5, 150, 105]],
             ['Total Saídas:', formatBRL(totals.expenses), [239, 68, 68]],
             ['Saldo Final:', formatBRL(totals.balance), totals.balance >= 0 ? [5, 150, 105] : [239, 68, 68]],
         ];
 
-        totalLines.forEach(([label, value, color]: any) => {
-            doc.setTextColor(100, 100, 100);
-            doc.text(label, 14, currentY);
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor(color[0], color[1], color[2]);
-            doc.text(value, 70, currentY);
+        leftCol.forEach(([label, value]) => {
+            doc.setTextColor(100, 100, 100); doc.text(label, 14, currentY);
+            doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 30, 30); doc.text(value, 70, currentY);
             doc.setFont('helvetica', 'normal');
             currentY += 5;
         });
 
+        let rightY = currentY - leftCol.length * 5;
+        rightCol.forEach(([label, value, color]: any) => {
+            doc.setTextColor(100, 100, 100); doc.text(label, PW / 2 + 10, rightY);
+            doc.setFont('helvetica', 'bold'); doc.setTextColor(color[0], color[1], color[2]); doc.text(value, PW / 2 + 55, rightY);
+            doc.setFont('helvetica', 'normal');
+            rightY += 5;
+        });
+
         // Rodapé
-        currentY += 5;
+        currentY += 4;
         doc.setFontSize(7);
         doc.setTextColor(160, 160, 160);
         doc.text(
@@ -377,14 +454,35 @@ export default function CashClosingsPage() {
                                             {c.operator?.name || '—'}
                                         </td>
                                         <td className="px-4 py-3 text-right">
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-8 w-8 p-0"
-                                                onClick={() => handleEdit(c)}
-                                            >
-                                                <Edit2 className="h-4 w-4 text-gray-400" />
-                                            </Button>
+                                            <div className="flex items-center justify-end gap-1">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-8 w-8 p-0"
+                                                    onClick={() => handleView(c)}
+                                                    title="Visualizar"
+                                                >
+                                                    <Eye className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-8 w-8 p-0"
+                                                    onClick={() => handleEdit(c)}
+                                                    title="Editar"
+                                                >
+                                                    <Edit2 className="h-4 w-4 text-gray-400" />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-8 w-8 p-0 hover:bg-red-50 dark:hover:bg-red-950/20"
+                                                    onClick={() => setDeletingRecord(c)}
+                                                    title="Excluir"
+                                                >
+                                                    <Trash2 className="h-4 w-4 text-red-500" />
+                                                </Button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
@@ -422,7 +520,35 @@ export default function CashClosingsPage() {
                 open={isFormOpen}
                 onOpenChange={setIsFormOpen}
                 editData={editData}
+                readOnly={isReadOnly}
             />
+
+            {/* Confirm Delete Dialog */}
+            <AlertDialog
+                open={!!deletingRecord}
+                onOpenChange={(open) => !open && setDeletingRecord(null)}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Tem certeza que deseja excluir o fechamento de caixa do dia{' '}
+                            {deletingRecord && format(new Date(deletingRecord.closing_date + 'T12:00:00'), 'dd/MM/yyyy')}?
+                            Esta ação não pode ser desfeita.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDelete}
+                            disabled={deleteMutation.isPending}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            {deleteMutation.isPending ? 'Excluindo...' : 'Excluir'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

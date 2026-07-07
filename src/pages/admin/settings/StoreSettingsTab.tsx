@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { useStore } from '@/contexts/StoreContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, Upload, AlertCircle, Clock } from 'lucide-react';
+import { Loader2, Upload, AlertCircle, Clock, MapPin, Search } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Switch } from '@/components/ui/switch';
 import { BusinessHours } from '@/utils/businessHours';
@@ -34,13 +34,109 @@ export function StoreSettingsTab() {
     const [loading, setLoading] = useState(false);
     const [businessHours, setBusinessHours] = useState<BusinessHours | null>(null);
     const [storeActive, setStoreActive] = useState(false);
+    const [latitude, setLatitude] = useState<number | null>(null);
+    const [longitude, setLongitude] = useState<number | null>(null);
+    const [geocoding, setGeocoding] = useState(false);
+    const [geocodeOk, setGeocodeOk] = useState(false);
 
     useEffect(() => {
         if (currentStore) {
             setBusinessHours(currentStore.business_hours || {});
             setStoreActive(currentStore.status === 'active');
+            setLatitude(currentStore.latitude ?? null);
+            setLongitude(currentStore.longitude ?? null);
+            setGeocodeOk(!!(currentStore.latitude && currentStore.longitude));
         }
     }, [currentStore]);
+
+    const tryGeocode = async (query: string): Promise<{ lat: number; lng: number } | null> => {
+        const res = await fetch(
+            `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`,
+            { headers: { 'Accept-Language': 'pt-BR' } }
+        );
+        const results = await res.json();
+        if (results?.[0]) {
+            return { lat: Number(results[0].lat), lng: Number(results[0].lon) };
+        }
+        return null;
+    };
+
+    const tryGeocodePostalCode = async (zip: string): Promise<{ lat: number; lng: number } | null> => {
+        const cep = zip.replace(/\D/g, '');
+        if (cep.length !== 8) return null;
+        const formatted = `${cep.slice(0, 5)}-${cep.slice(5)}`;
+        const res = await fetch(
+            `https://nominatim.openstreetmap.org/search?postalcode=${encodeURIComponent(formatted)}&country=Brasil&format=json&limit=1`,
+            { headers: { 'Accept-Language': 'pt-BR' } }
+        );
+        const results = await res.json();
+        if (results?.[0]) {
+            return { lat: Number(results[0].lat), lng: Number(results[0].lon) };
+        }
+        return null;
+    };
+
+    const geocodeAddress = async (form: HTMLFormElement): Promise<{ lat: number; lng: number } | null> => {
+        const fd = new FormData(form);
+        const address = (fd.get('address') as string || '').trim();
+        const neighborhood = (fd.get('neighborhood') as string || '').trim();
+        const city = (fd.get('city') as string || '').trim();
+        const state = (fd.get('state') as string || '').trim();
+        const zipCode = (fd.get('zip_code') as string || '').trim();
+
+        if (!address && !zipCode) return null;
+
+        setGeocoding(true);
+        setGeocodeOk(false);
+        try {
+            let result: { lat: number; lng: number } | null = null;
+
+            // 1ª tentativa: endereço completo
+            if (address) {
+                const fullQuery = [address, neighborhood, city, state, 'Brasil'].filter(Boolean).join(', ');
+                result = await tryGeocode(fullQuery);
+            }
+
+            // 2ª tentativa: sem o bairro
+            if (!result && address && neighborhood) {
+                const noNeighborhoodQuery = [address, city, state, 'Brasil'].filter(Boolean).join(', ');
+                result = await tryGeocode(noNeighborhoodQuery);
+            }
+
+            // 3ª tentativa: bairro + cidade (localização aproximada do bairro)
+            if (!result && neighborhood && city) {
+                const neighborhoodQuery = [neighborhood, city, state, 'Brasil'].filter(Boolean).join(', ');
+                result = await tryGeocode(neighborhoodQuery);
+            }
+
+            // 4ª tentativa: pelo CEP (quando a rua não está mapeada no OpenStreetMap)
+            if (!result && zipCode) {
+                result = await tryGeocodePostalCode(zipCode);
+            }
+
+            if (result) {
+                setLatitude(result.lat);
+                setLongitude(result.lng);
+                setGeocodeOk(true);
+                return result;
+            }
+            setGeocodeOk(false);
+            return null;
+        } catch {
+            return null;
+        } finally {
+            setGeocoding(false);
+        }
+    };
+
+    const handleLocalizarEndereco = (e: React.MouseEvent<HTMLButtonElement>) => {
+        const form = e.currentTarget.form;
+        if (!form) return;
+        geocodeAddress(form).then((result) => {
+            if (result) toast.success('Endereço localizado no mapa!');
+            else toast.error('Endereço não encontrado. Verifique o CEP, a rua e a cidade.');
+        });
+    };
 
     async function handleFileUpload(event: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'banner') {
         if (!event.target.files || event.target.files.length === 0 || !currentStore) {
@@ -94,7 +190,22 @@ export function StoreSettingsTab() {
         if (!currentStore) return;
         setLoading(true);
 
-        const formData = new FormData(e.currentTarget);
+        const form = e.currentTarget;
+        const formData = new FormData(form);
+
+        let lat = latitude;
+        let lng = longitude;
+
+        // Geocodifica automaticamente se o endereço/CEP foi preenchido mas ainda não localizado
+        const addressValue = (formData.get('address') as string || '').trim();
+        const zipValue = (formData.get('zip_code') as string || '').trim();
+        if ((addressValue || zipValue) && (!geocodeOk || lat === null || lng === null)) {
+            const result = await geocodeAddress(form);
+            if (result) {
+                lat = result.lat;
+                lng = result.lng;
+            }
+        }
 
         const updates = {
             name: formData.get('name') as string,
@@ -104,6 +215,8 @@ export function StoreSettingsTab() {
             neighborhood: formData.get('neighborhood') as string,
             city: formData.get('city') as string,
             state: formData.get('state') as string,
+            latitude: lat,
+            longitude: lng,
             delivery_time: formData.get('delivery_time') as string,
             min_order_value: parseFloat(formData.get('min_order_value') as string) || 0,
             delivery_fee: parseFloat(formData.get('delivery_fee') as string) || 0,
@@ -276,6 +389,7 @@ export function StoreSettingsTab() {
                                                 placeholder="00000-000"
                                                 maxLength={9}
                                                 onChange={(e) => {
+                                                    setGeocodeOk(false);
                                                     const value = e.target.value.replace(/\D/g, '');
                                                     if (value.length === 8) {
                                                         fetch(`https://viacep.com.br/ws/${value}/json/`)
@@ -299,19 +413,38 @@ export function StoreSettingsTab() {
                                     </div>
                                     <div className="space-y-2">
                                         <Label htmlFor="state">Estado (UF)</Label>
-                                        <Input id="state" name="state" defaultValue={currentStore.state || ''} maxLength={2} placeholder="UF" />
+                                        <Input id="state" name="state" defaultValue={currentStore.state || ''} maxLength={2} placeholder="UF" onChange={() => setGeocodeOk(false)} />
                                     </div>
                                     <div className="space-y-2">
                                         <Label htmlFor="city">Cidade</Label>
-                                        <Input id="city" name="city" defaultValue={currentStore.city || ''} />
+                                        <Input id="city" name="city" defaultValue={currentStore.city || ''} onChange={() => setGeocodeOk(false)} />
                                     </div>
                                     <div className="space-y-2">
                                         <Label htmlFor="neighborhood">Bairro</Label>
-                                        <Input id="neighborhood" name="neighborhood" defaultValue={currentStore.neighborhood || ''} />
+                                        <Input id="neighborhood" name="neighborhood" defaultValue={currentStore.neighborhood || ''} onChange={() => setGeocodeOk(false)} />
                                     </div>
                                     <div className="space-y-2 md:col-span-2">
                                         <Label htmlFor="address">Endereço (Logradouro, Número, Complemento)</Label>
-                                        <Input id="address" name="address" defaultValue={currentStore.address || ''} />
+                                        <Input id="address" name="address" defaultValue={currentStore.address || ''} onChange={() => setGeocodeOk(false)} />
+                                    </div>
+                                    <div className="space-y-2 md:col-span-2">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={handleLocalizarEndereco}
+                                            disabled={geocoding}
+                                            className="w-full gap-2 text-xs"
+                                        >
+                                            {geocoding ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
+                                            {geocoding ? 'Buscando localização...' : 'Localizar Endereço no Mapa'}
+                                        </Button>
+                                        {geocodeOk && latitude && longitude && (
+                                            <div className="flex items-center gap-2 text-xs text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+                                                <MapPin className="h-3.5 w-3.5 shrink-0" />
+                                                Localizado: {latitude.toFixed(5)}, {longitude.toFixed(5)} — pino aparecerá na Frota para pedidos de abastecimento
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>

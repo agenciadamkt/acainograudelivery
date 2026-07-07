@@ -23,6 +23,8 @@ INSTRUÇÕES CRÍTICAS:
 9. Use parágrafos curtos e bullet points para organizar dados numéricos.
 10. Não se apresente a cada resposta — seja direto e eficiente.
 11. SEMPRE responda em português do Brasil.
+12. Adapte a profundidade da resposta ao [PERFIL DO USUÁRIO] quando esse campo vier na mensagem: MASTER e FRANQUEADO podem receber visão estratégica e financeira completa; COLABORADOR deve receber foco operacional e prático do dia a dia da loja.
+13. Quando a mensagem trouxer um bloco [BASE DE CONHECIMENTO], ele é a fonte oficial de procedimentos/políticas da franquia — priorize-o para perguntas de "como faço" / "qual o procedimento". Se usar algo de lá, termine a resposta com uma linha "Fonte: <título do documento>". NUNCA invente um procedimento que não esteja nesse bloco nem nos dados das ferramentas. Se a pergunta não puder ser respondida nem pelas ferramentas nem pelo bloco de conhecimento, responda exatamente: "Não encontrei essa informação na documentação oficial da franquia."
 `;
 
 const tools = [
@@ -214,6 +216,83 @@ async function executeGetDebtors(supabaseClient: any) {
   };
 }
 
+// ─── Busca (textual, v1) na Base de Conhecimento ───
+// Sem embeddings/pgvector ainda (fase futura) — o volume de documentos hoje
+// é pequeno o suficiente para trazer todos os registros ativos e pontuar
+// localmente por: (a) rota da tela atual bater com route_pattern, (b) tags
+// citadas na pergunta do usuário, (c) palavras do título citadas na pergunta.
+function scoreKnowledgeRow(row: any, userMessageLower: string, currentRoute: string | null): number {
+  let score = 0;
+
+  if (row.route_pattern && currentRoute) {
+    if (currentRoute.startsWith(row.route_pattern) || row.route_pattern.startsWith(currentRoute)) {
+      score += 5;
+    }
+  }
+
+  const tags: string[] = Array.isArray(row.tags) ? row.tags : [];
+  for (const tag of tags) {
+    if (tag && userMessageLower.includes(String(tag).toLowerCase())) score += 2;
+  }
+
+  const titleWords = String(row.title || '')
+    .toLowerCase()
+    .split(/[\s—-]+/)
+    .filter((w: string) => w.length > 3);
+  for (const w of titleWords) {
+    if (userMessageLower.includes(w)) score += 1;
+  }
+
+  return score;
+}
+
+async function retrieveKnowledge(supabaseClient: any, userMessage: string, currentRoute: string | null) {
+  const { data: rows, error } = await supabaseClient
+    .from('copilot_knowledge')
+    .select('id, title, content, module, route_pattern, tags')
+    .eq('active', true);
+
+  if (error) {
+    console.error('Erro ao buscar copilot_knowledge:', error.message);
+    return [];
+  }
+
+  const userMessageLower = (userMessage || '').toLowerCase();
+  const scored = (rows || [])
+    .map((row: any) => ({ row, score: scoreKnowledgeRow(row, userMessageLower, currentRoute) }))
+    .filter((s: any) => s.score > 0)
+    .sort((a: any, b: any) => b.score - a.score)
+    .slice(0, 4);
+
+  return scored.map((s: any) => s.row);
+}
+
+// ─── Persistência de conversa (best-effort — nunca derruba a resposta) ───
+async function persistTurn(
+  supabaseClient: any,
+  userId: string | null,
+  sessionId: string | null,
+  userText: string,
+  assistantText: string,
+  sources: string[]
+) {
+  if (!userId || !sessionId) return;
+  try {
+    await supabaseClient.from('copilot_conversations').insert([
+      { user_id: userId, session_id: sessionId, role: 'user', content: userText },
+      {
+        user_id: userId,
+        session_id: sessionId,
+        role: 'assistant',
+        content: assistantText,
+        metadata: sources.length > 0 ? { sources } : {},
+      },
+    ]);
+  } catch (e: any) {
+    console.error('Erro ao persistir conversa do copilot:', e.message);
+  }
+}
+
 // ─── Main Handler ───
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -227,7 +306,7 @@ serve(async (req) => {
       { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     );
 
-    const { messages, context } = await req.json();
+    const { messages, context, session_id: sessionId } = await req.json();
 
     if (!messages || !Array.isArray(messages)) {
       throw new Error("Invalid request format: 'messages' array is required.");
@@ -236,10 +315,29 @@ serve(async (req) => {
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
     if (!geminiApiKey) throw new Error("GEMINI_API_KEY não configurada.");
 
-    // Injeta contexto da tela na primeira mensagem do sistema
+    const lastUserMessage = [...messages].reverse().find((m: any) => m.role === 'user');
+    const currentRoute: string | null = context?.current_route ?? null;
+
+    // Busca na base de conhecimento oficial (camada "Especialista da Franquia"
+    // / "Especialista do Sistema") relevante para a tela atual + a pergunta.
+    const knowledgeRows = lastUserMessage
+      ? await retrieveKnowledge(supabaseClient, lastUserMessage.content, currentRoute)
+      : [];
+
+    // Injeta contexto da tela, perfil do usuário e base de conhecimento na
+    // última mensagem do usuário.
     let contextPrefix = '';
     if (context) {
-      contextPrefix = `\n\n[CONTEXTO DA TELA ATUAL]\nO usuário está na tela: ${context.current_screen || 'desconhecida'}\nRota: ${context.current_route || 'N/A'}\nTimestamp: ${context.timestamp || new Date().toISOString()}\n`;
+      contextPrefix += `\n\n[CONTEXTO DA TELA ATUAL]\nO usuário está na tela: ${context.current_screen || 'desconhecida'}\nRota: ${context.current_route || 'N/A'}\nTimestamp: ${context.timestamp || new Date().toISOString()}\n`;
+    }
+    if (context?.user_profile) {
+      contextPrefix += `\n[PERFIL DO USUÁRIO]\nPerfil: ${context.user_profile}\n`;
+    }
+    if (knowledgeRows.length > 0) {
+      contextPrefix += `\n[BASE DE CONHECIMENTO]\nTrechos da documentação oficial da franquia relevantes para esta pergunta/tela:\n`;
+      knowledgeRows.forEach((row: any) => {
+        contextPrefix += `\n--- ${row.title} ---\n${row.content}\n`;
+      });
     }
 
     const geminiContents = messages.map((msg: any, index: number) => ({
@@ -251,7 +349,11 @@ serve(async (req) => {
     const MODELS = [
       'gemini-2.0-flash',
       'gemini-2.0-flash-lite',
-      'gemini-2.5-flash-lite-preview-06-17',
+      // O fallback anterior ('gemini-2.5-flash-lite-preview-06-17') era um
+      // nome de preview expirado — sempre retornava 404, nunca funcionou
+      // como fallback de verdade. gemini-1.5-flash é um nome estável e de
+      // outra geração de modelo, com bucket de cota separado dos gemini-2.0-*.
+      'gemini-1.5-flash',
     ];
 
     const callGeminiWithModel = async (model: string, contents: any[], useTools: boolean): Promise<Response> => {
@@ -277,6 +379,11 @@ serve(async (req) => {
     };
 
     const callGemini = async (contents: any[], useTools = true): Promise<any> => {
+      // Guarda o motivo de falha de CADA modelo tentado (não só o último) —
+      // sem isso, um 404 (nome de modelo expirado) no último modelo da lista
+      // escondia silenciosamente o motivo real (ex: 429 de cota) dos modelos
+      // anteriores, dificultando o diagnóstico.
+      const attempts: string[] = [];
       let lastError = '';
 
       for (const model of MODELS) {
@@ -286,19 +393,23 @@ serve(async (req) => {
 
           if (response.status === 429) {
             console.warn(`Rate limit para ${model}, tentando próximo modelo...`);
-            lastError = `Modelo ${model} com cota esgotada.`;
+            lastError = `Modelo ${model} com cota esgotada (429).`;
+            attempts.push(lastError);
             continue; // tenta o próximo modelo
           }
 
           if (response.status === 404) {
             console.warn(`Modelo ${model} não encontrado, tentando próximo...`);
+            lastError = `Modelo ${model} não encontrado (404) — nome de modelo pode estar desatualizado.`;
+            attempts.push(lastError);
             continue;
           }
 
           if (!response.ok) {
             const errorText = await response.text();
             console.error(`Erro ${model}:`, errorText);
-            lastError = errorText;
+            lastError = `Modelo ${model} falhou (${response.status}): ${errorText.slice(0, 300)}`;
+            attempts.push(lastError);
             continue;
           }
 
@@ -306,15 +417,18 @@ serve(async (req) => {
           return response.json();
         } catch (e: any) {
           console.error(`Exceção com ${model}:`, e.message);
-          lastError = e.message;
+          lastError = `Modelo ${model} lançou exceção: ${e.message}`;
+          attempts.push(lastError);
           continue;
         }
       }
 
-      // Todos os modelos falharam
+      // Todos os modelos falharam — mensagem amigável para o usuário final,
+      // mas com o detalhe de CADA tentativa (não só a última) pra facilitar
+      // o diagnóstico real da causa (cota vs. modelo inválido vs. chave).
       throw new Error(
-        'Nosso cérebro está descansando! 🧠💤 Muitas consultas foram feitas em pouco tempo. ' +
-        'Aguarde 1 minuto e tente novamente. (' + lastError + ')'
+        'Nosso cérebro está descansando! 🧠💤 Muitas consultas foram feitas em pouco tempo, ou há um problema de configuração. ' +
+        'Aguarde 1 minuto e tente novamente. Detalhes: [' + attempts.join(' | ') + ']'
       );
     };
 
@@ -360,11 +474,19 @@ serve(async (req) => {
     }
 
     const textPart = parts.find((p: any) => p.text);
+    const finalText = textPart?.text || "Desculpe, não consegui processar essa informação.";
+    const sources = knowledgeRows.map((row: any) => row.title);
+
+    if (lastUserMessage) {
+      const { data: authData } = await supabaseClient.auth.getUser();
+      await persistTurn(supabaseClient, authData?.user?.id ?? null, sessionId ?? null, lastUserMessage.content, finalText, sources);
+    }
 
     return new Response(
       JSON.stringify({
         role: 'assistant',
-        content: textPart?.text || "Desculpe, não consegui processar essa informação."
+        content: finalText,
+        sources
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     );

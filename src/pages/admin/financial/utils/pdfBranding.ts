@@ -55,12 +55,12 @@ async function loadLogoBase64(): Promise<string> {
     });
 }
 
-export async function addPdfBranding(doc: jsPDF, centerName?: string): Promise<number> {
+export async function addPdfBranding(doc: jsPDF, centerName?: string, compact = false): Promise<number> {
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 14;
-    const logoSize = 18;
+    const logoSize = compact ? 13.5 : 18;
     const logoX = pageWidth - margin - logoSize;
-    const logoY = 4;
+    const logoY = compact ? 3 : 4;
 
     // Load and add logo
     try {
@@ -73,18 +73,18 @@ export async function addPdfBranding(doc: jsPDF, centerName?: string): Promise<n
     // Text Positioning
     // We want the text to end to the left of the logo with some padding
     const textEndX = logoX - 2;
-    const textY = 14;
+    const textY = compact ? 10.5 : 14;
 
     // Center Name (Top Left)
     if (centerName) {
-        doc.setFontSize(10);
+        doc.setFontSize(compact ? 9 : 10);
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(107, 114, 128); // #6B7280
-        doc.text(`CD: ${centerName}`, margin, 18);
+        doc.text(`CD: ${centerName}`, margin, compact ? 13 : 18);
     }
 
     // "OS" - Purple
-    doc.setFontSize(22);
+    doc.setFontSize(compact ? 17 : 22);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(124, 58, 237); // #7C3AED (Violet-600)
     doc.text('OS', textEndX, textY, { align: 'right' });
@@ -97,25 +97,29 @@ export async function addPdfBranding(doc: jsPDF, centerName?: string): Promise<n
     doc.text('Grau', textEndX - osWidth, textY, { align: 'right' });
 
     // Trademark (®)
-    doc.setFontSize(8);
+    doc.setFontSize(compact ? 6.5 : 8);
     doc.setTextColor(124, 58, 237); // #7C3AED
-    doc.text('®', textEndX + 0.5, textY - 4, { align: 'left' });
+    doc.text('®', textEndX + 0.5, textY - (compact ? 3 : 4), { align: 'left' });
 
     // Subtitle
     // Aligned to the right, matching the end of "OS" text (textEndX)
-    doc.setFontSize(9);
+    doc.setFontSize(compact ? 7.5 : 9);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(107, 114, 128); // #6B7280 (Gray-500)
-    doc.text('Sistema Operacional da Franquia', textEndX, textY + 5, { align: 'right' });
+    doc.text('Sistema Operacional da Franquia', textEndX, textY + (compact ? 4 : 5), { align: 'right' });
 
-    // Divider line
+    // Divider line — roxo institucional sutil, em vez de só cinza
+    const dividerY = compact ? 19 : 26;
+    doc.setDrawColor(124, 58, 237);
+    doc.setLineWidth(compact ? 0.6 : 0.5);
+    doc.line(margin, dividerY, margin + 14, dividerY);
     doc.setDrawColor(229, 231, 235); // #E5E7EB
     doc.setLineWidth(0.5);
-    doc.line(margin, 26, pageWidth - margin, 26);
+    doc.line(margin + 14, dividerY, pageWidth - margin, dividerY);
 
     // Reset text color for content
     doc.setTextColor(0, 0, 0);
     doc.setFont('helvetica', 'normal');
 
-    return 30; // Y offset to start content
+    return compact ? 23 : 30; // Y offset to start content
 }

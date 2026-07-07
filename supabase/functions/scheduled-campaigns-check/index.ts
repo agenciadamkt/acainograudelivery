@@ -1,5 +1,6 @@
 // SOLUÇÃO FINAL: AGENDAMENTO AUTOMÁTICO (COM FILTRO DE HORA)
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { getFcmAccessToken, sendFcmMessage } from '../_shared/fcm.ts';
 
 const BTZAP_TOKEN = "4a0e432a-2717-42ed-a2cf-39127a768cd8";
 const BTZAP_URL = "https://btzap.uazapi.com";
@@ -10,6 +11,74 @@ const corsHeaders = {
 };
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Campanha de push (canal='push'): só alcança clientes com o app nativo
+// instalado (linha em customer_push_tokens) — diferente do WhatsApp, que
+// alcança qualquer cliente com telefone. Segmento 'new' segue a mesma regra
+// já usada pro WhatsApp acima (únicos filtros realmente aplicados no
+// backend hoje); os demais segmentos (inactive/vip/birthday) só filtram na
+// prévia da tela, não aqui — mesma limitação pré-existente do envio de
+// WhatsApp, não é algo novo desta função.
+async function processPushCampaign(
+    supabase: ReturnType<typeof createClient>,
+    campaign: any,
+): Promise<{ sent: number; failed: number; errorMessage?: string }> {
+    let customerQuery = supabase.from('customers').select('id, name');
+
+    if (campaign.segment === 'new') {
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        customerQuery = customerQuery.gte('created_at', sevenDaysAgo.toISOString());
+    }
+
+    const { data: customers } = await customerQuery;
+    if (!customers || customers.length === 0) {
+        return { sent: 0, failed: 0, errorMessage: 'Segmento vazio (nenhum cliente encontrado)' };
+    }
+
+    const { data: tokenRows } = await supabase
+        .from('customer_push_tokens')
+        .select('*')
+        .in('customer_id', customers.map((c: any) => c.id));
+
+    if (!tokenRows || tokenRows.length === 0) {
+        return { sent: 0, failed: 0, errorMessage: 'Nenhum cliente do segmento tem o app instalado (sem token de push)' };
+    }
+
+    const serviceAccountRaw = Deno.env.get('FIREBASE_SERVICE_ACCOUNT_JSON');
+    if (!serviceAccountRaw) {
+        return { sent: 0, failed: tokenRows.length, errorMessage: 'FIREBASE_SERVICE_ACCOUNT_JSON não configurado' };
+    }
+    const serviceAccount = JSON.parse(serviceAccountRaw);
+    const accessToken = await getFcmAccessToken(serviceAccount);
+
+    const customerById = new Map(customers.map((c: any) => [c.id, c]));
+    let sent = 0;
+    let failed = 0;
+
+    for (const row of tokenRows) {
+        const customer = customerById.get(row.customer_id);
+        const body = (campaign.message || '').replace(/{name}/g, customer?.name || 'Cliente');
+
+        const result = await sendFcmMessage(
+            accessToken,
+            serviceAccount.project_id,
+            row.token,
+            { title: campaign.title || campaign.name || 'Açaí no Grau', body },
+        );
+
+        if (result.ok) {
+            sent++;
+        } else {
+            failed++;
+            if (result.unregistered) {
+                await supabase.from('customer_push_tokens').delete().eq('id', row.id);
+            }
+        }
+    }
+
+    return { sent, failed };
+}
 
 Deno.serve(async (req) => {
     if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -51,6 +120,19 @@ Deno.serve(async (req) => {
 
             // Marcar como enviando para evitar duplicidade
             await supabase.from('scheduled_campaigns').update({ status: 'sending' }).eq('id', campaign.id);
+
+            if (campaign.channel === 'push') {
+                const pushResult = await processPushCampaign(supabase, campaign);
+                await supabase.from('scheduled_campaigns').update({
+                    status: 'sent',
+                    sent_count: pushResult.sent,
+                    failed_count: pushResult.failed,
+                    executed_at: new Date().toISOString(),
+                    ...(pushResult.errorMessage ? { error_message: pushResult.errorMessage } : {}),
+                }).eq('id', campaign.id);
+                report.push({ name: campaign.name, sent: pushResult.sent, failed: pushResult.failed });
+                continue;
+            }
 
             // Buscar clientes
             let query = supabase.from('customers').select('id, name, phone').not('phone', 'is', null);

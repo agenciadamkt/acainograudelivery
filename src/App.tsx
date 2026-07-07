@@ -14,6 +14,7 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { ProtectedRoute } from "@/components/customer/ProtectedRoute";
 import AppManager from "@/components/AppManager";
 import CopilotPanel from "@/components/copilot/CopilotPanel";
+import { GlobalFranchiseeOrderAlert } from "@/components/admin/GlobalFranchiseeOrderAlert";
 
 // Helper that shows CopilotPanel only on admin pages
 function GlobalCopilot() {
@@ -87,11 +88,13 @@ import NovaVenda from "./pages/admin/pdv/NovaVenda";
 import Mesas from "./pages/admin/pdv/Mesas";
 import Caixa from "./pages/admin/pdv/Caixa";
 import Historico from "./pages/admin/pdv/Historico";
+import ExtratoFinanceiro from "./pages/admin/pdv/ExtratoFinanceiro";
 import Configuracoes from "./pages/admin/pdv/Configuracoes";
 import Relatorios from "./pages/admin/pdv/Relatorios";
 
 // GrauOS pages
 import GrauOSHub from "./pages/admin/GrauOSHub";
+import HubPreviewPage from "./pages/admin/HubPreviewPage";
 import UniversidadePage from "./pages/admin/universidade/UniversidadePage";
 import TrailDetailPage from "./pages/admin/universidade/TrailDetailPage";
 import UniversidadeAdminPage from "./pages/admin/universidade/UniversidadeAdminPage";
@@ -116,11 +119,28 @@ import AccountsReceivablePage from "./pages/admin/financial/AccountsReceivablePa
 import OrderCatalog from "./pages/admin/orders/OrderCatalog";
 import FranchiseeProductsPage from "./pages/admin/orders/FranchiseeProductsPage";
 import OrderManagement from "./pages/admin/orders/OrderManagement";
+import OrdersReportsPage from "./pages/admin/orders/OrdersReportsPage";
 import OrderHistory from "./pages/admin/orders/OrderHistory";
 import CheckoutPage from "./pages/admin/orders/CheckoutPage";
 import FranchiseeOrderDetails from "./pages/admin/orders/FranchiseeOrderDetails";
 import FranchiseeProductDetail from "./pages/admin/orders/FranchiseeProductDetail";
 import GrauzinhoPage from "./pages/admin/game/GrauzinhoPage";
+
+// CAF — Central de Atendimento ao Franqueado
+import CAFDashboard from "./pages/admin/caf/CAFDashboard";
+import AtendimentosPage from "./pages/admin/caf/AtendimentosPage";
+import BaseConhecimentoPage from "./pages/admin/caf/BaseConhecimentoPage";
+import RelatoriosCAFPage from "./pages/admin/caf/RelatoriosCAFPage";
+import CadastrosCAFPage from "./pages/admin/caf/CadastrosCAFPage";
+import CAFConnectPage from "./pages/admin/caf/connect/CAFConnectPage";
+import AgendaDashboardPage from "./pages/admin/agenda/AgendaDashboardPage";
+import CalendarioAgendaPage from "./pages/admin/agenda/CalendarioAgendaPage";
+import MinhaAgendaPage from "./pages/admin/agenda/MinhaAgendaPage";
+import EquipeAgendaPage from "./pages/admin/agenda/EquipeAgendaPage";
+import CompromissosPage from "./pages/admin/agenda/CompromissosPage";
+import RelatoriosAgendaPage from "./pages/admin/agenda/RelatoriosAgendaPage";
+import SatisfacaoPublicaPage from "./pages/public/SatisfacaoPublicaPage";
+import PortalFranqueadoPage from "./pages/public/PortalFranqueadoPage";
 
 // Stock Management Module
 import StockInventoryPage from "./pages/admin/stock/InventoryPage";
@@ -139,6 +159,7 @@ import RecurringCountsPage from "./pages/admin/stock/RecurringCountsPage";
 import RecurringCountExecutionPage from "./pages/admin/stock/RecurringCountExecutionPage";
 import StockHelpPage from "./pages/admin/stock/HelpPage";
 import BonificacoesPage from "./pages/admin/stock/BonificacoesPage";
+import StockBalancePage from "./pages/admin/stock/BalancePage";
 import GlobalHelpPage from "./pages/admin/GlobalHelpPage";
 import CRMPipeline from "./pages/admin/crm/CRMPipeline";
 import CRMLeadDetail from "./pages/admin/crm/CRMLeadDetail";
@@ -176,6 +197,7 @@ const App = () => {
                   <CartProvider>
                     <PrinterProvider>
                       <CopilotGlobalWrapper />
+                      <GlobalFranchiseeOrderAlert />
                       <Routes>
                         {/* 🌐 Domain Aware Routing Logic */}
                         
@@ -244,6 +266,10 @@ const App = () => {
                             <GrauOSHub />
                           </PrivateRoute>
                         }
+                      />
+                      <Route
+                        path="/admin/hub-preview"
+                        element={<HubPreviewPage />}
                       />
                       <Route
                         path="/admin/universidade"
@@ -336,6 +362,72 @@ const App = () => {
                           </PrivateRoute>
                         }
                       />
+                      {/* CAF — Central de Atendimento ao Franqueado */}
+                      <Route path="/admin/caf" element={<Navigate to="/admin/caf/dashboard" replace />} />
+                      <Route path="/admin/caf/dashboard" element={
+                        <PrivateRoute requiredRole="staff">
+                          <AdminLayout><CAFDashboard /></AdminLayout>
+                        </PrivateRoute>
+                      } />
+                      <Route path="/admin/caf/atendimentos" element={
+                        <PrivateRoute requiredRole="staff">
+                          <AdminLayout><AtendimentosPage /></AdminLayout>
+                        </PrivateRoute>
+                      } />
+                      <Route path="/admin/caf/base-conhecimento" element={
+                        <PrivateRoute requiredRole="staff">
+                          <AdminLayout><BaseConhecimentoPage /></AdminLayout>
+                        </PrivateRoute>
+                      } />
+                      <Route path="/admin/caf/relatorios" element={
+                        <PrivateRoute requiredRole="manager">
+                          <AdminLayout><RelatoriosCAFPage /></AdminLayout>
+                        </PrivateRoute>
+                      } />
+                      <Route path="/admin/caf/cadastros" element={
+                        <PrivateRoute requiredRole="manager">
+                          <AdminLayout><CadastrosCAFPage /></AdminLayout>
+                        </PrivateRoute>
+                      } />
+                      <Route path="/admin/caf/connect" element={
+                        <PrivateRoute requiredRole="staff">
+                          <AdminLayout><CAFConnectPage /></AdminLayout>
+                        </PrivateRoute>
+                      } />
+
+                      {/* Agenda Operacional — módulo independente, CAF é só uma origem */}
+                      <Route path="/admin/agenda" element={<Navigate to="/admin/agenda/dashboard" replace />} />
+                      <Route path="/admin/agenda/dashboard" element={
+                        <PrivateRoute requiredRole="staff">
+                          <AdminLayout><AgendaDashboardPage /></AdminLayout>
+                        </PrivateRoute>
+                      } />
+                      <Route path="/admin/agenda/calendario" element={
+                        <PrivateRoute requiredRole="staff">
+                          <AdminLayout><CalendarioAgendaPage /></AdminLayout>
+                        </PrivateRoute>
+                      } />
+                      <Route path="/admin/agenda/minha" element={
+                        <PrivateRoute requiredRole="staff">
+                          <AdminLayout><MinhaAgendaPage /></AdminLayout>
+                        </PrivateRoute>
+                      } />
+                      <Route path="/admin/agenda/equipe" element={
+                        <PrivateRoute requiredRole="staff">
+                          <AdminLayout><EquipeAgendaPage /></AdminLayout>
+                        </PrivateRoute>
+                      } />
+                      <Route path="/admin/agenda/compromissos" element={
+                        <PrivateRoute requiredRole="staff">
+                          <AdminLayout><CompromissosPage /></AdminLayout>
+                        </PrivateRoute>
+                      } />
+                      <Route path="/admin/agenda/relatorios" element={
+                        <PrivateRoute requiredRole="staff">
+                          <AdminLayout><RelatoriosAgendaPage /></AdminLayout>
+                        </PrivateRoute>
+                      } />
+
                       <Route
                         path="/admin/grauzinho"
                         element={
@@ -379,7 +471,7 @@ const App = () => {
                       <Route
                         path="/admin/orders/management"
                         element={
-                          <PrivateRoute requiredRole="staff">
+                          <PrivateRoute requiredRole="staff" requiredPermission="mas.cargas">
                             <AdminLayout>
                               <OrderManagement />
                             </AdminLayout>
@@ -387,9 +479,19 @@ const App = () => {
                         }
                       />
                       <Route
+                        path="/admin/orders/reports"
+                        element={
+                          <PrivateRoute requiredRole="staff" requiredPermission="mas.relatorios">
+                            <AdminLayout>
+                              <OrdersReportsPage />
+                            </AdminLayout>
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
                         path="/admin/orders/products"
                         element={
-                          <PrivateRoute requiredRole="manager">
+                          <PrivateRoute requiredRole="staff" requiredPermission="mas.catalogo">
                             <AdminLayout>
                               <FranchiseeProductsPage />
                             </AdminLayout>
@@ -399,7 +501,7 @@ const App = () => {
 
                       {/* Franchise management */}
                       <Route path="/admin/franchisees" element={
-                        <PrivateRoute requiredRole="franchisee_master">
+                        <PrivateRoute requiredRole="staff" requiredPermission="mas.franqueados">
                           <FranchiseesPage />
                         </PrivateRoute>
                       } />
@@ -617,6 +719,16 @@ const App = () => {
                           <PrivateRoute requiredRole="staff">
                             <AdminLayout>
                               <BonificacoesPage />
+                            </AdminLayout>
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/stock/balance"
+                        element={
+                          <PrivateRoute requiredRole="manager">
+                            <AdminLayout>
+                              <StockBalancePage />
                             </AdminLayout>
                           </PrivateRoute>
                         }
@@ -847,6 +959,16 @@ const App = () => {
                           </PrivateRoute>
                         }
                       />
+                      <Route
+                        path="/admin/pdv/extrato"
+                        element={
+                          <PrivateRoute requiredRole="staff">
+                            <AdminLayout>
+                              <ExtratoFinanceiro />
+                            </AdminLayout>
+                          </PrivateRoute>
+                        }
+                      />
 
                       <Route
                         path="/admin/pdv/configuracoes"
@@ -881,6 +1003,12 @@ const App = () => {
                       />
                     </>
                   )}
+
+                      {/* Pesquisa de satisfação — pública, funciona em todos os domínios */}
+                      <Route path="/avaliacao/:token" element={<SatisfacaoPublicaPage />} />
+
+                      {/* Portal do Franqueado — abertura de chamados, acesso por senha */}
+                      <Route path="/suporte" element={<PortalFranqueadoPage />} />
 
                       <Route path="*" element={<NotFound />} />
                     </Routes>

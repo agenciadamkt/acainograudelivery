@@ -13,15 +13,8 @@ serve(async (req) => {
 
   try {
     // Verify Mercado Pago webhook signature
-    const xSignature = req.headers.get('x-signature')
-    const xRequestId = req.headers.get('x-request-id')
-
-    if (!xSignature || !xRequestId) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid webhook source' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
+    // Headers de assinatura — presentes apenas quando webhook registrado no painel MP.
+    // Não bloqueamos ausência deles para compatibilidade com notification_url inline.
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -30,6 +23,7 @@ serve(async (req) => {
 
     const body = await req.json()
 
+    // Aceitar também notificações sem signature (ambiente de teste MP ou registro via painel)
     // Mercado Pago envia notificações de pagamento
     if (body.type === 'payment') {
       const paymentId = body.data.id
@@ -100,7 +94,8 @@ serve(async (req) => {
           .from('orders')
           .update({
             payment_status: 'paid',
-            // Se quiser salvar o JSON completo: mercadopago_data: paymentData 
+            // Avança o status do pedido para 'confirmed' automaticamente quando PIX é pago
+            status: 'confirmed',
           })
           .eq('id', order.id);
 
@@ -108,6 +103,7 @@ serve(async (req) => {
           console.error('Error updating order:', updateError);
           throw updateError;
         }
+        console.log(`PIX payment confirmed for order ${order.id}, status → confirmed`);
       }
     }
 

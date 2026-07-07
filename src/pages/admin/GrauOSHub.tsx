@@ -157,8 +157,8 @@ function GrauOSHubContent() {
     if (!isMounted) return null;
 
     return (
-        <div className="min-h-screen bg-[#F8F9FA] pb-20">
-            <nav className="flex items-center justify-between px-6 sm:px-10 lg:px-16 py-6">
+        <div className="min-h-screen bg-[#F8F9FA] pb-6">
+            <nav className="flex items-center justify-between px-6 sm:px-10 lg:px-16 py-2.5">
                 <div className="flex items-center gap-2">
                     {currentStore && (
                         <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/90 border border-white shadow-sm">
@@ -181,24 +181,24 @@ function GrauOSHubContent() {
                 </div>
             </nav>
 
-            <header className="px-6 sm:px-10 lg:px-16 pt-0 mb-2">
+            <header className="px-6 sm:px-10 lg:px-16 pt-0 mb-1">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                 >
-                    <div className="flex items-center gap-2 mb-2">
+                    <div className="flex items-center gap-2 mb-1">
                         <img 
                             src={logoGrauOS} 
                             alt="GrauOS - Sistema Operacional da Franquia" 
-                            className="h-20 lg:h-28 w-auto object-contain" 
+                            className="h-12 lg:h-16 w-auto object-contain" 
                         />
                     </div>
                 </motion.div>
             </header>
 
-            <div className="relative z-10 flex flex-col lg:flex-row px-6 sm:px-10 lg:px-16 gap-10 items-start">
+            <div className="relative z-10 flex flex-col lg:flex-row px-6 sm:px-10 lg:px-16 gap-8 items-start">
                 <div className="flex-1 flex flex-col max-w-[580px]">
-                    <div className="grid grid-cols-2 gap-4 lg:gap-5 mb-10 w-full">
+                    <div className="grid grid-cols-2 gap-3 lg:gap-4 mb-4 w-full">
                         {visibleModules.map((mod, i) => (
                             <motion.button
                                 key={mod.id}
@@ -209,7 +209,7 @@ function GrauOSHubContent() {
                                 onMouseEnter={() => setHoveredModule(mod.id)}
                                 onMouseLeave={() => setHoveredModule(null)}
                                 className={clsx(
-                                    "p-6 rounded-[2rem] shadow-[0_8px_30px_rgba(0,0,0,0.06)] hover:shadow-[0_12px_40px_rgba(0,0,0,0.1)] flex flex-col items-start gap-4 min-h-[140px]"
+                                    "p-4 rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.06)] hover:shadow-[0_12px_40px_rgba(0,0,0,0.1)] flex flex-col items-start gap-2.5 min-h-[105px] w-full"
                                 )}
                                 style={{
                                     backgroundColor: hoveredModule === mod.id ? mod.hoverColor : mod.color,
@@ -217,15 +217,15 @@ function GrauOSHubContent() {
                                 }}
                             >
                                 <div className="flex justify-between items-start w-full">
-                                    <div className="p-3 rounded-2xl bg-white/20 backdrop-blur-md">
-                                        <mod.icon className="h-6 w-6 text-white" />
+                                    <div className="p-2 rounded-xl bg-white/20 backdrop-blur-md">
+                                        <mod.icon className="h-5 w-5 text-white" />
                                     </div>
-                                    <ChevronRight className="h-5 w-5 text-white/40 group-hover:text-white group-hover:translate-x-0.5 transition-all" />
+                                    <ChevronRight className="h-4 w-4 text-white/40 group-hover:text-white group-hover:translate-x-0.5 transition-all" />
                                 </div>
                                 
                                 <div className="text-left">
-                                    <h3 className="text-base lg:text-xl font-bold mb-1 leading-tight tracking-tight text-white">{mod.title}</h3>
-                                    <p className="text-[10px] lg:text-[11px] text-white/80 leading-snug font-bold uppercase tracking-wide opacity-80 whitespace-pre-wrap">
+                                    <h3 className="text-sm lg:text-[15px] font-bold mb-0.5 leading-tight tracking-tight text-white">{mod.title}</h3>
+                                    <p className="text-[10px] lg:text-[10.5px] text-white/80 leading-snug font-bold uppercase tracking-wide opacity-80 whitespace-pre-wrap">
                                         {mod.subtitle}
                                     </p>
                                 </div>
@@ -238,7 +238,7 @@ function GrauOSHubContent() {
                         whileHover={{ scale: 1.01 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={() => navigate('/admin/grauzinho')}
-                        className="group w-full relative overflow-hidden rounded-[2.5rem] border border-purple-400/20 shadow-[0_8px_30px_rgba(83,32,137,0.2)] hover:shadow-[0_12px_40px_rgba(83,32,137,0.3)] transition-all duration-300 mb-6 bg-purple-900/10"
+                        className="group w-full relative overflow-hidden rounded-2xl border border-purple-400/20 shadow-[0_8px_30px_rgba(83,32,137,0.2)] hover:shadow-[0_12px_40px_rgba(83,32,137,0.3)] transition-all duration-300 mb-4 bg-purple-900/10"
                     >
                         <img src="/game/banner_final.png?v=final" alt="GrauRunner Banner" className="w-full h-auto block transition-transform duration-700 group-hover:scale-[1.01]" />
                     </motion.button>
@@ -248,9 +248,9 @@ function GrauOSHubContent() {
                         initial={{ opacity: 0, y: 16 }}
                         animate={{ opacity: 1, y: 0 }}
                         onClick={() => navigate('/admin/comunidade')}
-                        className="group w-full flex items-center gap-4 p-5 rounded-3xl bg-white/70 backdrop-blur-sm border border-white shadow-[0_4px_25px_rgba(0,0,0,0.03)] hover:bg-white/90 transition-all duration-300 text-left"
+                        className="group w-full flex items-center gap-4 p-3.5 rounded-2xl bg-white/70 backdrop-blur-sm border border-white shadow-[0_4px_25px_rgba(0,0,0,0.03)] hover:bg-white/90 transition-all duration-300 text-left"
                     >
-                        <div className="p-3 rounded-xl bg-[#F06292] shadow-sm">
+                        <div className="p-2 rounded-xl bg-[#F06292] shadow-sm">
                             <Users className="h-5 w-5 text-white" />
                         </div>
                         <div className="flex-1 min-w-0">

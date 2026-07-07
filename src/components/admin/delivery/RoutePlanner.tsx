@@ -1,18 +1,23 @@
 import { useState, useMemo } from 'react';
-import { useOrders, useUpdateOrderStatus } from '@/hooks/useOrders';
+import { useQueryClient } from '@tanstack/react-query';
+import { useOrders } from '@/hooks/useOrders';
 import { useDeliveryDrivers } from '@/hooks/useDeliveryDrivers';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { MapPin, Truck, CheckCircle2, User, Navigation } from 'lucide-react';
+import { MapPin, Truck, CheckCircle2, Navigation } from 'lucide-react';
 import { toast } from 'sonner';
-import TrackingMap from './TrackingMap'; // We can reuse or create a specialized map
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import TrackingMap from './TrackingMap';
 
 export default function RoutePlanner() {
+    const queryClient = useQueryClient();
     const { data: drivers } = useDeliveryDrivers();
     const { data: orders = [] } = useOrders();
-    const updateOrderStatus = useUpdateOrderStatus();
+    const [isDispatching, setIsDispatching] = useState(false);
 
     const [selectedDriverId, setSelectedDriverId] = useState<string>('');
     const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
@@ -47,23 +52,41 @@ export default function RoutePlanner() {
             return;
         }
 
+        setIsDispatching(true);
         try {
-            const promises = Array.from(selectedOrderIds).map(orderId =>
-                updateOrderStatus.mutateAsync({
-                    orderId,
-                    status: 'out_for_delivery',
-                    driverId: selectedDriverId
-                })
-            );
+            const now = new Date().toISOString();
+            const orderIdsArray = Array.from(selectedOrderIds);
+            const routeName = `Rota ${format(new Date(), "dd/MM HH:mm", { locale: ptBR })}`;
 
-            await Promise.all(promises);
+            // Cria registro em delivery_routes (aparece em Frota > Rotas)
+            const { error: routeError } = await supabase
+                .from('delivery_routes')
+                .insert({
+                    name: routeName,
+                    driver_id: selectedDriverId,
+                    order_ids: orderIdsArray,
+                    status: 'em_progresso',
+                    started_at: now,
+                } as any);
+            if (routeError) throw routeError;
 
-            toast.success(`${selectedOrderIds.size} pedidos despachados com sucesso!`);
+            // Define os pedidos como em rota
+            const { error: ordersError } = await supabase
+                .from('orders')
+                .update({ status: 'out_for_delivery', out_for_delivery_at: now } as any)
+                .in('id', orderIdsArray);
+            if (ordersError) throw ordersError;
+
+            toast.success(`${orderIdsArray.length} pedido(s) despachado(s)! Veja em Frota > Rotas.`);
             setSelectedOrderIds(new Set());
             setSelectedDriverId('');
-        } catch (error) {
+            queryClient.invalidateQueries({ queryKey: ['rota-do-dia'] });
+            queryClient.invalidateQueries({ queryKey: ['orders'] });
+        } catch (error: any) {
             console.error('Dispatch error:', error);
-            toast.error('Erro ao despachar pedidos');
+            toast.error('Erro ao despachar: ' + error.message);
+        } finally {
+            setIsDispatching(false);
         }
     };
 
@@ -176,10 +199,10 @@ export default function RoutePlanner() {
                         <Button
                             className="w-full"
                             size="lg"
-                            disabled={!selectedDriverId || selectedOrderIds.size === 0 || updateOrderStatus.isPending}
+                            disabled={!selectedDriverId || selectedOrderIds.size === 0 || isDispatching}
                             onClick={handleDispatch}
                         >
-                            {updateOrderStatus.isPending ? 'Despachando...' : `Despachar Rota (${selectedOrderIds.size})`}
+                            {isDispatching ? 'Despachando...' : `Despachar Rota (${selectedOrderIds.size})`}
                         </Button>
                     </div>
 

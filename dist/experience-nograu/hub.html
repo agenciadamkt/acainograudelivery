@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>GrauOS Hub Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    min-height: 100vh;
+    background: #f0f0f3;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 52px 56px 60px;
+  }
+
+  /* ── Greeting ── */
+  .greeting {
+    font-size: 26px;
+    font-weight: 600;
+    color: #111128;
+    letter-spacing: -0.025em;
+    line-height: 1;
+    margin-bottom: 28px;
+  }
+
+  /* ── Wrapper: overflow visible para blueberry sair do card ── */
+  .card-wrapper {
+    position: relative;
+  }
+
+  /* ── Blueberry grande: canto sup-esq do hero, levemente fora do card ── */
+  .acai-1 {
+    position: absolute;
+    width: 190px;
+    top: 52px;   /* dentro do hero (navbar ~65px), centro fica em ~147px do card-top */
+    left: -15px;  /* parcialmente fora da borda esquerda */
+    z-index: 40;
+    pointer-events: none;
+    filter:
+      drop-shadow(0 32px 48px rgba(0,0,0,0.72))
+      drop-shadow(0 12px 20px rgba(0,0,0,0.50));
+  }
+
+  /* ── Card principal ── */
+  .card {
+    position: relative;
+    border-radius: 20px;
+    overflow: hidden;
+    min-height: 570px;
+    background-image: url('/hub-preview/fundo-01.png');
+    background-size: cover;
+    background-position: center center;
+  }
+
+  /* ── Camadas sutis sobre o fundo-01 ── */
+  .layer {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  /* Bloom roxo — deslocado para o centro-direita, sutil */
+  .bloom-main {
+    background: radial-gradient(ellipse at 60% 50%,
+      rgba(110, 40, 210, 0.45) 0%,
+      rgba(80, 28, 170, 0.22) 28%,
+      transparent 55%);
+  }
+
+  /* Escurece levemente as bordas */
+  .vignette {
+    background: radial-gradient(ellipse at center,
+      transparent 50%,
+      rgba(0,0,0,0.28) 100%);
+  }
+
+  /* Escurece lado esquerdo (contraste para textos) */
+  .dark-left {
+    background: linear-gradient(to right,
+      rgba(0,0,0,0.38) 0%,
+      rgba(0,0,0,0.10) 18%,
+      transparent 32%);
+  }
+
+  /* ── Navbar ── */
+  .navbar {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 22px 36px 16px;
+    gap: 20px;
+  }
+
+  .brand-label {
+    color: rgba(255,255,255,0.50);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .pill-nav {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 999px;
+    padding: 5px 7px;
+    backdrop-filter: blur(16px);
+  }
+
+  .pill-btn {
+    background: transparent;
+    color: rgba(255,255,255,0.50);
+    border-radius: 999px;
+    padding: 7px 16px;
+    font-size: 13px;
+    font-weight: 400;
+    border: none;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.17s ease;
+    font-family: 'Inter', inherit;
+  }
+
+  .pill-btn.active {
+    background: #7c3aed;
+    color: #fff;
+    font-weight: 600;
+    box-shadow: 0 2px 14px rgba(124,58,237,0.58), 0 1px 4px rgba(0,0,0,0.3);
+  }
+
+  .avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.10);
+    border: 1px solid rgba(255,255,255,0.18);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .avatar svg {
+    width: 15px;
+    height: 15px;
+    stroke: rgba(255,255,255,0.72);
+  }
+
+  /* ── Hero ── */
+  .hero {
+    position: relative;
+    height: 390px;
+  }
+
+  /* GrauOS — Outfit 900, cobre a largura total do card */
+  .grauos-text {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    user-select: none;
+    font-family: 'Outfit', system-ui, sans-serif;
+    font-size: clamp(140px, 22vw, 360px);
+    font-weight: 900;
+    color: #ffffff;
+    letter-spacing: -0.04em;
+    line-height: 1;
+    opacity: 0.97;
+    -webkit-font-smoothing: antialiased;
+    white-space: nowrap;
+  }
+
+  /* Watermark logo (direita, muito suave) */
+  .watermark {
+    position: absolute;
+    right: 24px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 88px;
+    opacity: 0.06;
+    z-index: 4;
+    pointer-events: none;
+  }
+
+  /* Bloom atrás da caixa */
+  .box-bloom {
+    position: absolute;
+    width: 300px;
+    height: 300px;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    background: radial-gradient(ellipse, rgba(100, 38, 200, 0.32) 0%, transparent 65%);
+    filter: blur(48px);
+    z-index: 8;
+    pointer-events: none;
+  }
+
+  /* Sombra de contato da caixa */
+  .contact-shadow {
+    position: absolute;
+    bottom: 18px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 200px;
+    height: 30px;
+    background: rgba(0,0,0,0.48);
+    border-radius: 50%;
+    filter: blur(22px);
+    z-index: 9;
+    pointer-events: none;
+  }
+
+  /* Wrapper da caixa — centraliza no hero */
+  .box-wrap {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .caixa {
+    height: 295px;
+    /* transform gerenciado pelas animações */
+    filter:
+      drop-shadow(0 56px 72px rgba(0,0,0,0.85))
+      drop-shadow(0 22px 36px rgba(44,12,120,0.58))
+      drop-shadow(0 8px 14px rgba(0,0,0,0.60));
+    pointer-events: none;
+    user-select: none;
+    animation:
+      boxEnter 0.95s 0.25s var(--spring) both,
+      floatBox 8s    1.20s ease-in-out  infinite;
+  }
+
+  /* Frutas flutuantes */
+  .fruit {
+    position: absolute;
+    pointer-events: none;
+    user-select: none;
+    z-index: 20;
+  }
+
+  /* Blueberry pequena — topo direita */
+  .acai-2-top {
+    width: 90px;
+    top: 8px;
+    right: 18%;
+    filter:
+      drop-shadow(0 18px 28px rgba(0,0,0,0.65))
+      drop-shadow(0 6px 10px rgba(0,0,0,0.42));
+  }
+
+  /* Blueberry mini — lado direito */
+  .acai-2-side {
+    width: 54px;
+    top: 90px;
+    right: 10%;
+    opacity: 0.90;
+    filter:
+      drop-shadow(0 10px 16px rgba(0,0,0,0.60))
+      drop-shadow(0 4px 7px rgba(0,0,0,0.38));
+  }
+
+  /* Morango — inferior direita */
+  .morango {
+    width: 120px;
+    bottom: 16px;
+    right: 14%;
+    filter:
+      drop-shadow(0 20px 32px rgba(0,0,0,0.65))
+      drop-shadow(0 8px 12px rgba(0,0,0,0.44));
+  }
+
+  /* ── Bottom bar ── */
+  .bottom-bar {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 8px 36px 28px;
+  }
+
+  .brand-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 7px;
+  }
+
+  .brand-name {
+    color: #fff;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    font-size: 22px;
+    letter-spacing: -0.03em;
+    line-height: 1;
+  }
+
+  .hub-badge {
+    background: #7c3aed;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 999px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    box-shadow: 0 2px 10px rgba(124,58,237,0.60);
+  }
+
+  .brand-desc {
+    color: rgba(255,255,255,0.36);
+    font-size: 11px;
+    line-height: 1.55;
+    max-width: 300px;
+  }
+
+  .nav-arrows {
+    display: flex;
+    gap: 8px;
+  }
+
+  .arrow-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.22);
+    background: rgba(255,255,255,0.05);
+    color: rgba(255,255,255,0.72);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+    transition: all 0.18s ease;
+  }
+
+  .arrow-btn:hover {
+    background: rgba(255,255,255,0.14);
+    border-color: rgba(255,255,255,0.36);
+  }
+
+  .arrow-btn svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  /* ═══════════════════════════════════════════
+     KEYFRAMES
+  ═══════════════════════════════════════════ */
+
+  /* Entradas */
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(22px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeInDown {
+    from { opacity: 0; transform: translateY(-14px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  /* Caixa do produto — surge + flutua */
+  @keyframes boxEnter {
+    from { opacity: 0; transform: scale(0.78) translateY(10px); }
+    to   { opacity: 1; transform: scale(1)    translateY(-10px); }
+  }
+  @keyframes floatBox {
+    0%,100% { transform: translateY(-10px); }
+    50%     { transform: translateY(-26px); }
+  }
+
+  /* Sombra de contato — espelha o float da caixa */
+  @keyframes shadowFloat {
+    0%,100% { transform: translateX(-50%) scaleX(1);    opacity: 0.48; }
+    50%     { transform: translateX(-50%) scaleX(0.68); opacity: 0.24; }
+  }
+
+  /* Bloom atrás da caixa — respira */
+  @keyframes bloomPulse {
+    0%,100% { transform: translate(-50%,-50%) scale(1);    opacity: 1; }
+    50%     { transform: translate(-50%,-50%) scale(1.22); opacity: 0.7; }
+  }
+
+  /* Frutas — float suave com leve rotação */
+  @keyframes floatA {
+    0%,100% { transform: translateY(0)    rotate(0deg); }
+    50%     { transform: translateY(-16px) rotate(5deg); }
+  }
+  @keyframes floatB {
+    0%,100% { transform: translateY(0)   rotate(0deg); }
+    50%     { transform: translateY(13px) rotate(-4deg); }
+  }
+  @keyframes floatC {
+    0%,100% { transform: translateY(0)    rotate(0deg); }
+    50%     { transform: translateY(-11px) rotate(6deg); }
+  }
+
+  /* Entradas das frutas voando de fora */
+  @keyframes flyLeft {
+    from { opacity: 0; transform: translate(-70px, 35px) scale(0.65) rotate(-15deg); }
+    to   { opacity: 1; transform: translate(0, 0)        scale(1)    rotate(0deg); }
+  }
+  @keyframes flyRight {
+    from { opacity: 0; transform: translate(55px, -25px) scale(0.65) rotate(12deg); }
+    to   { opacity: 1; transform: translate(0, 0)        scale(1)    rotate(0deg); }
+  }
+  @keyframes flyBottom {
+    from { opacity: 0; transform: translate(25px, 55px) scale(0.65) rotate(-8deg); }
+    to   { opacity: 1; transform: translate(0, 0)       scale(1)    rotate(0deg); }
+  }
+
+  /* GrauOS — shimmer de opacidade suave */
+  @keyframes textShimmer {
+    0%,100% { opacity: 0.97; }
+    50%     { opacity: 0.82; }
+  }
+
+  /* ═══════════════════════════════════════════
+     APLICAÇÃO DAS ANIMAÇÕES
+  ═══════════════════════════════════════════ */
+  /* Easing rápido e orgânico */
+  :root { --spring: cubic-bezier(0.22, 1, 0.36, 1); }
+
+  .greeting   { animation: fadeInUp 0.55s var(--spring) both; }
+  .card       { animation: fadeInUp 0.65s 0.10s var(--spring) both; }
+  .navbar     { animation: fadeInDown 0.6s 0.18s var(--spring) both; }
+  .bottom-bar { animation: fadeInUp  0.6s 0.32s var(--spring) both; }
+
+  /* GrauOS: entra e depois respira lentamente */
+  .grauos-text {
+    opacity: 0;
+    animation:
+      fadeIn      1.1s 0.15s ease          both,
+      textShimmer  14s 1.3s  ease-in-out  infinite;
+  }
+
+  /* Blueberry grande — voa da esquerda depois flutua */
+  .acai-1 {
+    animation:
+      flyLeft 0.72s 0.22s var(--spring) both,
+      floatA  6.8s  0.94s ease-in-out  infinite;
+  }
+
+  /* Blueberry direita topo — voa da direita depois flutua */
+  .acai-2-top {
+    animation:
+      flyRight 0.65s 0.42s var(--spring) both,
+      floatB   5.4s  1.07s ease-in-out  infinite;
+  }
+
+  /* Blueberry direita mini */
+  .acai-2-side {
+    animation:
+      flyRight 0.65s 0.52s var(--spring) both,
+      floatC   4.9s  1.17s ease-in-out  infinite;
+  }
+
+  /* Morango — voa de baixo depois flutua */
+  .morango {
+    animation:
+      flyBottom 0.70s 0.38s var(--spring) both,
+      floatB    6.2s  1.08s ease-in-out  infinite;
+  }
+
+  /* Bloom respira junto com o float da caixa */
+  .box-bloom {
+    animation: bloomPulse 8s 1.15s ease-in-out infinite;
+  }
+
+  /* Sombra espelha o float da caixa */
+  .contact-shadow {
+    animation: shadowFloat 8s 1.15s ease-in-out infinite;
+  }
+
+  /* Acessibilidade — respeita preferência do sistema */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+</style>
+</head>
+<body>
+
+  <p class="greeting">Olá, Juliana 👋</p>
+
+  <div class="card-wrapper">
+
+    <!-- Blueberry grande: canto superior-esquerdo, parcialmente fora do card -->
+    <img src="/hub-preview/acai-1.png" class="acai-1" alt="" />
+
+    <div class="card">
+      <!-- Camadas sutis sobre fundo-01.png -->
+      <div class="layer bloom-main"></div>
+      <div class="layer dark-left"></div>
+      <div class="layer vignette"></div>
+
+      <!-- Navbar -->
+      <nav class="navbar">
+        <span class="brand-label">Sistema Operacional da Franquia</span>
+        <div class="pill-nav">
+          <button class="pill-btn" onclick="setActive(this)">Estoque</button>
+          <button class="pill-btn" onclick="setActive(this)">Financeiro</button>
+          <button class="pill-btn active" onclick="setActive(this)">Delivery</button>
+          <button class="pill-btn" onclick="setActive(this)">PDV</button>
+          <button class="pill-btn" onclick="setActive(this)">Universidade no Grau</button>
+          <button class="pill-btn" onclick="setActive(this)">Marketing</button>
+        </div>
+        <div class="avatar">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke="currentColor">
+            <circle cx="12" cy="8" r="4"/>
+            <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+          </svg>
+        </div>
+      </nav>
+
+      <!-- Hero -->
+      <div class="hero">
+        <div class="grauos-text">GrauOS</div>
+        <img src="/hub-preview/logo-nograu.png" class="watermark" alt="" />
+        <div class="box-bloom"></div>
+        <div class="contact-shadow"></div>
+        <div class="box-wrap">
+          <img src="/hub-preview/caixa.png" class="caixa" alt="Açaí no Grau" />
+        </div>
+        <img src="/hub-preview/acai-2.png" class="fruit acai-2-top" alt="" />
+        <img src="/hub-preview/acai-2.png" class="fruit acai-2-side" alt="" />
+        <img src="/hub-preview/morango.png" class="fruit morango" alt="" />
+      </div>
+
+      <!-- Bottom -->
+      <div class="bottom-bar">
+        <div>
+          <div class="brand-row">
+            <span class="brand-name">GrauOS</span>
+            <span class="hub-badge">Hub</span>
+          </div>
+          <p class="brand-desc">
+            GrauOS é a central de controle que une cada unidade Açaí no Grau
+            em uma única operação inteligente
+          </p>
+        </div>
+        <div class="nav-arrows">
+          <button class="arrow-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="15 18 9 12 15 6"/>
+            </svg>
+          </button>
+          <button class="arrow-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    function setActive(btn) {
+      document.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }
+  </script>
+</body>
+</html>

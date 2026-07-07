@@ -5,6 +5,7 @@ import { useStore } from '@/contexts/StoreContext';
 import { toast } from 'sonner';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { optimizeStopsOrder, type RouteStop } from '@/lib/optimizeRoute';
+import { evaluateFleetRules, type FleetSettings, type FleetRuleViolation } from '@/lib/fleetRules';
 
 export interface RotaOrdem {
   orderId: string;
@@ -31,6 +32,9 @@ export interface RotaOrdem {
   status: string;
   isFranchiseeOrder?: boolean;
   isManualOrder?: boolean;
+  // Regras de negócio da Frota violadas por este pedido (ex: valor mínimo).
+  // Vazio para pedidos de franquia — ver src/lib/fleetRules.ts.
+  ruleViolations: FleetRuleViolation[];
   // Fatos de trecho (acumulados desde o início da rota) vindos do OSRM na
   // última (re)otimização — null quando a rota nunca foi otimizada com ETA
   // ou quando essa parada foi adicionada depois da última otimização.
@@ -147,7 +151,7 @@ function mapFranchiseeStatus(status: string): string {
   return map[status] ?? status;
 }
 
-async function expandRoute(route: any): Promise<RotaDoDia> {
+async function expandRoute(route: any, fleetSettings: FleetSettings): Promise<RotaDoDia> {
   const orderIds: string[] = Array.isArray(route.order_ids) ? route.order_ids : [];
   const franchiseeOrderIds: string[] = Array.isArray((route as any).franchisee_order_ids)
     ? (route as any).franchisee_order_ids
@@ -194,13 +198,14 @@ async function expandRoute(route: any): Promise<RotaDoDia> {
         if (!o) return null;
         const addr = Array.isArray(o.delivery_address) ? o.delivery_address[0] : o.delivery_address;
         const cust = Array.isArray(o.customer) ? o.customer[0] : o.customer;
+        const totalAmount = Number(o.total_amount);
         return {
           orderId: o.id,
           orderNumber: o.order_number,
           sequencia: 0, // definida abaixo, depois de intercalar com os pedidos manuais
           customer: { name: cust?.name ?? '—', phone: cust?.phone ?? '' },
           address: addr ?? null,
-          totalAmount: Number(o.total_amount),
+          totalAmount,
           customerNotes: o.customer_notes,
           createdAt: o.created_at,
           confirmedAt: o.confirmed_at,
@@ -210,6 +215,7 @@ async function expandRoute(route: any): Promise<RotaDoDia> {
           proofPhotoUrl: (o as any).proof_photo_url ?? null,
           status: o.status,
           isFranchiseeOrder: false,
+          ruleViolations: evaluateFleetRules({ totalAmount, isFranchiseeOrder: false }, fleetSettings),
         } as RotaOrdem;
       }).filter(Boolean) as RotaOrdem[];
     }
@@ -237,32 +243,36 @@ async function expandRoute(route: any): Promise<RotaDoDia> {
     }
 
     if (mOrders) {
-      manualOrdems = (mOrders as any[]).map((mo) => ({
-        orderId: mo.id,
-        orderNumber: mo.order_number,
-        sequencia: 0, // definida abaixo, depois de intercalar com os pedidos do sistema
-        customer: { name: mo.franchisee_name, phone: '' },
-        address: (mo.address_latitude && mo.address_longitude) ? {
-          street: mo.address_street ?? '',
-          number: mo.address_number ?? '',
-          neighborhood: mo.address_neighborhood ?? '',
-          city: mo.address_city ?? '',
-          complement: null,
-          latitude: Number(mo.address_latitude),
-          longitude: Number(mo.address_longitude),
-        } : null,
-        totalAmount: Number(mo.total_amount) || 0,
-        customerNotes: mo.notes ?? null,
-        createdAt: mo.order_date,
-        confirmedAt: null,
-        outForDeliveryAt: route.started_at ?? null,
-        deliveredAt: mo.delivered_at ?? (mo.status === 'delivered' ? mo.order_date : null),
-        deliveryObservation: null,
-        proofPhotoUrl: mo.proof_photo_url ?? null,
-        status: mo.status ?? 'out_for_delivery',
-        isManualOrder: true,
-        isFranchiseeOrder: false,
-      }));
+      manualOrdems = (mOrders as any[]).map((mo) => {
+        const totalAmount = Number(mo.total_amount) || 0;
+        return {
+          orderId: mo.id,
+          orderNumber: mo.order_number,
+          sequencia: 0, // definida abaixo, depois de intercalar com os pedidos do sistema
+          customer: { name: mo.franchisee_name, phone: '' },
+          address: (mo.address_latitude && mo.address_longitude) ? {
+            street: mo.address_street ?? '',
+            number: mo.address_number ?? '',
+            neighborhood: mo.address_neighborhood ?? '',
+            city: mo.address_city ?? '',
+            complement: null,
+            latitude: Number(mo.address_latitude),
+            longitude: Number(mo.address_longitude),
+          } : null,
+          totalAmount,
+          customerNotes: mo.notes ?? null,
+          createdAt: mo.order_date,
+          confirmedAt: null,
+          outForDeliveryAt: route.started_at ?? null,
+          deliveredAt: mo.delivered_at ?? (mo.status === 'delivered' ? mo.order_date : null),
+          deliveryObservation: null,
+          proofPhotoUrl: mo.proof_photo_url ?? null,
+          status: mo.status ?? 'out_for_delivery',
+          isManualOrder: true,
+          isFranchiseeOrder: false,
+          ruleViolations: evaluateFleetRules({ totalAmount, isFranchiseeOrder: false }, fleetSettings),
+        };
+      });
     }
   }
 
@@ -299,9 +309,26 @@ async function expandRoute(route: any): Promise<RotaDoDia> {
       if (franchiseeUserIds.length > 0) {
         const { data: stores } = await supabase
           .from('stores')
-          .select('franchisee_user_id, address, address_number, neighborhood, city, latitude, longitude')
+          .select('franchisee_user_id, name, address, address_number, neighborhood, city, latitude, longitude')
           .in('franchisee_user_id', franchiseeUserIds);
         storesByUser = Object.fromEntries((stores ?? []).map((s: any) => [s.franchisee_user_id, s]));
+
+        // Fallback: usuário sem vínculo direto em stores.franchisee_user_id
+        // (operador de unidade via user_unidades, ex: conta que era cliente
+        // comum e foi promovida a operadora) — sem isso a parada fica sem
+        // coordenadas e nunca aparece no mapa/rota.
+        const semVinculoDireto = franchiseeUserIds.filter(id => !storesByUser[id]);
+        if (semVinculoDireto.length > 0) {
+          const { data: unidades } = await (supabase as any)
+            .from('user_unidades')
+            .select('usuario_id, store:stores(franchisee_user_id, name, address, address_number, neighborhood, city, latitude, longitude)')
+            .in('usuario_id', semVinculoDireto);
+          (unidades || []).forEach((u: any) => {
+            if (u.store && !storesByUser[u.usuario_id]) {
+              storesByUser[u.usuario_id] = u.store;
+            }
+          });
+        }
       }
 
       const franchiseeOrdems: RotaOrdem[] = (fOrders as any[]).map((fo, idx) => {
@@ -310,7 +337,10 @@ async function expandRoute(route: any): Promise<RotaDoDia> {
           orderId: fo.id,
           orderNumber: fo.id.slice(0, 8).toUpperCase(),
           sequencia: orders.length + idx + 1,
-          customer: { name: fo.profiles?.full_name ?? 'Franqueado', phone: '' },
+          // Nome da LOJA/FRANQUIA, não da pessoa — mesma prioridade já usada
+          // em OrderManagement.tsx/OrdersReportsPage.tsx. profiles.full_name
+          // só entra se a loja não puder ser resolvida de nenhuma forma.
+          customer: { name: store?.name || fo.profiles?.full_name || 'Franqueado', phone: '' },
           address: (store?.latitude && store?.longitude) ? {
             street: store.address ?? '',
             number: store.address_number ?? '',
@@ -330,6 +360,7 @@ async function expandRoute(route: any): Promise<RotaDoDia> {
           proofPhotoUrl: null,
           status: mapFranchiseeStatus(fo.status),
           isFranchiseeOrder: true,
+          ruleViolations: [],
         };
       });
       orders = [...orders, ...franchiseeOrdems];
@@ -355,9 +386,14 @@ async function expandRoute(route: any): Promise<RotaDoDia> {
 // driverId (opcional): filtra rotas de um único fleet_driver — usado pelo app
 // do motorista da Frota para achar "minha rota do dia" (sem isso, traz todas
 // as rotas do dia, uso atual do admin em RotaDoDiaTab).
-export function useRotaDoDia(selectedDate?: string, driverId?: string) {
+// selectedDate aceita uma data única (string) OU um período { start, end }
+// (usado pelo Relatório de Rotas, que filtra por intervalo em vez de um dia só).
+export function useRotaDoDia(selectedDate?: string | { start: string; end: string }, driverId?: string) {
   const queryClient = useQueryClient();
-  const date = selectedDate ?? format(new Date(), 'yyyy-MM-dd');
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const range = typeof selectedDate === 'object' && selectedDate !== null
+    ? selectedDate
+    : { start: selectedDate ?? today, end: selectedDate ?? today };
 
   useEffect(() => {
     const channel = supabase
@@ -371,15 +407,18 @@ export function useRotaDoDia(selectedDate?: string, driverId?: string) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'manual_delivery_orders' }, () => {
         queryClient.invalidateQueries({ queryKey: ['rota-do-dia'] });
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'fleet_settings' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['rota-do-dia'] });
+      })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [queryClient]);
 
   return useQuery({
-    queryKey: ['rota-do-dia', date, driverId ?? null],
+    queryKey: ['rota-do-dia', range.start, range.end, driverId ?? null],
     queryFn: async () => {
-      const dayStart = startOfDay(new Date(date + 'T00:00:00')).toISOString();
-      const dayEnd   = endOfDay(new Date(date + 'T00:00:00')).toISOString();
+      const dayStart = startOfDay(new Date(range.start + 'T00:00:00')).toISOString();
+      const dayEnd   = endOfDay(new Date(range.end + 'T00:00:00')).toISOString();
 
       let query = supabase
         .from('delivery_routes')
@@ -392,12 +431,17 @@ export function useRotaDoDia(selectedDate?: string, driverId?: string) {
         query = query.eq('driver_id', driverId);
       }
 
-      const { data: routes, error } = await query;
+      const [{ data: routes, error }, { data: settingsRow }] = await Promise.all([
+        query,
+        supabase.from('fleet_settings' as any).select('min_order_value').eq('id', 1).single(),
+      ]);
 
       if (error) throw error;
       if (!routes || routes.length === 0) return [];
 
-      return Promise.all(routes.map(expandRoute));
+      const fleetSettings: FleetSettings = { minOrderValue: Number((settingsRow as any)?.min_order_value) || 0 };
+
+      return Promise.all(routes.map(r => expandRoute(r, fleetSettings)));
     },
     refetchInterval: 30_000,
   });
@@ -916,33 +960,32 @@ export function useEditarPedidoManual() {
   });
 }
 
+// Anexa um pedido de franquia a uma rota JÁ RESOLVIDA (existente ou recém-
+// criada pelo diálogo via useCriarRota — mesmo padrão do Pedido Manual, que
+// já funciona bem: a tela escolhe/cria a rota, este hook só agrega a parada
+// nela). Antes, cada "Despachar Carga" criava uma rota nova sempre, nunca
+// agrupando múltiplos pedidos numa única rota do dia.
 export function useDespacharFranqueado() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({
       franchiseeOrderId,
-      franchiseeName,
-    }: { franchiseeOrderId: string; franchiseeName: string }) => {
-      const now = new Date().toISOString();
-      const routeName = `Entrega Franquia: ${franchiseeName}`;
-
-      const routeRecord: any = {
-        name: routeName,
-        driver_id: null,
-        order_ids: [],
-        franchisee_order_ids: [franchiseeOrderId],
-        status: 'em_progresso',
-        started_at: now,
-      };
-      const { error: routeError } = await (supabase
+      routeId,
+    }: { franchiseeOrderId: string; routeId: string }) => {
+      const { data: route, error: fetchError } = await (supabase
         .from('delivery_routes')
-        .insert(routeRecord) as any);
-      if (routeError) {
-        // Fallback sem franchisee_order_ids se coluna ainda não existe
-        const { error: fallbackError } = await supabase
+        .select('franchisee_order_ids')
+        .eq('id', routeId)
+        .single() as any);
+      if (fetchError) throw fetchError;
+
+      const current: string[] = Array.isArray(route?.franchisee_order_ids) ? route.franchisee_order_ids : [];
+      if (!current.includes(franchiseeOrderId)) {
+        const { error: updateError } = await supabase
           .from('delivery_routes')
-          .insert({ name: routeName, driver_id: null, order_ids: [], status: 'em_progresso', started_at: now });
-        if (fallbackError) throw fallbackError;
+          .update({ franchisee_order_ids: [...current, franchiseeOrderId] } as any)
+          .eq('id', routeId);
+        if (updateError) throw updateError;
       }
 
       const { error: orderError } = await (supabase
@@ -950,6 +993,8 @@ export function useDespacharFranqueado() {
         .update({ status: 'shipping' } as any)
         .eq('id', franchiseeOrderId) as any);
       if (orderError) throw orderError;
+
+      return { routeId };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['rota-do-dia'] });

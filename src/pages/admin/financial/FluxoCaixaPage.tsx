@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { toast as sonnerToast } from 'sonner';
 
 import {
     TrendingUp,
@@ -80,6 +81,7 @@ export default function FluxoCaixaPage() {
 
     // Dialog states
     const [isCreateOpen, setIsCreateOpen] = useState(false);
+    const [isViewOpen, setIsViewOpen] = useState(false);
     const [selectedRecord, setSelectedRecord] = useState<any>(null);
     const [actionType, setActionType] = useState<'approve' | 'reject' | 'cancel' | null>(null);
     const [isProofOpen, setIsProofOpen] = useState(false);
@@ -377,6 +379,305 @@ export default function FluxoCaixaPage() {
         document.body.removeChild(link);
     };
 
+    const handleExportComprovantes = async () => {
+        const baixasRecords = (filteredRecords || []).filter((r: any) => r.transaction_type === 'write_off' && r.evidence_url);
+        const vendasRecords  = (filteredRecords || []).filter((r: any) => r.transaction_type === 'sale'      && r.evidence_url);
+
+        if (!baixasRecords.length && !vendasRecords.length) {
+            sonnerToast.error('Nenhum comprovante encontrado. Verifique se os lançamentos têm comprovantes anexados.');
+            return;
+        }
+
+        const toastId = sonnerToast.loading('Gerando PDF de comprovantes...');
+
+        try {
+            // ── Layout constants ──────────────────────────────────────────
+            const doc  = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+            const PW   = 297, PH = 210;
+            const ML   = 10, MT = 4;
+            const HEADER_H  = 16;   // header bar height
+            const SECTION_H = 14;   // section-title row
+            const SIG_W     = 38;   // signature column — wide enough for portrait carimbo images
+            const SIG_X     = PW - ML - SIG_W;
+            const GRID_W    = SIG_X - ML;
+            const COL_W     = GRID_W / 4;
+            const CONTENT_Y = MT + HEADER_H + SECTION_H;  // = 34
+            const CONTENT_H = PH - CONTENT_Y - MT;        // = 172
+            const ROW_H     = CONTENT_H / 2;               // = 86
+
+            const cdName = selectedCD
+                ? centers.find((c: any) => c.id === selectedCD)?.name || 'Distribuidora'
+                : 'Todos os CDs';
+            const dateLabel = dateStart === dateEnd
+                ? format(new Date(dateStart + 'T12:00:00'), 'dd/MM/yyyy')
+                : `${format(new Date(dateStart + 'T12:00:00'), 'dd/MM/yyyy')} a ${format(new Date(dateEnd + 'T12:00:00'), 'dd/MM/yyyy')}`;
+
+            // ── Load image preserving natural dimensions ───────────────────
+            const loadImgData = (url: string): Promise<{ data: string; w: number; h: number } | null> =>
+                new Promise((resolve) => {
+                    const img = new Image();
+                    img.crossOrigin = 'anonymous';
+                    img.onload = () => {
+                        try {
+                            const nw = img.naturalWidth  || 600;
+                            const nh = img.naturalHeight || 600;
+                            const c  = document.createElement('canvas');
+                            c.width  = nw;
+                            c.height = nh;
+                            const ctx = c.getContext('2d');
+                            if (ctx) {
+                                ctx.fillStyle = '#FFFFFF';
+                                ctx.fillRect(0, 0, nw, nh);
+                                ctx.drawImage(img, 0, 0);
+                            }
+                            resolve({ data: c.toDataURL('image/jpeg', 0.88), w: nw, h: nh });
+                        } catch { resolve(null); }
+                    };
+                    img.onerror = () => resolve(null);
+                    img.src = url;
+                });
+
+            // ── Header bar ────────────────────────────────────────────────
+            const drawHeader = async () => {
+                const BOX_H      = HEADER_H - 2;               // 14mm
+                const ROW_CENTER = MT + BOX_H / 2;
+                const TEXT_Y     = ROW_CENTER + 1.65;
+                const IMG_W      = PW - 2 * ML;               // 277mm
+
+                let bgR = 58, bgG = 58, bgB = 58;
+                let dateX = ML + 45;
+
+                // ── Load cabecalho.png: solid bg + green box overlay only ──
+                await new Promise<void>((resolve) => {
+                    const img = new Image();
+                    img.crossOrigin = 'anonymous';
+                    img.onload = () => {
+                        try {
+                            const nw = img.naturalWidth;
+                            const nh = img.naturalHeight;
+                            const cnv = document.createElement('canvas');
+                            cnv.width = nw; cnv.height = nh;
+                            const ctx = cnv.getContext('2d');
+                            if (!ctx) { resolve(); return; }
+                            ctx.drawImage(img, 0, 0);
+
+                            const midY   = Math.round(nh * 0.5);
+                            const midRow = ctx.getImageData(0, midY, nw, 1).data;
+
+                            // Locate rightmost green pixel
+                            let greenEnd = 0;
+                            for (let x = 0; x < Math.round(nw * 0.45); x++) {
+                                const r = midRow[x * 4], g = midRow[x * 4 + 1], b = midRow[x * 4 + 2];
+                                if (r < 150 && g > 150 && b < 100) greenEnd = x;
+                            }
+                            dateX = ML + greenEnd * (IMG_W / nw) + 5;
+
+                            // Sample bg from just right of the green box
+                            const bgSx = Math.min(greenEnd + Math.round(nw * 0.03), Math.round(nw * 0.9));
+                            bgR = midRow[bgSx * 4]; bgG = midRow[bgSx * 4 + 1]; bgB = midRow[bgSx * 4 + 2];
+
+                            // 1) Fill ENTIRE header with one solid color — no image for the background
+                            doc.setFillColor(bgR, bgG, bgB);
+                            doc.rect(ML, MT, IMG_W, BOX_H, 'F');
+
+                            // 2) Overlay only the green box as lossless PNG on top of solid bg
+                            const cropPx = greenEnd + Math.round(nw * 0.01);
+                            const gbCnv  = document.createElement('canvas');
+                            gbCnv.width  = cropPx; gbCnv.height = nh;
+                            const gbCtx  = gbCnv.getContext('2d');
+                            if (gbCtx) gbCtx.drawImage(img, 0, 0);
+                            doc.addImage(gbCnv.toDataURL('image/png'), 'PNG', ML, MT, cropPx * (IMG_W / nw), BOX_H, undefined, 'FAST');
+
+                        } catch { /* keep fallback */ }
+                        resolve();
+                    };
+                    img.onerror = () => resolve();
+                    img.src = '/cabecalho.png';
+                });
+
+                // ── logo.png — aspect-ratio-safe scaling ──
+                let rightEdge = PW - ML;
+                await new Promise<void>((resolve) => {
+                    const img = new Image();
+                    img.crossOrigin = 'anonymous';
+                    img.onload = () => {
+                        try {
+                            const nw = img.naturalWidth;
+                            const nh = img.naturalHeight;
+                            const cnv = document.createElement('canvas');
+                            cnv.width = nw; cnv.height = nh;
+                            const ctx = cnv.getContext('2d');
+                            if (ctx) {
+                                ctx.fillStyle = `rgb(${bgR},${bgG},${bgB})`;
+                                ctx.fillRect(0, 0, nw, nh);
+                                ctx.drawImage(img, 0, 0);
+
+                                // Scale to fit within MAX_LH × MAX_LW, preserving aspect ratio
+                                const MAX_LH = BOX_H - 4;   // 10mm
+                                const MAX_LW = 50;           // 50mm
+                                const scale  = Math.min(MAX_LH / nh, MAX_LW / nw);
+                                const lw     = nw * scale;
+                                const lh     = nh * scale;
+                                const logoY  = MT + (BOX_H - lh) / 2;
+                                rightEdge   -= lw;
+                                doc.addImage(cnv.toDataURL('image/jpeg', 0.90), 'JPEG', rightEdge, logoY, lw, lh);
+                                rightEdge   -= 3;
+                            }
+                        } catch { /* skip */ }
+                        resolve();
+                    };
+                    img.onerror = () => resolve();
+                    img.src = '/logo.png';
+                });
+
+                // CD name — right-aligned, left of logo
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(8);
+                doc.setTextColor(200, 200, 200);
+                doc.text(cdName, rightEdge, TEXT_Y, { align: 'right' });
+
+                // "DO DIA [date]"
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(13);
+                doc.setTextColor(255, 255, 255);
+                doc.text(`DO DIA ${dateLabel}`, dateX, TEXT_Y);
+
+                // Separator line
+                doc.setDrawColor(80, 80, 80);
+                doc.setLineWidth(0.3);
+                doc.line(ML, MT + HEADER_H, PW - ML, MT + HEADER_H);
+            };
+
+            // ── Section title (icon + label) ─────────────────────────────
+            const drawSectionTitle = async (label: string, iconPath: string) => {
+                const iconSize = (SECTION_H - 4) * 0.7;                   // 7mm (30% menor)
+                const rowCenterY = MT + HEADER_H + SECTION_H / 2;         // 27mm — centro da faixa
+                const iconY    = rowCenterY - iconSize / 2;                // ícone centralizado na faixa
+                const iconX    = ML + 1;
+                const textX    = iconX + iconSize + 3;
+                // Baseline para texto 12pt centrado visualmente na faixa:
+                // capHeight ≈ 12pt × 0.3528mm/pt × 0.72 ≈ 3.05mm → baseline = rowCenter + capHeight/2
+                const textY    = rowCenterY + 1.5;
+
+                const iconData = await loadImgData(iconPath);
+                if (iconData) {
+                    const scale  = iconSize / Math.max(iconData.w, iconData.h);
+                    const drawW  = iconData.w * scale;
+                    const drawH  = iconData.h * scale;
+                    const offX   = (iconSize - drawW) / 2;
+                    const offY   = (iconSize - drawH) / 2;
+                    doc.addImage(iconData.data, 'JPEG', iconX + offX, iconY + offY, drawW, drawH, undefined, 'FAST');
+                }
+
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(12);
+                doc.setTextColor(25, 25, 25);
+                doc.text(label, textX, textY);
+                doc.setTextColor(0, 0, 0);
+            };
+
+            // ── 4×2 grid of bordered cells ────────────────────────────────
+            const drawGridCells = () => {
+                doc.setDrawColor(200, 200, 200);
+                doc.setLineWidth(0.25);
+                for (let row = 0; row < 2; row++) {
+                    for (let col = 0; col < 4; col++) {
+                        doc.rect(ML + col * COL_W, CONTENT_Y + row * ROW_H, COL_W, ROW_H);
+                    }
+                }
+            };
+
+            // ── Place comprovante images preserving aspect ratio ───────────
+            const placeImages = async (records: any[], offset: number) => {
+                const slice = records.slice(offset, offset + 8);
+                const imgList = await Promise.all(slice.map((r: any) => loadImgData(r.evidence_url)));
+
+                for (let i = 0; i < slice.length; i++) {
+                    const img = imgList[i];
+                    if (!img) continue;
+
+                    const col = i % 4;
+                    const row = Math.floor(i / 4);
+                    const pad = 2.5; // inner padding inside each cell
+
+                    const availW = COL_W - pad * 2;
+                    const availH = ROW_H - pad * 2;
+
+                    // Scale to fit inside the cell, preserving aspect ratio
+                    const scale  = Math.min(availW / img.w, availH / img.h);
+                    const drawW  = img.w * scale;
+                    const drawH  = img.h * scale;
+
+                    // Center inside the cell
+                    const cellX = ML + col * COL_W;
+                    const cellY = CONTENT_Y + row * ROW_H;
+                    const imgX  = cellX + pad + (availW - drawW) / 2;
+                    const imgY  = cellY + pad + (availH - drawH) / 2;
+
+                    try {
+                        doc.addImage(img.data, 'JPEG', imgX, imgY, drawW, drawH, undefined, 'FAST');
+                    } catch { /* skip unreadable image */ }
+                }
+            };
+
+            // ── Right-side signature column (carimbo images) ─────────────
+            const drawSignatureColumn = async () => {
+                const carimbos = ['/carimbo-financeiro.png', '/carimbo-conferido.png'];
+                for (let i = 0; i < carimbos.length; i++) {
+                    const bx = SIG_X;
+                    const by = CONTENT_Y + i * ROW_H;
+
+                    // Cell border
+                    doc.setDrawColor(200, 200, 200);
+                    doc.setLineWidth(0.25);
+                    doc.rect(bx, by, SIG_W, ROW_H);
+
+                    // Place carimbo PNG at 50% of the cell-fit size, centered
+                    const carimbo = await loadImgData(carimbos[i]);
+                    if (carimbo) {
+                        const pad    = 2;
+                        const availW = SIG_W - pad * 2;
+                        const availH = ROW_H - pad * 2;
+                        const scale  = Math.min(availW / carimbo.w, availH / carimbo.h) * 0.65;
+                        const drawW  = carimbo.w * scale;
+                        const drawH  = carimbo.h * scale;
+                        const imgX   = bx + pad + (availW - drawW) / 2;
+                        const imgY   = by + pad + (availH - drawH) / 2;
+                        doc.addImage(carimbo.data, 'JPEG', imgX, imgY, drawW, drawH, undefined, 'FAST');
+                    }
+                }
+            };
+
+            // ── Render pages ──────────────────────────────────────────────
+            const groups = [
+                { label: 'Baixas de Títulos', records: baixasRecords, icon: '/icone-baixa.png' },
+                { label: 'Vendas',             records: vendasRecords,  icon: '/icone-venda.png'  },
+            ].filter(g => g.records.length > 0);
+
+            let firstPage = true;
+            for (const { label, records, icon } of groups) {
+                for (let offset = 0; offset < records.length; offset += 8) {
+                    if (!firstPage) doc.addPage();
+                    firstPage = false;
+
+                    await drawHeader();
+                    await drawSectionTitle(label, icon);
+                    drawGridCells();
+                    await placeImages(records, offset);
+                    await drawSignatureColumn();
+                }
+            }
+
+            doc.save(`comprovantes-${format(new Date(dateStart + 'T12:00:00'), 'dd-MM-yyyy')}.pdf`);
+            sonnerToast.dismiss(toastId);
+            sonnerToast.success('PDF gerado com sucesso!');
+        } catch (err) {
+            sonnerToast.dismiss(toastId);
+            sonnerToast.error('Erro ao gerar PDF. Tente novamente.');
+            console.error('[Comprovantes PDF]', err);
+        }
+    };
+
     // Access denied screen
     if (!isCheckingAccess && !isAuthorized && user) {
         return (
@@ -419,6 +720,10 @@ export default function FluxoCaixaPage() {
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={handleExportExcel}>
                                     <FileSpreadsheet className="mr-2 h-4 w-4" /> Exportar Excel (CSV)
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={handleExportComprovantes}>
+                                    <FileText className="mr-2 h-4 w-4" /> Comprovantes (PDF)
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
@@ -753,13 +1058,31 @@ export default function FluxoCaixaPage() {
                                                                 variant="ghost"
                                                                 size="icon"
                                                                 className="h-8 w-8 text-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20"
-                                                                onClick={() => { setSelectedRecord(record); setIsCreateOpen(true); }}
+                                                                onClick={() => { setSelectedRecord(record); setIsViewOpen(true); }}
                                                             >
                                                                 <Eye className="h-4 w-4" />
                                                             </Button>
                                                         </TooltipTrigger>
                                                         <TooltipContent>
-                                                            <p>Visualizar / Editar</p>
+                                                            <p>Visualizar</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-8 w-8 text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
+                                                                onClick={() => { setSelectedRecord(record); setIsCreateOpen(true); }}
+                                                            >
+                                                                <Edit2 className="h-4 w-4" />
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p>Editar</p>
                                                         </TooltipContent>
                                                     </Tooltip>
                                                 </TooltipProvider>
@@ -805,7 +1128,7 @@ export default function FluxoCaixaPage() {
                                                 )}
 
                                                 {/* Cancel / Delete (Soft) - Admin only */}
-                                                {isAdmin && (record.status === 'pending') && (
+                                                {isAdmin && record.status !== 'cancelled' && (
                                                     <TooltipProvider>
                                                         <Tooltip>
                                                             <TooltipTrigger asChild>
@@ -835,6 +1158,22 @@ export default function FluxoCaixaPage() {
             </div>
 
             {/* Dialogs */}
+            {/* View-only dialog */}
+            <RecordFormDialog
+                open={isViewOpen}
+                onOpenChange={(open) => {
+                    setIsViewOpen(open);
+                    if (!open) setSelectedRecord(null);
+                }}
+                record={selectedRecord}
+                readOnly
+                onSuccess={() => {
+                    setIsViewOpen(false);
+                    setSelectedRecord(null);
+                }}
+            />
+
+            {/* Edit dialog */}
             <RecordFormDialog
                 open={isCreateOpen}
                 onOpenChange={setIsCreateOpen}

@@ -18,6 +18,8 @@ import { usePrinter } from '@/contexts/PrinterContext';
 import { generateEscPosCommand } from '@/utils/printing/escpos';
 import { toast } from 'sonner';
 import { useEffect } from 'react';
+import { useUazapiIntegration, sendUazapiMessage } from '@/hooks/useUazapiIntegration';
+import { WHATSAPP_MESSAGES } from '@/utils/whatsappMessages';
 
 export default function OrdersPage() {
   const [filters, setFilters] = useState({});
@@ -38,6 +40,7 @@ export default function OrdersPage() {
   const cancelOrder = useCancelOrder();
   const { currentStore } = useStore();
   const { printRaw, isConnected } = usePrinter();
+  const { data: uazapiData } = useUazapiIntegration();
 
   // Automatic Printing Logic removed per user request (only print on accept)
   // Realtime updates are handled by useOrders hook

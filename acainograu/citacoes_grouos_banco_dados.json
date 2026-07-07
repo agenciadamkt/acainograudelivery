@@ -1,0 +1,526 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "name": "Banco de Citações GrouOs",
+    "total_quotes": 44,
+    "total_authors": 8,
+    "total_categories": 15,
+    "created_at": "2026-04-21",
+    "language": "pt-BR"
+  },
+  "quotes": [
+    {
+      "id": "quote_001",
+      "author": "Napoleon Hill",
+      "text": "Tudo que a mente do homem pode conceber e acreditar, ela pode alcançar.",
+      "category": "Mentalidade",
+      "tags": ["sucesso", "mindset", "crença"],
+      "source": "Pense e Enriqueça"
+    },
+    {
+      "id": "quote_002",
+      "author": "Napoleon Hill",
+      "text": "O segredo do sucesso, se é que existe um, é a capacidade de encarar o ponto de vista da outra pessoa e ver as coisas tanto por esse ângulo quanto pelo seu.",
+      "category": "Liderança",
+      "tags": ["empatia", "liderança", "sucesso"],
+      "source": "Pense e Enriqueça"
+    },
+    {
+      "id": "quote_003",
+      "author": "Napoleon Hill",
+      "text": "Uma meta é um sonho com prazo definido.",
+      "category": "Metas",
+      "tags": ["planejamento", "objetivos", "ação"],
+      "source": "Pense e Enriqueça"
+    },
+    {
+      "id": "quote_004",
+      "author": "Napoleon Hill",
+      "text": "Você é o mestre do seu destino. Você é o capitão da sua alma.",
+      "category": "Mentalidade",
+      "tags": ["responsabilidade", "liberdade", "poder"],
+      "source": "Pense e Enriqueça"
+    },
+    {
+      "id": "quote_005",
+      "author": "Napoleon Hill",
+      "text": "O fracasso é o caminho de menor resistência.",
+      "category": "Resiliência",
+      "tags": ["aprendizado", "falha", "crescimento"],
+      "source": "Pense e Enriqueça"
+    },
+    {
+      "id": "quote_006",
+      "author": "Napoleon Hill",
+      "text": "Defina seu propósito principal definido e não pare até tê-lo alcançado.",
+      "category": "Metas",
+      "tags": ["persistência", "objetivos", "foco"],
+      "source": "Pense e Enriqueça"
+    },
+    {
+      "id": "quote_007",
+      "author": "Seth Godin",
+      "text": "Marketing não é mais sobre as coisas que você faz, mas sobre as histórias que você conta.",
+      "category": "Marketing",
+      "tags": ["comunicação", "narrativa", "conexão"],
+      "source": "Purple Cow"
+    },
+    {
+      "id": "quote_008",
+      "author": "Seth Godin",
+      "text": "As pessoas não compram produtos e serviços. Elas compram relações, histórias e magia.",
+      "category": "Negócios",
+      "tags": ["vendas", "relacionamento", "emoção"],
+      "source": "Tribes"
+    },
+    {
+      "id": "quote_009",
+      "author": "Seth Godin",
+      "text": "Seja notável ou seja invisível.",
+      "category": "Negócios",
+      "tags": ["diferenciação", "marca", "posicionamento"],
+      "source": "Purple Cow"
+    },
+    {
+      "id": "quote_010",
+      "author": "Seth Godin",
+      "text": "A melhor maneira de reclamar é fazer as coisas.",
+      "category": "Ação",
+      "tags": ["proatividade", "mudança", "responsabilidade"],
+      "source": "Linchpin"
+    },
+    {
+      "id": "quote_011",
+      "author": "Seth Godin",
+      "text": "Liderança é a arte de desistir de algum controle para obter mais.",
+      "category": "Liderança",
+      "tags": ["delegação", "confiança", "equipe"],
+      "source": "Tribes"
+    },
+    {
+      "id": "quote_012",
+      "author": "Seth Godin",
+      "text": "O maior risco é não correr nenhum risco.",
+      "category": "Empreendedorismo",
+      "tags": ["coragem", "inovação", "oportunidade"],
+      "source": "The Dip"
+    },
+    {
+      "id": "quote_013",
+      "author": "Stephen King",
+      "text": "A vida não é um filme de apoio. É o principal evento.",
+      "category": "Mentalidade",
+      "tags": ["propósito", "autenticidade", "vida"],
+      "source": "On Writing"
+    },
+    {
+      "id": "quote_014",
+      "author": "Stephen King",
+      "text": "Os livros são um modo único de portabilidade. Você pode carregar um milhar de histórias no bolso do seu casaco.",
+      "category": "Conhecimento",
+      "tags": ["aprendizado", "leitura", "crescimento"],
+      "source": "On Writing"
+    },
+    {
+      "id": "quote_015",
+      "author": "Stephen King",
+      "text": "Talento é mais barato que sal de mesa. O que separa o indivíduo talentoso do bem-sucedido é muito trabalho árduo.",
+      "category": "Trabalho",
+      "tags": ["dedicação", "excelência", "sucesso"],
+      "source": "On Writing"
+    },
+    {
+      "id": "quote_016",
+      "author": "Stephen King",
+      "text": "O inferno é a impossibilidade da razão.",
+      "category": "Resiliência",
+      "tags": ["desafio", "lógica", "clareza"],
+      "source": "The Stand"
+    },
+    {
+      "id": "quote_017",
+      "author": "Stephen King",
+      "text": "Você pode, você deve, e se for corajoso o suficiente para começar, você vai.",
+      "category": "Ação",
+      "tags": ["coragem", "início", "possibilidade"],
+      "source": "On Writing"
+    },
+    {
+      "id": "quote_018",
+      "author": "John Maeda",
+      "text": "Simplicidade é sobre subtrair o óbvio e adicionar o significativo.",
+      "category": "Design",
+      "tags": ["estética", "funcionalidade", "beleza"],
+      "source": "The Laws of Simplicity"
+    },
+    {
+      "id": "quote_019",
+      "author": "John Maeda",
+      "text": "Design é uma solução para um problema. Arte é uma questão para um problema.",
+      "category": "Design",
+      "tags": ["criatividade", "intencionalidade", "propósito"],
+      "source": "The Laws of Simplicity"
+    },
+    {
+      "id": "quote_020",
+      "author": "John Maeda",
+      "text": "A tecnologia sem a alma do design é apenas uma ferramenta.",
+      "category": "Inovação",
+      "tags": ["humanidade", "tecnologia", "sensibilidade"],
+      "source": "The Laws of Simplicity"
+    },
+    {
+      "id": "quote_021",
+      "author": "John Maeda",
+      "text": "Simplicidade não significa ausência de complexidade — significa que a complexidade foi dominada.",
+      "category": "Design",
+      "tags": ["profundidade", "mastery", "refinamento"],
+      "source": "The Laws of Simplicity"
+    },
+    {
+      "id": "quote_022",
+      "author": "John Maeda",
+      "text": "O design mais simples é frequentemente o mais difícil de alcançar.",
+      "category": "Excelência",
+      "tags": ["dedicação", "refinamento", "perfeição"],
+      "source": "The Laws of Simplicity"
+    },
+    {
+      "id": "quote_023",
+      "author": "Steve Jobs",
+      "text": "Inovação é o que distingue um líder de um seguidor.",
+      "category": "Inovação",
+      "tags": ["criatividade", "visão", "diferenciação"],
+      "source": "Palestra em Stanford"
+    },
+    {
+      "id": "quote_024",
+      "author": "Steve Jobs",
+      "text": "O design não é apenas como parece. Design é como funciona.",
+      "category": "Design",
+      "tags": ["funcionalidade", "experiência", "intencionalidade"],
+      "source": "Biografia"
+    },
+    {
+      "id": "quote_025",
+      "author": "Steve Jobs",
+      "text": "Sua hora é limitada, então não a desperdice vivendo a vida de outra pessoa.",
+      "category": "Mentalidade",
+      "tags": ["autenticidade", "liberdade", "propósito"],
+      "source": "Palestra em Stanford"
+    },
+    {
+      "id": "quote_026",
+      "author": "Steve Jobs",
+      "text": "Qualidade é mais importante que quantidade. Um home run é muito melhor que dois duplos.",
+      "category": "Excelência",
+      "tags": ["padrões", "perfeição", "foco"],
+      "source": "Biografia"
+    },
+    {
+      "id": "quote_027",
+      "author": "Steve Jobs",
+      "text": "Ser o homem mais rico do cemitério não importa para mim. Ir dormir à noite sabendo que fizemos algo maravilhoso, isso importa.",
+      "category": "Propósito",
+      "tags": ["legado", "valores", "significado"],
+      "source": "Palestra em Stanford"
+    },
+    {
+      "id": "quote_028",
+      "author": "Steve Jobs",
+      "text": "Simplicidade é a sofisticação máxima.",
+      "category": "Design",
+      "tags": ["elegância", "refinamento", "beleza"],
+      "source": "Biografia"
+    },
+    {
+      "id": "quote_029",
+      "author": "Voltaire",
+      "text": "O melhor é o inimigo do bom.",
+      "category": "Excelência",
+      "tags": ["pragmatismo", "satisfação", "ação"],
+      "source": "Candide"
+    },
+    {
+      "id": "quote_030",
+      "author": "Voltaire",
+      "text": "Cada homem é culpado pelo bem que não fez.",
+      "category": "Liderança",
+      "tags": ["responsabilidade", "ação", "impacto"],
+      "source": "Ensaios Filosóficos"
+    },
+    {
+      "id": "quote_031",
+      "author": "Voltaire",
+      "text": "Trabalho afasta de nós três grandes males: o tédio, o vício e a necessidade.",
+      "category": "Trabalho",
+      "tags": ["propósito", "disciplina", "bem-estar"],
+      "source": "Candide"
+    },
+    {
+      "id": "quote_032",
+      "author": "Voltaire",
+      "text": "O segredo de ser chato é dizer tudo.",
+      "category": "Comunicação",
+      "tags": ["eloquência", "síntese", "impacto"],
+      "source": "Ensaios Filosóficos"
+    },
+    {
+      "id": "quote_033",
+      "author": "Voltaire",
+      "text": "A incerteza é desconfortável, mas a certeza é ridícula.",
+      "category": "Conhecimento",
+      "tags": ["humildade", "aprendizado", "abertura"],
+      "source": "Ensaios Filosóficos"
+    },
+    {
+      "id": "quote_034",
+      "author": "Voltaire",
+      "text": "Apreciamos o que criamos.",
+      "category": "Propósito",
+      "tags": ["criação", "valor", "significado"],
+      "source": "Ensaios Filosóficos"
+    },
+    {
+      "id": "quote_035",
+      "author": "John Locke",
+      "text": "Educação começa pelo bebê e nunca termina.",
+      "category": "Conhecimento",
+      "tags": ["desenvolvimento", "aprendizado", "crescimento"],
+      "source": "Some Thoughts Concerning Education"
+    },
+    {
+      "id": "quote_036",
+      "author": "John Locke",
+      "text": "Onde não há lei, não há liberdade.",
+      "category": "Liderança",
+      "tags": ["estrutura", "responsabilidade", "ordem"],
+      "source": "Second Treatise of Government"
+    },
+    {
+      "id": "quote_037",
+      "author": "John Locke",
+      "text": "O propósito da lei não é abolir ou restringir, mas preservar e ampliar a liberdade.",
+      "category": "Propósito",
+      "tags": ["justiça", "direitos", "desenvolvimento"],
+      "source": "Second Treatise of Government"
+    },
+    {
+      "id": "quote_038",
+      "author": "John Locke",
+      "text": "Nenhum homem pode ser obrigado a fazer o que não é para o seu bem.",
+      "category": "Mentalidade",
+      "tags": ["autonomia", "bem-estar", "dignidade"],
+      "source": "Some Thoughts Concerning Education"
+    },
+    {
+      "id": "quote_039",
+      "author": "John Locke",
+      "text": "As ações dos homens são os melhores intérpretes de seus pensamentos.",
+      "category": "Ação",
+      "tags": ["autenticidade", "coerência", "verdade"],
+      "source": "Essay Concerning Human Understanding"
+    },
+    {
+      "id": "quote_040",
+      "author": "Katherine Mansfield",
+      "text": "Fazer algo de um modo diferente, melhor — isso é o que quero.",
+      "category": "Excelência",
+      "tags": ["inovação", "melhoria", "ambição"],
+      "source": "Diários e Cartas"
+    },
+    {
+      "id": "quote_041",
+      "author": "Katherine Mansfield",
+      "text": "Quanto tempo leva para saber que amamos algo? Um momento.",
+      "category": "Propósito",
+      "tags": ["paixão", "intuição", "clareza"],
+      "source": "Diários e Cartas"
+    },
+    {
+      "id": "quote_042",
+      "author": "Katherine Mansfield",
+      "text": "É preciso coragem para crescer e se tornar quem você realmente é.",
+      "category": "Resiliência",
+      "tags": ["autenticidade", "transformação", "coragem"],
+      "source": "Diários e Cartas"
+    },
+    {
+      "id": "quote_043",
+      "author": "Katherine Mansfield",
+      "text": "Risco! Arrisque qualquer coisa! Cuidar não mais, tenha medo não mais, mas ria de todos os medos.",
+      "category": "Empreendedorismo",
+      "tags": ["audácia", "liberdade", "ação"],
+      "source": "Diários e Cartas"
+    },
+    {
+      "id": "quote_044",
+      "author": "Katherine Mansfield",
+      "text": "O que queremos é descobrir o que vai fazer da vida uma coisa completa.",
+      "category": "Propósito",
+      "tags": ["significado", "plenitude", "busca"],
+      "source": "Diários e Cartas"
+    }
+  ],
+  "authors": [
+    {
+      "name": "Napoleon Hill",
+      "birth_year": 1883,
+      "death_year": 1970,
+      "nationality": "Americano",
+      "main_work": "Pense e Enriqueça",
+      "specialty": "Desenvolvimento pessoal, Sucesso",
+      "color": "#FAC775"
+    },
+    {
+      "name": "Seth Godin",
+      "birth_year": 1960,
+      "death_year": null,
+      "nationality": "Americano",
+      "main_work": "Purple Cow",
+      "specialty": "Marketing, Liderança, Negócios",
+      "color": "#9FE1CB"
+    },
+    {
+      "name": "Stephen King",
+      "birth_year": 1947,
+      "death_year": null,
+      "nationality": "Americano",
+      "main_work": "On Writing",
+      "specialty": "Criatividade, Escrita, Resiliência",
+      "color": "#F4C0D1"
+    },
+    {
+      "name": "John Maeda",
+      "birth_year": 1966,
+      "death_year": null,
+      "nationality": "Japonês-Americano",
+      "main_work": "The Laws of Simplicity",
+      "specialty": "Design, Tecnologia, Simplicidade",
+      "color": "#B5D4F4"
+    },
+    {
+      "name": "Steve Jobs",
+      "birth_year": 1955,
+      "death_year": 2011,
+      "nationality": "Americano",
+      "main_work": "Biografia (Isaacson)",
+      "specialty": "Inovação, Design, Liderança",
+      "color": "#D3D1C7"
+    },
+    {
+      "name": "Voltaire",
+      "birth_year": 1694,
+      "death_year": 1778,
+      "nationality": "Francês",
+      "main_work": "Candide",
+      "specialty": "Filosofia, Crítica Social, Ação",
+      "color": "#C0DD97"
+    },
+    {
+      "name": "John Locke",
+      "birth_year": 1632,
+      "death_year": 1704,
+      "nationality": "Inglês",
+      "main_work": "Second Treatise of Government",
+      "specialty": "Filosofia, Educação, Liberdade",
+      "color": "#CECBF6"
+    },
+    {
+      "name": "Katherine Mansfield",
+      "birth_year": 1888,
+      "death_year": 1923,
+      "nationality": "Neozelandesa",
+      "main_work": "Diários e Contos",
+      "specialty": "Literatura, Propósito, Autenticidade",
+      "color": "#F5C4B3"
+    }
+  ],
+  "categories": [
+    {
+      "name": "Mentalidade",
+      "description": "Pensamento, crença e atitude pessoal",
+      "count": 5
+    },
+    {
+      "name": "Liderança",
+      "description": "Inspiração, influência e direção de pessoas",
+      "count": 5
+    },
+    {
+      "name": "Design",
+      "description": "Estética, funcionalidade e experiência",
+      "count": 5
+    },
+    {
+      "name": "Negócios",
+      "description": "Empreendimento, vendas e estratégia",
+      "count": 3
+    },
+    {
+      "name": "Inovação",
+      "description": "Criatividade, tecnologia e diferenciação",
+      "count": 2
+    },
+    {
+      "name": "Excelência",
+      "description": "Qualidade, perfeição e refinamento",
+      "count": 4
+    },
+    {
+      "name": "Propósito",
+      "description": "Significado, legado e plenitude",
+      "count": 6
+    },
+    {
+      "name": "Ação",
+      "description": "Fazer, movimento e proatividade",
+      "count": 4
+    },
+    {
+      "name": "Resiliência",
+      "description": "Força, recuperação e transformação",
+      "count": 4
+    },
+    {
+      "name": "Comunicação",
+      "description": "Expressão, narrativa e conexão",
+      "count": 1
+    },
+    {
+      "name": "Conhecimento",
+      "description": "Aprendizado, educação e sabedoria",
+      "count": 3
+    },
+    {
+      "name": "Trabalho",
+      "description": "Dedicação, disciplina e esforço",
+      "count": 3
+    },
+    {
+      "name": "Empreendedorismo",
+      "description": "Risco, coragem e audácia",
+      "count": 3
+    },
+    {
+      "name": "Marketing",
+      "description": "Narrativa, marca e conexão com público",
+      "count": 1
+    },
+    {
+      "name": "Metas",
+      "description": "Planejamento, objetivos e realização",
+      "count": 2
+    }
+  ],
+  "usage_contexts": [
+    "dashboard_daily_quote",
+    "franchisee_profile",
+    "email_campaigns",
+    "push_notifications",
+    "social_media",
+    "newsletter",
+    "training_materials",
+    "team_motivation"
+  ]
+}

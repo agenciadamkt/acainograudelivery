@@ -3,7 +3,13 @@ project_id = "sixzfcpdjtnftacuwvph"
 [functions.infinitepay-webhook]
 verify_jwt = false
 
+[functions.whatsapp-webhook]
+verify_jwt = false
+
 [functions.whatsapp-notification]
+verify_jwt = false
+
+[functions.send-customer-push]
 verify_jwt = false
 [functions.copilot-chat]
 enabled = true

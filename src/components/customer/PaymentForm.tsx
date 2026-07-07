@@ -1,6 +1,7 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { initMercadoPago, Payment } from '@mercadopago/sdk-react';
 import { Card } from '@/components/ui/card';
+import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface PaymentFormProps {
@@ -13,10 +14,12 @@ interface PaymentFormProps {
 }
 
 export function PaymentForm({ amount, email, storeId, publicKey, onSuccess, onError }: PaymentFormProps) {
+  const [mpReady, setMpReady] = useState(false);
 
   useEffect(() => {
     if (publicKey) {
       initMercadoPago(publicKey, { locale: 'pt-BR' });
+      setMpReady(true);
     }
   }, [publicKey]);
 
@@ -25,6 +28,17 @@ export function PaymentForm({ amount, email, storeId, publicKey, onSuccess, onEr
       <Card className="p-6 border-destructive">
         <p className="text-destructive text-sm">
           Esta loja não possui pagamento online configurado (Public Key ausente).
+        </p>
+      </Card>
+    );
+  }
+
+  const safeAmount = Number(amount);
+  if (!safeAmount || isNaN(safeAmount) || safeAmount <= 0) {
+    return (
+      <Card className="p-6 border-destructive">
+        <p className="text-destructive text-sm">
+          Valor do pedido inválido (R$ {amount}). Esvazie o carrinho, adicione os produtos novamente e tente outra vez.
         </p>
       </Card>
     );
@@ -46,11 +60,11 @@ export function PaymentForm({ amount, email, storeId, publicKey, onSuccess, onEr
           token: formData.token,
           paymentMethodId: formData.payment_method_id, // Payment Brick uses snake_case here usually
           issuerId: formData.issuer_id,
-          amount,
+          amount: safeAmount,
           email,
           storeId,
           installments: formData.installments,
-          transactionAmount: amount,
+          transactionAmount: safeAmount,
           description: `Pedido ${email}`,
           payer: {
             email,
@@ -89,12 +103,21 @@ export function PaymentForm({ amount, email, storeId, publicKey, onSuccess, onEr
     });
   };
 
+  if (!mpReady) {
+    return (
+      <Card className="p-6 flex items-center justify-center gap-2 text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        <span className="text-sm">Carregando pagamento...</span>
+      </Card>
+    );
+  }
+
   return (
     <Card className="p-4 bg-white">
       <Payment
-        key={amount} // Force remount if amount changes to prevent duplication bugs
+        key={safeAmount}
         initialization={{
-          amount,
+          amount: safeAmount,
           payer: {
             email,
           }

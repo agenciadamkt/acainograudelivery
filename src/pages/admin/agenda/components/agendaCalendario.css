@@ -1,0 +1,95 @@
+/* Reskin do react-big-calendar pra identidade GrauOS (branco + violeta),
+   substituindo o azul/cinza padrão do componente. Escopado em .grauos-calendar
+   pra não vazar pra outras telas que eventualmente também usem a lib. */
+
+.grauos-calendar .rbc-calendar {
+  font-family: inherit;
+}
+
+.grauos-calendar .rbc-toolbar button {
+  color: #475569;
+  border-color: #e2e8f0;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  font-size: 0.8rem;
+  padding: 0.4rem 0.85rem;
+}
+
+.grauos-calendar .rbc-toolbar button:hover {
+  background-color: #f5f3ff;
+  color: #7c3aed;
+  border-color: #ddd6fe;
+}
+
+.grauos-calendar .rbc-toolbar button.rbc-active,
+.grauos-calendar .rbc-toolbar button.rbc-active:hover {
+  background-color: #7c3aed;
+  border-color: #7c3aed;
+  color: #fff;
+}
+
+.grauos-calendar .rbc-toolbar-label {
+  font-weight: 800;
+  color: #0f172a;
+  font-size: 1.05rem;
+}
+
+.grauos-calendar .rbc-header {
+  border-color: #e2e8f0;
+  padding: 0.5rem 0;
+  font-weight: 700;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+  background: #f8fafc;
+}
+
+.grauos-calendar .rbc-month-view,
+.grauos-calendar .rbc-time-view {
+  border-color: #e2e8f0;
+  border-radius: 1rem;
+  overflow: hidden;
+}
+
+.grauos-calendar .rbc-day-bg,
+.grauos-calendar .rbc-month-row,
+.grauos-calendar .rbc-day-slot,
+.grauos-calendar .rbc-time-content,
+.grauos-calendar .rbc-time-header-content {
+  border-color: #f1f5f9;
+}
+
+.grauos-calendar .rbc-off-range-bg {
+  background: #fafaf9;
+}
+
+.grauos-calendar .rbc-today {
+  background-color: #f5f3ff;
+}
+
+.grauos-calendar .rbc-event {
+  border: none;
+  border-radius: 0.5rem;
+  padding: 1px 6px;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.grauos-calendar .rbc-event.rbc-selected {
+  box-shadow: 0 0 0 2px #7c3aed;
+}
+
+.grauos-calendar .rbc-slot-selection {
+  background-color: rgba(124, 58, 237, 0.15);
+}
+
+.grauos-calendar .rbc-show-more {
+  color: #7c3aed;
+  font-weight: 700;
+  font-size: 0.7rem;
+}
+
+.grauos-calendar .rbc-current-time-indicator {
+  background-color: #7c3aed;
+}

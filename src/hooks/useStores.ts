@@ -21,6 +21,10 @@ export interface Store {
   delivery_time: number | null;
   mercadopago_public_key: string | null;
   mercadopago_access_token: string | null;
+  accepts_cash?: boolean;
+  accepts_card?: boolean;
+  accepts_pix?: boolean;
+  requires_change?: boolean;
   business_hours: any;
   distribution_center_id: string | null;
   franchisee_user_id: string | null;

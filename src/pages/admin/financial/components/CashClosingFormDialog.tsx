@@ -35,6 +35,7 @@ import {
     FileText,
     ImageIcon,
     Loader2,
+    Eye,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import OperatorSelect from './OperatorSelect';
@@ -68,18 +69,36 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
+const normalizeOptionalUuid = (value?: string | null) => {
+    const trimmed = value?.trim();
+    return trimmed ? trimmed : null;
+};
+
 interface CashClosingFormDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     editData?: any;
+    readOnly?: boolean;
 }
 
-export default function CashClosingFormDialog({ open, onOpenChange, editData }: CashClosingFormDialogProps) {
+export default function CashClosingFormDialog({ open, onOpenChange, editData, readOnly = false }: CashClosingFormDialogProps) {
     const queryClient = useQueryClient();
     const [files, setFiles] = useState<File[]>([]);
     const [existingDocs, setExistingDocs] = useState<any[]>([]);
     const [isUploading, setIsUploading] = useState(false);
     const [calendarOpen, setCalendarOpen] = useState(false);
+
+    const getDefaultAccountId = useCallback(async () => {
+        const { data } = await supabase
+            .from('financial_accounts' as any)
+            .select('id')
+            .eq('name', 'Caixa Geral')
+            .eq('active', true)
+            .limit(1)
+            .maybeSingle();
+
+        return data?.id || null;
+    }, []);
 
     const form = useForm<FormValues>({
         resolver: zodResolver(formSchema),
@@ -150,15 +169,6 @@ export default function CashClosingFormDialog({ open, onOpenChange, editData }: 
             }
         } else {
             // Fetch Caixa Geral ID for new closings
-            supabase
-                .from('financial_accounts' as any)
-                .select('id')
-                .eq('name', 'Caixa Geral')
-                .single()
-                .then(({ data }) => {
-                    if (data?.id) form.setValue('account_id', data.id);
-                });
-
             form.reset({
                 distribution_center_id: '',
                 closing_date: format(new Date(), 'yyyy-MM-dd'),
@@ -182,10 +192,13 @@ export default function CashClosingFormDialog({ open, onOpenChange, editData }: 
                 account_id: '',
                 notes: '',
             });
+            getDefaultAccountId().then((accountId) => {
+                if (accountId) form.setValue('account_id', accountId);
+            });
             setFiles([]);
             setExistingDocs([]);
         }
-    }, [editData, open]);
+    }, [editData, open, getDefaultAccountId]);
 
     /* ── Upload files ── */
     const uploadFiles = async (closingId: string) => {
@@ -226,10 +239,15 @@ export default function CashClosingFormDialog({ open, onOpenChange, editData }: 
         mutationFn: async (values: FormValues) => {
             setIsUploading(true);
             const { data: { user } } = await supabase.auth.getUser();
+            const accountId = normalizeOptionalUuid(values.account_id) || await getDefaultAccountId();
 
             const payload = {
                 ...values,
-                created_by: user?.id,
+                distribution_center_id: normalizeOptionalUuid(values.distribution_center_id)!,
+                operator_id: normalizeOptionalUuid(values.operator_id),
+                checked_by_id: normalizeOptionalUuid(values.checked_by_id),
+                account_id: accountId,
+                created_by: normalizeOptionalUuid(user?.id),
             };
 
             let closingId: string;
@@ -300,6 +318,7 @@ export default function CashClosingFormDialog({ open, onOpenChange, editData }: 
             value={Number(field.value) || 0}
             onChange={(num) => field.onChange(num)}
             placeholder={placeholder || '0,00'}
+            disabled={readOnly}
             className="bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10 h-9"
         />
     );
@@ -308,16 +327,24 @@ export default function CashClosingFormDialog({ open, onOpenChange, editData }: 
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto bg-white dark:bg-[#1A1A24] border-gray-200 dark:border-white/10">
                 <DialogHeader>
-                    <DialogTitle className="text-lg font-bold text-gray-900 dark:text-white">
-                        {editData ? 'Editar Fechamento' : 'Novo Fechamento de Caixa'}
+                    <DialogTitle className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                        {readOnly && <Eye className="h-5 w-5 text-blue-500" />}
+                        {readOnly ? 'Visualizar Fechamento de Caixa' : editData ? 'Editar Fechamento' : 'Novo Fechamento de Caixa'}
                     </DialogTitle>
                 </DialogHeader>
+
+                {readOnly && (
+                    <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800/30 text-blue-700 dark:text-blue-400 px-4 py-3 rounded-lg flex items-center gap-2 text-xs">
+                        <Eye className="h-4 w-4 shrink-0" />
+                        <span>Modo visualização — nenhuma informação pode ser alterada.</span>
+                    </div>
+                )}
 
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                         {/* Row 1: CD + Data */}
                         <div className="grid grid-cols-2 gap-4">
-                            <FormField
+                             <FormField
                                 control={form.control}
                                 name="distribution_center_id"
                                 render={({ field }) => (
@@ -327,6 +354,7 @@ export default function CashClosingFormDialog({ open, onOpenChange, editData }: 
                                             <DistributionCenterSelect
                                                 value={field.value}
                                                 onChange={field.onChange}
+                                                disabled={readOnly}
                                             />
                                         </FormControl>
                                         <FormMessage />
@@ -340,11 +368,12 @@ export default function CashClosingFormDialog({ open, onOpenChange, editData }: 
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Data</FormLabel>
-                                        <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                                        <Popover open={calendarOpen && !readOnly} onOpenChange={(o) => !readOnly && setCalendarOpen(o)}>
                                             <PopoverTrigger asChild>
                                                 <FormControl>
                                                     <Button
                                                         variant="outline"
+                                                        disabled={readOnly}
                                                         className="w-full justify-start text-left font-normal bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10 h-9"
                                                     >
                                                         <CalendarIcon className="mr-2 h-4 w-4 text-gray-400" />
@@ -402,6 +431,7 @@ export default function CashClosingFormDialog({ open, onOpenChange, editData }: 
                                             value={field.value}
                                             onChange={field.onChange}
                                             placeholder="Selecionar operador..."
+                                            disabled={readOnly}
                                         />
                                     </FormControl>
                                     <FormMessage />
@@ -443,6 +473,7 @@ export default function CashClosingFormDialog({ open, onOpenChange, editData }: 
                                     value={balance}
                                     onChange={() => { }}
                                     readOnly
+                                    disabled={readOnly}
                                     className={`h-9 font-semibold ${balance >= 0
                                         ? 'bg-emerald-50 dark:bg-emerald-900/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/30'
                                         : 'bg-red-50 dark:bg-red-900/10 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800/30'
@@ -494,7 +525,7 @@ export default function CashClosingFormDialog({ open, onOpenChange, editData }: 
                                     {([
                                         { name: 'credit_moderninha', label: 'Crédito' },
                                         { name: 'debit_moderninha',  label: 'Débito'  },
-                                        { name: 'pix_moderninha',    label: 'Pix'     },
+                                        { name: 'pix_moderninha',    label: 'Pix QR Code' },
                                     ] as const).map(({ name, label }) => (
                                         <FormField key={name} control={form.control} name={name}
                                             render={({ field }) => (
@@ -516,7 +547,7 @@ export default function CashClosingFormDialog({ open, onOpenChange, editData }: 
                                     {([
                                         { name: 'credit_cielo', label: 'Crédito' },
                                         { name: 'debit_cielo',  label: 'Débito'  },
-                                        { name: 'pix_cielo',    label: 'Pix'     },
+                                        { name: 'pix_cielo',    label: 'Pix QR Code' },
                                     ] as const).map(({ name, label }) => (
                                         <FormField key={name} control={form.control} name={name}
                                             render={({ field }) => (
@@ -546,22 +577,24 @@ export default function CashClosingFormDialog({ open, onOpenChange, editData }: 
                         {/* Row 7: Upload de Documentos */}
                         <div className="space-y-2">
                             <FormLabel>Envio de documentos</FormLabel>
-                            <div className="border-2 border-dashed border-gray-200 dark:border-white/10 rounded-lg p-4 text-center hover:border-purple-400 dark:hover:border-purple-500/40 transition-colors">
-                                <input
-                                    type="file"
-                                    multiple
-                                    accept="image/*,application/pdf"
-                                    onChange={handleFileSelect}
-                                    className="hidden"
-                                    id="doc-upload"
-                                />
-                                <label htmlFor="doc-upload" className="cursor-pointer flex flex-col items-center gap-2">
-                                    <Upload className="h-8 w-8 text-gray-300 dark:text-white/20" />
-                                    <span className="text-sm text-gray-500 dark:text-white/40">
-                                        Clique para selecionar <strong>PDFs</strong> ou <strong>Imagens</strong>
-                                    </span>
-                                </label>
-                            </div>
+                            {!readOnly && (
+                                <div className="border-2 border-dashed border-gray-200 dark:border-white/10 rounded-lg p-4 text-center hover:border-purple-400 dark:hover:border-purple-500/40 transition-colors">
+                                    <input
+                                        type="file"
+                                        multiple
+                                        accept="image/*,application/pdf"
+                                        onChange={handleFileSelect}
+                                        className="hidden"
+                                        id="doc-upload"
+                                    />
+                                    <label htmlFor="doc-upload" className="cursor-pointer flex flex-col items-center gap-2">
+                                        <Upload className="h-8 w-8 text-gray-300 dark:text-white/20" />
+                                        <span className="text-sm text-gray-500 dark:text-white/40">
+                                            Clique para selecionar <strong>PDFs</strong> ou <strong>Imagens</strong>
+                                        </span>
+                                    </label>
+                                </div>
+                            )}
 
                             {/* Existing docs */}
                             {existingDocs.length > 0 && (
@@ -578,9 +611,11 @@ export default function CashClosingFormDialog({ open, onOpenChange, editData }: 
                                                     {doc.file_name}
                                                 </a>
                                             </div>
-                                            <button type="button" onClick={() => removeExistingDoc(doc)} className="text-gray-400 hover:text-red-500">
-                                                <X className="h-4 w-4" />
-                                            </button>
+                                            {!readOnly && (
+                                                <button type="button" onClick={() => removeExistingDoc(doc)} className="text-gray-400 hover:text-red-500">
+                                                    <X className="h-4 w-4" />
+                                                </button>
+                                            )}
                                         </div>
                                     ))}
                                 </div>
@@ -620,6 +655,7 @@ export default function CashClosingFormDialog({ open, onOpenChange, editData }: 
                                             value={field.value}
                                             onChange={field.onChange}
                                             placeholder="Selecionar conferente..."
+                                            disabled={readOnly}
                                         />
                                     </FormControl>
                                     <FormMessage />
@@ -638,6 +674,7 @@ export default function CashClosingFormDialog({ open, onOpenChange, editData }: 
                                         <Textarea
                                             {...field}
                                             placeholder="Observações opcionais..."
+                                            disabled={readOnly}
                                             className="bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10 min-h-[60px]"
                                         />
                                     </FormControl>
@@ -653,18 +690,20 @@ export default function CashClosingFormDialog({ open, onOpenChange, editData }: 
                                 onClick={() => onOpenChange(false)}
                                 className="border-gray-200 dark:border-white/10"
                             >
-                                Cancelar
+                                {readOnly ? 'Fechar' : 'Cancelar'}
                             </Button>
-                            <Button
-                                type="submit"
-                                disabled={mutation.isPending || isUploading}
-                                className="bg-purple-600 hover:bg-purple-700 text-white"
-                            >
-                                {(mutation.isPending || isUploading) && (
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                )}
-                                {editData ? 'Salvar' : 'Registrar Fechamento'}
-                            </Button>
+                            {!readOnly && (
+                                <Button
+                                    type="submit"
+                                    disabled={mutation.isPending || isUploading}
+                                    className="bg-purple-600 hover:bg-purple-700 text-white"
+                                >
+                                    {(mutation.isPending || isUploading) && (
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    )}
+                                    {editData ? 'Salvar' : 'Registrar Fechamento'}
+                                </Button>
+                            )}
                         </DialogFooter>
                     </form>
                 </Form>

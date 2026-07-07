@@ -34,6 +34,7 @@ interface CurrencyInputProps {
     placeholder?: string;
     className?: string;
     readOnly?: boolean;
+    disabled?: boolean;
 }
 
 export default function CurrencyInput({
@@ -42,6 +43,7 @@ export default function CurrencyInput({
     placeholder = '0,00',
     className = '',
     readOnly = false,
+    disabled = false,
 }: CurrencyInputProps) {
     const [displayValue, setDisplayValue] = useState('');
 
@@ -75,7 +77,8 @@ export default function CurrencyInput({
                 value={displayValue}
                 onChange={handleChange}
                 onBlur={handleBlur}
-                readOnly={readOnly}
+                readOnly={readOnly || disabled}
+                disabled={disabled}
             />
         </div>
     );

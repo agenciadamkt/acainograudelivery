@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { StoreSettingsTab } from "./StoreSettingsTab";
 import { PrinterSettingsTab } from "./PrinterSettingsTab";
 import { PaymentSettingsTab } from "./PaymentSettingsTab";
+import { UazapiIntegrationTab } from "./UazapiIntegrationTab";
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from '@/hooks/use-toast';
@@ -65,7 +66,7 @@ export default function SettingsPage() {
       </div>
 
       <Tabs defaultValue="store" className="space-y-4">
-        <TabsList className="grid w-full h-auto grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+        <TabsList className="grid w-full h-auto grid-cols-2 md:grid-cols-4 lg:grid-cols-7">
           <TabsTrigger value="store">
             <Store className="h-4 w-4 mr-2" />
             Loja
@@ -85,6 +86,10 @@ export default function SettingsPage() {
           <TabsTrigger value="notifications">
             <Bell className="h-4 w-4 mr-2" />
             Notificações
+          </TabsTrigger>
+          <TabsTrigger value="integrations">
+            <Plug className="h-4 w-4 mr-2" />
+            Integrações
           </TabsTrigger>
           <TabsTrigger value="logs">
             <FileText className="h-4 w-4 mr-2" />
@@ -291,6 +296,10 @@ export default function SettingsPage() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="integrations" className="space-y-4">
+          <UazapiIntegrationTab />
         </TabsContent>
 
         <TabsContent value="logs" className="space-y-4">

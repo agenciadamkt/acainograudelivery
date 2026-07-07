@@ -3,18 +3,31 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Send, Maximize2, Minimize2, User, Mic, MicOff, Volume2, VolumeX, Loader2 } from 'lucide-react';
+import { X, Send, Maximize2, Minimize2, User, Mic, MicOff, Volume2, VolumeX, Loader2, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import logoCircular from '@/assets/logo-circular.png';
 import { supabase } from '@/integrations/supabase/client';
+import { usePermissions } from '@/contexts/PermissionContext';
 
 type CopilotMessage = {
     id: string;
     role: 'system' | 'assistant' | 'user';
     content: string;
     timestamp: Date;
+    sources?: string[];
 };
+
+// Uma sessão por aba do navegador — permite reabrir o painel ou recarregar a
+// página sem perder o fio da conversa (histórico vem de copilot_conversations).
+function getOrCreateSessionId(): string {
+    const KEY = 'graubot_session_id';
+    const existing = sessionStorage.getItem(KEY);
+    if (existing) return existing;
+    const id = crypto.randomUUID();
+    sessionStorage.setItem(KEY, id);
+    return id;
+}
 
 // ─── Mapeamento de rotas para contexto de tela ───
 const ROUTE_CONTEXT: Record<string, string> = {
@@ -298,23 +311,55 @@ function stopSpeaking() {
     }
 }
 
+const DEFAULT_GREETING: CopilotMessage = {
+    id: 'msg-1',
+    role: 'assistant',
+    content: 'Olá! Sou o Gerente Virtual do GrauOS. Posso ajudar com análises do caixa, estoque, vendas ou orientações sobre a tela atual. Fale ou digite sua pergunta!',
+    timestamp: new Date()
+};
+
 export default function CopilotPanel() {
     const location = useLocation();
+    const { profile } = usePermissions();
     const [isOpen, setIsOpen] = useState(false);
     const [isExpanded, setIsExpanded] = useState(false);
     const [inputValue, setInputValue] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [ttsEnabled, setTtsEnabled] = useState(false);
-    const [messages, setMessages] = useState<CopilotMessage[]>([
-        {
-            id: 'msg-1',
-            role: 'assistant',
-            content: 'Olá! Sou o Gerente Virtual do GrauOS. Posso ajudar com análises do caixa, estoque, vendas ou orientações sobre a tela atual. Fale ou digite sua pergunta!',
-            timestamp: new Date()
-        }
-    ]);
+    const [messages, setMessages] = useState<CopilotMessage[]>([DEFAULT_GREETING]);
+    const [historyLoaded, setHistoryLoaded] = useState(false);
+    const sessionIdRef = useRef<string>(getOrCreateSessionId());
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const { isListening, transcript, startListening, stopListening } = useSpeechRecognition();
+
+    // Retoma o histórico da sessão atual (mesma aba) ao abrir o painel pela
+    // primeira vez — antes disso, F5 apagava a conversa mesmo ela já estando
+    // salva em copilot_conversations.
+    useEffect(() => {
+        if (!isOpen || historyLoaded) return;
+        setHistoryLoaded(true);
+        (async () => {
+            const { data, error } = await (supabase as any)
+                .from('copilot_conversations')
+                .select('id, role, content, metadata, created_at')
+                .eq('session_id', sessionIdRef.current)
+                .order('created_at', { ascending: true });
+
+            if (error || !data || data.length === 0) return;
+
+            const restored: CopilotMessage[] = data
+                .filter((row: any) => row.role === 'user' || row.role === 'assistant')
+                .map((row: any) => ({
+                    id: row.id,
+                    role: row.role,
+                    content: row.content,
+                    timestamp: new Date(row.created_at),
+                    sources: row.metadata?.sources
+                }));
+
+            if (restored.length > 0) setMessages([DEFAULT_GREETING, ...restored]);
+        })();
+    }, [isOpen, historyLoaded]);
 
     // Sincroniza transcrição de voz com o input
     useEffect(() => {
@@ -376,9 +421,11 @@ export default function CopilotPanel() {
                         role: m.role,
                         content: m.content
                     })),
+                    session_id: sessionIdRef.current,
                     context: {
                         current_screen: screenContext,
                         current_route: location.pathname,
+                        user_profile: profile?.perfil ?? null,
                         timestamp: new Date().toISOString()
                     }
                 })
@@ -395,7 +442,8 @@ export default function CopilotPanel() {
                     id: Date.now().toString(),
                     role: 'assistant',
                     content: data.content,
-                    timestamp: new Date()
+                    timestamp: new Date(),
+                    sources: Array.isArray(data.sources) && data.sources.length > 0 ? data.sources : undefined
                 };
                 setMessages(prev => [...prev, assistantMessage]);
 
@@ -559,6 +607,14 @@ export default function CopilotPanel() {
                                                     }`}>
                                                     {isUser ? msg.content : renderMarkdown(msg.content)}
                                                 </div>
+                                                {!isUser && msg.sources && msg.sources.length > 0 && (
+                                                    <div className="flex items-start gap-1 mt-1 px-1 max-w-full">
+                                                        <FileText className="h-3 w-3 mt-0.5 text-indigo-400 shrink-0" />
+                                                        <span className="text-[10px] leading-tight text-gray-400 dark:text-white/40">
+                                                            Documentação consultada: {msg.sources.join(' · ')}
+                                                        </span>
+                                                    </div>
+                                                )}
                                                 <span className="text-[10px] font-medium text-gray-400 dark:text-white/40 mt-1 px-1">
                                                     {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                 </span>

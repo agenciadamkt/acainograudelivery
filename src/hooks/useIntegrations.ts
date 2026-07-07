@@ -51,3 +51,43 @@ export function useUpdateIntegration() {
     },
   });
 }
+
+export function useUpsertIntegration() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (integration: { name: string; provider: string | null; config: any; active: boolean }) => {
+      const { data: existing } = await supabase
+        .from('integrations')
+        .select('id')
+        .eq('name', integration.name)
+        .maybeSingle();
+
+      if (existing) {
+        const { data, error } = await supabase
+          .from('integrations')
+          .update(integration)
+          .eq('id', existing.id)
+          .select()
+          .single();
+        if (error) throw error;
+        return data;
+      } else {
+        const { data, error } = await supabase
+          .from('integrations')
+          .insert(integration)
+          .select()
+          .single();
+        if (error) throw error;
+        return data;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['integrations'] });
+      toast({
+        title: 'Integração salva',
+        description: 'Dados da integração salvos com sucesso.',
+      });
+    },
+  });
+}

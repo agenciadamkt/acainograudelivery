@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>GrauOS — Delivery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: url('/hub-preview/delivery-fundo.png') center 50% / cover no-repeat;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+
+  /* overlay roxo suave */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background: rgba(50, 5, 120, 0.32);
+    pointer-events: none; z-index: 0;
+  }
+
+  /* ── Navbar ── */
+  nav {
+    position: relative; z-index: 10;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 28px 12px;
+    flex-shrink: 0;
+  }
+
+  .brand { color: #fff; font-family: 'Outfit', sans-serif; font-size: 14px; font-weight: 700; }
+
+  .pill-nav {
+    display: flex; align-items: center; gap: 2px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 999px; padding: 4px 6px;
+    backdrop-filter: blur(16px);
+  }
+  .pill-nav button {
+    background: transparent; border: none; cursor: pointer;
+    color: rgba(255,255,255,0.48); border-radius: 999px;
+    padding: 5px 13px; font-size: 12px; font-family: 'Inter', sans-serif;
+    white-space: nowrap; transition: all .15s;
+  }
+  .pill-nav button.active {
+    background: #7c3aed; color: #fff; font-weight: 600;
+    box-shadow: 0 2px 12px rgba(124,58,237,.55);
+  }
+
+  .avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.16);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .avatar svg { width: 13px; height: 13px; stroke: rgba(255,255,255,.72); }
+
+  /* ── Área central — posiciona o grid com position:absolute ── */
+  .stage {
+    position: relative; z-index: 10;
+    flex: 1; min-height: 0;
+  }
+
+  /* Grid ocupa da margem esquerda (22%) até 20px da direita, e toda a altura do stage */
+  .grid {
+    position: absolute;
+    top: 10px; bottom: 10px;
+    left: 22%; right: 20px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .card {
+    background: rgba(255,255,255,0.92);
+    border-radius: 10px;
+    padding: 18px 16px;
+    box-shadow: 0 4px 20px rgba(0,0,0,.18);
+    cursor: pointer;
+    transition: transform .2s, box-shadow .2s;
+    display: flex; flex-direction: column;
+  }
+  .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 28px rgba(60,10,140,.28);
+    background: #fff;
+  }
+  .card h3 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 15px; font-weight: 700;
+    color: #130828; letter-spacing: -.02em;
+    line-height: 1.25; margin-bottom: 7px;
+  }
+  .card p {
+    font-size: 11px; color: #6b7280; line-height: 1.55;
+  }
+
+  /* ── Bottom ── */
+  footer {
+    position: relative; z-index: 10;
+    display: flex; justify-content: flex-end;
+    padding: 8px 24px 18px;
+    flex-shrink: 0;
+  }
+  .arrow {
+    width: 36px; height: 36px; border-radius: 50%;
+    border: 1px solid rgba(255,255,255,.22);
+    background: rgba(255,255,255,.07);
+    color: rgba(255,255,255,.78);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; backdrop-filter: blur(10px);
+    transition: all .18s;
+  }
+  .arrow:hover { background: rgba(255,255,255,.18); }
+  .arrow svg { width: 13px; height: 13px; }
+
+  /* ── Animações ── */
+  :root { --s: cubic-bezier(.22,1,.36,1); }
+  @keyframes fid { from{opacity:0;transform:translateY(-10px)} to{opacity:1;transform:none} }
+  @keyframes fiu { from{opacity:0;transform:translateY(10px)}  to{opacity:1;transform:none} }
+  @keyframes cin { from{opacity:0;transform:translateY(16px) scale(.97)} to{opacity:1;transform:none} }
+
+  nav    { animation: fid .5s .05s var(--s) both; }
+  footer { animation: fiu .5s .1s  var(--s) both; }
+  .card:nth-child(1){animation:cin .44s .16s var(--s) both}
+  .card:nth-child(2){animation:cin .44s .24s var(--s) both}
+  .card:nth-child(3){animation:cin .44s .32s var(--s) both}
+  .card:nth-child(4){animation:cin .44s .40s var(--s) both}
+  .card:nth-child(5){animation:cin .44s .48s var(--s) both}
+  .card:nth-child(6){animation:cin .44s .56s var(--s) both}
+</style>
+</head>
+<body>
+
+<nav>
+  <span class="brand">Delivery</span>
+  <div class="pill-nav">
+    <button onclick="setActive(this)">Estoque</button>
+    <button onclick="setActive(this)">Financeiro</button>
+    <button class="active" onclick="setActive(this)">Delivery</button>
+    <button onclick="setActive(this)">PDV</button>
+    <button onclick="setActive(this)">Universidade no Grau</button>
+  </div>
+  <div class="avatar">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke="currentColor">
+      <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+    </svg>
+  </div>
+</nav>
+
+<div class="stage">
+  <div class="grid">
+    <div class="card"><h3>Pedidos</h3><p>Gerencie todos os pedidos da sua loja em tempo real.</p></div>
+    <div class="card"><h3>Gestão de<br>Entregas</h3><p>Defina rotas e atribua entregadores para cada pedido.</p></div>
+    <div class="card"><h3>Food Analytics</h3><p>Análise de dados de cada pedido para a sua loja.</p></div>
+    <div class="card"><h3>Histórico do<br>PDV</h3><p>PDV e histórico das últimas vendas com filtros por data.</p></div>
+    <div class="card"><h3>CRM Clientes</h3><p>Gestão de relacionamento com clientes recorrentes.</p></div>
+    <div class="card"><h3>Áreas de Entrega</h3><p>Configure as áreas de entrega no mapa da sua loja.</p></div>
+  </div>
+</div>
+
+<footer>
+  <button class="arrow" aria-label="Próximo">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <polyline points="9 18 15 12 9 6"/>
+    </svg>
+  </button>
+</footer>
+
+<script>
+  function setActive(btn){
+    document.querySelectorAll('.pill-nav button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+</script>
+</body>
+</html>

@@ -18,7 +18,8 @@ import {
     ArrowRight,
     CreditCard,
     FileText,
-    Zap
+    Zap,
+    AlertTriangle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -28,6 +29,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { exportOrderDetailsPDF } from '@/lib/pdf-export';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ProductImagePlaceholder } from './components/ProductImagePlaceholder';
 
 interface Order {
     id: string;
@@ -39,6 +41,9 @@ interface Order {
     payment_method: string;
     notes: string | null;
     created_at: string;
+    edited_by_admin: boolean;
+    edit_reason: string | null;
+    edited_at: string | null;
     profiles?: {
         full_name: string;
     };
@@ -189,6 +194,25 @@ const FranchiseeOrderDetails = () => {
                     </div>
                 </header>
 
+                {order.edited_by_admin && (
+                    <Card className="border-0 bg-amber-50 dark:bg-amber-900/20 rounded-[2rem] p-6 mb-8 border border-amber-200 dark:border-amber-500/20 flex items-start gap-4 no-print">
+                        <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center shrink-0">
+                            <AlertTriangle className="h-5 w-5 text-amber-600" />
+                        </div>
+                        <div>
+                            <p className="font-black text-amber-800 dark:text-amber-300">Este pedido foi alterado pela franqueadora</p>
+                            {order.edit_reason && (
+                                <p className="text-sm text-amber-700 dark:text-amber-400 mt-1 font-medium">{order.edit_reason}</p>
+                            )}
+                            {order.edited_at && (
+                                <p className="text-xs text-amber-500 mt-2 font-bold uppercase tracking-wide">
+                                    Alterado em {format(new Date(order.edited_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                                </p>
+                            )}
+                        </div>
+                    </Card>
+                )}
+
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* Left Column - Items Table */}
                     <div className="lg:col-span-2 space-y-8">
@@ -229,7 +253,7 @@ const FranchiseeOrderDetails = () => {
                                                             {item.franchisee_products.image_url ? (
                                                                 <img src={item.franchisee_products.image_url} alt="" className="w-full h-full object-cover" />
                                                             ) : (
-                                                                <Package className="h-5 w-5 text-gray-400" />
+                                                                <ProductImagePlaceholder compact />
                                                             )}
                                                         </div>
                                                         <div>

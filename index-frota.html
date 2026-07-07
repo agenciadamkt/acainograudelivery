@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Açaí no Grau Motorista" />
+  <meta name="theme-color" content="#532089" />
+  <title>Açaí no Grau Motorista</title>
+  <meta name="description" content="App do motorista da Frota — Açaí no Grau." />
+  <meta name="author" content="Açaí no Grau" />
+</head>
+
+<body>
+  <div id="root"></div>
+  <div id="error-log" style="position:fixed;top:0;left:0;width:100%;height:100%;background:red;color:white;z-index:9999;padding:20px;overflow:auto;display:none;"></div>
+  <script>
+  window.addEventListener('error', function(e) {
+    if (e.message && (e.message.includes('ResizeObserver') || e.message.includes('Resize observer'))) {
+      return;
+    }
+    var el = document.getElementById('error-log');
+    el.style.display = 'block';
+    el.innerHTML += '<p>' + e.message + '<br>' + e.filename + ':' + e.lineno + '</p>';
+  });
+  window.addEventListener('unhandledrejection', function(e) {
+    var el = document.getElementById('error-log');
+    el.style.display = 'block';
+    el.innerHTML += '<p>Promise Rejection: ' + e.reason + '</p>';
+  });
+  </script>
+  <script type="module" src="/src/frota-main.tsx"></script>
+</body>
+
+</html>

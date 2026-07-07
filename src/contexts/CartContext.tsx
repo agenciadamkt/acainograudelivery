@@ -70,8 +70,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [items]);
 
   const getItemSubtotal = (item: Omit<CartItem, 'id' | 'subtotal'>) => {
-    const toppingsTotal = item.toppings.reduce((sum, t) => sum + t.price, 0);
-    return (item.size_price + toppingsTotal) * item.quantity;
+    const toppingsTotal = item.toppings.reduce((sum, t) => sum + (Number(t.price) || 0), 0);
+    return ((Number(item.size_price) || 0) + toppingsTotal) * (item.quantity || 1);
   };
 
   const addItem = (item: Omit<CartItem, 'id' | 'subtotal'>) => {

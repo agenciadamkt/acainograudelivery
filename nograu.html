@@ -1,0 +1,1517 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logo Design Document — Experience NoGrau 2026</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&family=Outfit:wght@200;300;400;500;600;700;800;900&display=swap');
+
+        :root {
+            /* === PALETA EXPERIENCE NOGRAU 2026 === */
+            --roxo-grau: #6B1D9E;
+            --roxo-eletrico: #8B2FC9;
+            --roxo-neon: #A855F7;
+            --roxo-glow: #C084FC;
+            --preto-absoluto: #0A0A0A;
+            --grafite-profundo: #1A1A1A;
+            --cinza-tech: #2D2D2D;
+            --cinza-medio: #6B7280;
+            --cinza-claro: #E5E7EB;
+            --off-white: #F5F3F0;
+            --branco: #FFFFFF;
+            --acento-verde: #10B981;
+            --acento-laranja: #F59E0B;
+
+            /* Tipografia */
+            --font-display: 'Outfit', sans-serif;
+            --font-body: 'Space Grotesk', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+            font-size: 16px;
+        }
+
+        body {
+            font-family: var(--font-body);
+            background: var(--off-white);
+            color: var(--grafite-profundo);
+            line-height: 1.6;
+        }
+
+        /* === NAVEGAÇÃO === */
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 1000;
+            background: rgba(10, 10, 10, 0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(107, 29, 158, 0.3);
+        }
+
+        nav .nav-inner {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 40px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 64px;
+        }
+
+        nav .nav-brand {
+            font-family: var(--font-display);
+            font-weight: 800;
+            font-size: 14px;
+            color: var(--branco);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        nav .nav-brand span {
+            color: var(--roxo-neon);
+        }
+
+        nav .nav-links {
+            display: flex;
+            gap: 8px;
+            list-style: none;
+            flex-wrap: wrap;
+        }
+
+        nav .nav-links a {
+            color: var(--cinza-claro);
+            text-decoration: none;
+            font-size: 12px;
+            font-family: var(--font-mono);
+            letter-spacing: 0.5px;
+            padding: 6px 14px;
+            border-radius: 4px;
+            transition: all 0.25s;
+        }
+
+        nav .nav-links a:hover {
+            color: var(--branco);
+            background: var(--roxo-grau);
+        }
+
+        /* === HERO === */
+        .hero {
+            min-height: 100vh;
+            background: var(--preto-absoluto);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            padding-top: 64px;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(ellipse at 60% 50%, rgba(107, 29, 158, 0.15) 0%, transparent 60%),
+                radial-gradient(ellipse at 20% 80%, rgba(168, 85, 247, 0.08) 0%, transparent 50%);
+            animation: heroGlow 8s ease-in-out infinite alternate;
+        }
+
+        @keyframes heroGlow {
+            0% {
+                transform: translate(0, 0) scale(1);
+            }
+
+            100% {
+                transform: translate(20px, -10px) scale(1.05);
+            }
+        }
+
+        .hero-content {
+            text-align: center;
+            position: relative;
+            z-index: 2;
+            padding: 40px;
+        }
+
+        .hero-tag {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--roxo-glow);
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            margin-bottom: 32px;
+        }
+
+        .hero h1 {
+            font-family: var(--font-display);
+            font-weight: 900;
+            font-size: clamp(48px, 8vw, 96px);
+            color: var(--branco);
+            line-height: 0.95;
+            letter-spacing: -2px;
+            margin-bottom: 16px;
+        }
+
+        .hero h1 .accent {
+            background: linear-gradient(135deg, var(--roxo-eletrico), var(--roxo-neon));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero-subtitle {
+            font-family: var(--font-body);
+            font-size: 18px;
+            color: var(--cinza-medio);
+            font-weight: 300;
+            margin-top: 24px;
+            letter-spacing: 1px;
+        }
+
+        .hero-meta {
+            display: flex;
+            gap: 40px;
+            justify-content: center;
+            margin-top: 60px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.4);
+            letter-spacing: 1px;
+        }
+
+        .hero-meta span {
+            text-transform: uppercase;
+        }
+
+        /* === SEÇÕES GENÉRICAS === */
+        .section {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 120px 40px;
+        }
+
+        .section-number {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--roxo-grau);
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+        }
+
+        .section h2 {
+            font-family: var(--font-display);
+            font-weight: 800;
+            font-size: clamp(32px, 4vw, 48px);
+            color: var(--grafite-profundo);
+            line-height: 1.1;
+            margin-bottom: 40px;
+            letter-spacing: -1px;
+        }
+
+        .section p {
+            font-size: 16px;
+            line-height: 1.8;
+            color: var(--cinza-tech);
+            max-width: 720px;
+            margin-bottom: 24px;
+        }
+
+        .section p strong {
+            color: var(--grafite-profundo);
+            font-weight: 600;
+        }
+
+        /* === SEÇÃO DARK === */
+        .dark-section {
+            background: var(--preto-absoluto);
+            color: var(--branco);
+        }
+
+        .dark-section .section h2 {
+            color: var(--branco);
+        }
+
+        .dark-section .section p {
+            color: rgba(255, 255, 255, 0.65);
+        }
+
+        .dark-section .section p strong {
+            color: var(--branco);
+        }
+
+        .dark-section .section-number {
+            color: var(--roxo-neon);
+        }
+
+        /* === DIVIDER === */
+        .divider {
+            width: 60px;
+            height: 3px;
+            background: var(--roxo-grau);
+            margin-bottom: 40px;
+        }
+
+        /* === CONTEXTO GRID === */
+        .context-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            margin-top: 60px;
+        }
+
+        .context-card {
+            padding: 40px;
+            background: var(--branco);
+            border: 1px solid var(--cinza-claro);
+            border-radius: 2px;
+        }
+
+        .context-card h3 {
+            font-family: var(--font-display);
+            font-weight: 700;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--roxo-grau);
+            margin-bottom: 16px;
+        }
+
+        .context-card p {
+            font-size: 15px;
+            line-height: 1.7;
+            color: var(--cinza-tech);
+            margin-bottom: 0;
+        }
+
+        /* === LOGO SHOWCASE === */
+        .logo-showcase {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2px;
+            margin-top: 60px;
+            background: var(--cinza-claro);
+        }
+
+        .logo-box {
+            padding: 80px 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 24px;
+        }
+
+        .logo-box.dark {
+            background: var(--preto-absoluto);
+        }
+
+        .logo-box.light {
+            background: var(--branco);
+        }
+
+        .logo-box.purple {
+            background: var(--roxo-grau);
+        }
+
+        .logo-box.gray {
+            background: var(--cinza-tech);
+        }
+
+        .logo-box .label {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            opacity: 0.5;
+        }
+
+        .logo-box.dark .label,
+        .logo-box.purple .label,
+        .logo-box.gray .label {
+            color: var(--branco);
+        }
+
+        /* SVG Logo Wordmarks */
+        .logo-wordmark {
+            font-family: var(--font-display);
+            font-weight: 900;
+            font-size: 42px;
+            letter-spacing: 3px;
+            line-height: 1;
+        }
+
+        .logo-wordmark .exp {
+            font-weight: 300;
+            font-size: 16px;
+            letter-spacing: 6px;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .logo-wordmark .year {
+            font-family: var(--font-mono);
+            font-weight: 300;
+            font-size: 14px;
+            letter-spacing: 4px;
+            display: block;
+            margin-top: 6px;
+            opacity: 0.5;
+        }
+
+        /* === PALETA === */
+        .color-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 2px;
+            margin-top: 60px;
+        }
+
+        .color-swatch {
+            aspect-ratio: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding: 20px;
+            position: relative;
+        }
+
+        .color-swatch .color-name {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .color-swatch .color-hex {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            opacity: 0.7;
+        }
+
+        .color-swatch.text-light .color-name,
+        .color-swatch.text-light .color-hex {
+            color: var(--branco);
+        }
+
+        .color-swatch.text-dark .color-name,
+        .color-swatch.text-dark .color-hex {
+            color: var(--grafite-profundo);
+        }
+
+        /* === TIPOGRAFIA === */
+        .type-specimen {
+            margin-top: 60px;
+        }
+
+        .type-row {
+            padding: 48px 0;
+            border-bottom: 1px solid var(--cinza-claro);
+        }
+
+        .type-row:last-child {
+            border-bottom: none;
+        }
+
+        .type-meta {
+            display: flex;
+            align-items: baseline;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .type-meta .role {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: var(--roxo-grau);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            background: rgba(107, 29, 158, 0.08);
+            padding: 4px 12px;
+            border-radius: 2px;
+        }
+
+        .type-meta .font-name {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--cinza-medio);
+        }
+
+        .type-display {
+            font-family: var(--font-display);
+            font-weight: 900;
+            font-size: 56px;
+            color: var(--grafite-profundo);
+            letter-spacing: -2px;
+            line-height: 1;
+        }
+
+        .type-body-sample {
+            font-family: var(--font-body);
+            font-size: 16px;
+            line-height: 1.8;
+            color: var(--cinza-tech);
+            max-width: 600px;
+        }
+
+        .type-mono-sample {
+            font-family: var(--font-mono);
+            font-size: 13px;
+            line-height: 1.6;
+            color: var(--cinza-medio);
+            background: rgba(0, 0, 0, 0.03);
+            padding: 24px;
+            border-left: 3px solid var(--roxo-grau);
+        }
+
+        /* === APLICAÇÕES === */
+        .apps-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2px;
+            margin-top: 60px;
+            background: var(--cinza-claro);
+        }
+
+        .app-mockup {
+            background: var(--branco);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .app-mockup .app-label {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: var(--roxo-grau);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 16px;
+        }
+
+        /* Mockup: Crachá */
+        .mockup-cracha {
+            background: var(--preto-absoluto);
+            border-radius: 12px;
+            padding: 32px 28px;
+            text-align: center;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 16px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .mockup-cracha::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--roxo-grau), var(--roxo-neon), var(--roxo-glow));
+        }
+
+        .mockup-cracha .cracha-logo {
+            font-family: var(--font-display);
+            font-weight: 900;
+            font-size: 20px;
+            color: var(--branco);
+            letter-spacing: 2px;
+        }
+
+        .mockup-cracha .cracha-exp {
+            font-family: var(--font-display);
+            font-weight: 200;
+            font-size: 10px;
+            color: var(--roxo-glow);
+            letter-spacing: 5px;
+            text-transform: uppercase;
+        }
+
+        .mockup-cracha .cracha-photo {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: var(--cinza-tech);
+            border: 2px solid var(--roxo-grau);
+        }
+
+        .mockup-cracha .cracha-name {
+            font-family: var(--font-display);
+            font-weight: 700;
+            font-size: 16px;
+            color: var(--branco);
+        }
+
+        .mockup-cracha .cracha-role {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: var(--roxo-glow);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .mockup-cracha .cracha-qr {
+            width: 48px;
+            height: 48px;
+            background: var(--branco);
+            border-radius: 4px;
+            margin-top: 8px;
+        }
+
+        /* Mockup: Post Instagram */
+        .mockup-insta {
+            background: var(--preto-absoluto);
+            aspect-ratio: 1;
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+            text-align: center;
+            gap: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .mockup-insta::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 40%;
+            background: linear-gradient(to top, rgba(107, 29, 158, 0.25), transparent);
+        }
+
+        .mockup-insta .insta-title {
+            font-family: var(--font-display);
+            font-weight: 900;
+            font-size: 28px;
+            color: var(--branco);
+            letter-spacing: 2px;
+            z-index: 2;
+            line-height: 1;
+        }
+
+        .mockup-insta .insta-sub {
+            font-family: var(--font-display);
+            font-weight: 200;
+            font-size: 11px;
+            color: var(--roxo-glow);
+            letter-spacing: 5px;
+            text-transform: uppercase;
+            z-index: 2;
+        }
+
+        .mockup-insta .insta-date {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.4);
+            letter-spacing: 2px;
+            z-index: 2;
+        }
+
+        .mockup-insta .insta-pillars {
+            display: flex;
+            gap: 12px;
+            z-index: 2;
+        }
+
+        .mockup-insta .pillar-tag {
+            font-family: var(--font-mono);
+            font-size: 9px;
+            color: var(--branco);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            padding: 4px 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+        }
+
+        /* Mockup: Backdrop palco */
+        .mockup-stage {
+            background: var(--preto-absoluto);
+            border-radius: 4px;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            aspect-ratio: 16/9;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .mockup-stage::before {
+            content: '';
+            position: absolute;
+            width: 300px;
+            height: 300px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(107, 29, 158, 0.3), transparent 70%);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .mockup-stage .stage-exp {
+            font-family: var(--font-display);
+            font-weight: 200;
+            font-size: 12px;
+            color: var(--roxo-glow);
+            letter-spacing: 8px;
+            text-transform: uppercase;
+            z-index: 2;
+        }
+
+        .mockup-stage .stage-logo {
+            font-family: var(--font-display);
+            font-weight: 900;
+            font-size: 48px;
+            color: var(--branco);
+            letter-spacing: 4px;
+            z-index: 2;
+        }
+
+        .mockup-stage .stage-year {
+            font-family: var(--font-mono);
+            font-weight: 300;
+            font-size: 24px;
+            color: rgba(255, 255, 255, 0.3);
+            letter-spacing: 12px;
+            z-index: 2;
+        }
+
+        .mockup-stage .stage-pillars {
+            display: flex;
+            gap: 32px;
+            margin-top: 16px;
+            z-index: 2;
+        }
+
+        .mockup-stage .stage-pillar {
+            font-family: var(--font-mono);
+            font-size: 9px;
+            color: rgba(255, 255, 255, 0.5);
+            letter-spacing: 3px;
+            text-transform: uppercase;
+        }
+
+        /* Mockup: Camiseta */
+        .mockup-tshirt {
+            background: var(--cinza-claro);
+            border-radius: 4px;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            min-height: 280px;
+            position: relative;
+        }
+
+        .tshirt-shape {
+            width: 160px;
+            height: 180px;
+            background: var(--preto-absoluto);
+            border-radius: 8px 8px 40px 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 4px;
+            position: relative;
+        }
+
+        .tshirt-shape::before {
+            content: '';
+            position: absolute;
+            top: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40px;
+            height: 16px;
+            background: var(--preto-absoluto);
+            border-radius: 0 0 20px 20px;
+        }
+
+        .tshirt-shape .ts-logo {
+            font-family: var(--font-display);
+            font-weight: 900;
+            font-size: 14px;
+            color: var(--branco);
+            letter-spacing: 2px;
+        }
+
+        .tshirt-shape .ts-sub {
+            font-family: var(--font-mono);
+            font-size: 7px;
+            color: var(--roxo-glow);
+            letter-spacing: 3px;
+        }
+
+        /* === RESTRIÇÕES === */
+        .restrictions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 60px;
+            margin-top: 60px;
+        }
+
+        .restrict-col h3 {
+            font-family: var(--font-display);
+            font-weight: 700;
+            font-size: 18px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .restrict-col h3 .icon-no {
+            color: #EF4444;
+        }
+
+        .restrict-col h3 .icon-yes {
+            color: var(--acento-verde);
+        }
+
+        .restrict-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .restrict-list li {
+            font-size: 14px;
+            line-height: 1.6;
+            color: var(--cinza-tech);
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .restrict-list li::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 8px;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+        }
+
+        .restrict-no li::before {
+            background: #EF4444;
+        }
+
+        .restrict-yes li::before {
+            background: var(--acento-verde);
+        }
+
+        /* === ENTREGÁVEIS === */
+        .deliverables-list {
+            margin-top: 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .deliverable-item {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            padding: 20px 24px;
+            background: rgba(107, 29, 158, 0.04);
+            border-left: 3px solid var(--roxo-grau);
+        }
+
+        .deliverable-item .del-number {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--roxo-grau);
+            font-weight: 600;
+            min-width: 32px;
+        }
+
+        .deliverable-item .del-name {
+            font-family: var(--font-display);
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--grafite-profundo);
+            min-width: 240px;
+        }
+
+        .deliverable-item .del-spec {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--cinza-medio);
+        }
+
+        /* === FOOTER === */
+        .footer {
+            background: var(--preto-absoluto);
+            padding: 80px 40px;
+            text-align: center;
+        }
+
+        .footer p {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.3);
+            letter-spacing: 1px;
+        }
+
+        /* === RESPONSIVO === */
+        @media (max-width: 768px) {
+
+            .context-grid,
+            .apps-grid,
+            .restrictions,
+            .logo-showcase {
+                grid-template-columns: 1fr;
+            }
+
+            .color-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+
+            nav .nav-links {
+                display: none;
+            }
+
+            .section {
+                padding: 80px 24px;
+            }
+
+            .hero-meta {
+                flex-direction: column;
+                gap: 12px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- NAVEGAÇÃO -->
+    <nav>
+        <div class="nav-inner">
+            <div class="nav-brand">Experience <span>NoGrau</span> — Brand Doc</div>
+            <ul class="nav-links">
+                <li><a href="#contexto">Contexto</a></li>
+                <li><a href="#logo">Logo</a></li>
+                <li><a href="#paleta">Paleta</a></li>
+                <li><a href="#tipografia">Tipografia</a></li>
+                <li><a href="#aplicacoes">Aplicações</a></li>
+                <li><a href="#restricoes">Restrições</a></li>
+                <li><a href="#entregaveis">Entregáveis</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- HERO -->
+    <section class="hero">
+        <div class="hero-content">
+            <div class="hero-tag">Logo Design Document</div>
+            <h1>
+                <span class="accent">Experience</span><br>
+                NOGRAU
+            </h1>
+            <p class="hero-subtitle">Identidade Visual do Evento — Briefing Completo</p>
+            <div class="hero-meta">
+                <span>Versão 1.0</span>
+                <span>Abril 2026</span>
+                <span>Açaí no Grau®</span>
+                <span>Teresina — PI</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- === RATIONALE CRIATIVO === -->
+    <div class="dark-section">
+        <section class="section">
+            <div class="section-number">00 — Rationale Criativo</div>
+            <div class="divider" style="background: var(--roxo-neon);"></div>
+            <h2>Por que o Experience NoGrau 2026 precisa de uma identidade própria</h2>
+
+            <p>O <strong>Experience NoGrau 2026</strong> não é um evento comum — é o momento estratégico em que a rede
+                Açaí no Grau recalibra sua operação, apresenta o ecossistema GrauOS e transforma franqueados em
+                operadores de alta performance. A identidade visual do evento precisa comunicar três coisas em
+                simultâneo: <strong>pertencimento à marca-mãe</strong> (herdando o DNA roxo e a atitude do NoGrau),
+                <strong>diferenciação temporal</strong> (é 2026, é agora, é urgente) e <strong>sofisticação
+                    tech</strong> (estamos falando de sistema operacional de franquia, não de panfletagem).</p>
+
+            <p>A <strong>direção tipográfica</strong> combina a família Outfit (display — peso, presença de palco,
+                leitura à distância em backdrops e telões) com Space Grotesk (corpo — clareza em materiais impressos e
+                telas) e JetBrains Mono (dados, datas, especificações técnicas — reforçando o pilar Tecnologia). Essa
+                tríade cria uma hierarquia que funciona do telão de 5 metros ao crachá de 85×55mm.</p>
+
+            <p>A <strong>paleta</strong> parte do roxo institucional do Açaí no Grau (que já está consolidado na
+                percepção dos franqueados) e o desdobra em um gradiente de intensidade — do Roxo Grau profundo (#6B1D9E)
+                ao Roxo Glow luminoso (#C084FC) — criando profundidade em materiais de palco e projeção. Os neutros
+                (preto absoluto, grafite, off-white) garantem que a marca do evento nunca compete com a marca-mãe, mas a
+                amplifica.</p>
+
+            <p>O <strong>conceito visual</strong> é "sistema operacional": a ideia de que tudo roda dentro de uma
+                plataforma coesa. As linhas finas, os códigos mono, o grid modular — tudo remete à interface do GrauOS,
+                o protagonista do evento. O logo do Experience não substitui o wordmark NOGRAU® — ele o encapsula em um
+                contexto de evento, adicionando "Experience" como uma camada editorial e "2026" como carimbo temporal.
+            </p>
+        </section>
+    </div>
+
+    <!-- === 1. CONTEXTO DA MARCA === -->
+    <section class="section" id="contexto">
+        <div class="section-number">01 — Contexto do Evento</div>
+        <div class="divider"></div>
+        <h2>Experience NoGrau 2026</h2>
+
+        <p><strong>O Experience NoGrau 2026</strong> é a imersão estratégica da rede de franquias Açaí no Grau, focada
+            em alinhar operações, apresentar o ecossistema GrauOS e capacitar franqueados para uma nova era de
+            inteligência e controle operacional. O evento acontece em Teresina–PI e é organizado pelos CEOs Juliana
+            Galvão e David Lages.</p>
+
+        <p>Mais que um encontro, é um <strong>movimento de padronização e evolução</strong> da rede. Os três pilares do
+            evento — <strong>Vendas, Delivery e Tecnologia</strong> — refletem as frentes estratégicas que a franquia
+            prioriza para o crescimento sustentável de cada unidade.</p>
+
+        <div class="context-grid">
+            <div class="context-card">
+                <h3>Nome do Evento</h3>
+                <p>Experience NoGrau 2026 — sempre com "Experience" em peso leve/editorial e "NOGRAU" no wordmark
+                    registrado da marca. O "2026" funciona como timestamp, reforçando a edição anual.</p>
+            </div>
+            <div class="context-card">
+                <h3>Categoria</h3>
+                <p>Evento corporativo de imersão para franqueados — setor alimentício (açaí e derivados). Formato de
+                    convenção com palestras, ativações de parceiros, treinamentos e networking.</p>
+            </div>
+            <div class="context-card">
+                <h3>Público</h3>
+                <p>Franqueados da rede Açaí no Grau, gerentes de unidade, supervisores de franquias e parceiros
+                    industriais (Doremus, Jazam, Alispec, Fini, Marvi, Sabor da Terra, Mavalério, Pró Polpa, Kuky).
+                    Perfil: empreendedores, gestores operacionais, equipe de campo.</p>
+            </div>
+            <div class="context-card">
+                <h3>Personalidade</h3>
+                <p>Tech + profissional + energético. O tom é de empresa que opera com inteligência — não de festa
+                    corporativa genérica. Referência visual: interfaces de produto digital, dashboards, apresentações de
+                    produto SaaS. A energia do açaí canalizada em dados e performance.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- === 2. SISTEMA VISUAL — LOGO === -->
+    <div class="dark-section">
+        <section class="section" id="logo">
+            <div class="section-number">02 — Sistema Visual: Logotipo</div>
+            <div class="divider" style="background: var(--roxo-neon);"></div>
+            <h2>Construção e variações do logo do evento</h2>
+
+            <p>O logotipo do Experience NoGrau 2026 é uma <strong>composição editorial</strong> que empilha três camadas
+                tipográficas: a palavra "Experience" (em Outfit, peso 200–300, tracking largo — camada aspiracional), o
+                wordmark <strong>NOGRAU®</strong> (respeitando a versão registrada já existente — wordmark bold
+                customizada com elementos orgânicos/espiral) e o ano "2026" (em JetBrains Mono, peso leve — camada de
+                precisão temporal).</p>
+
+            <p>A hierarquia é clara: NOGRAU® é o centro gravitacional; "Experience" é o wrapper conceitual do evento;
+                "2026" é o carimbo de edição. O símbolo circular "Açaí no Grau" (selo/badge existente) pode ser usado
+                como elemento complementar, nunca substituindo o wordmark principal.</p>
+
+            <p><strong>Importante:</strong> O wordmark NOGRAU® original (com suas formas customizadas — o "G" com barra,
+                o "A" triangular, o "U" com espiral) deve ser mantido exatamente como está. A identidade do evento
+                apenas o contextualiza, não o modifica.</p>
+
+            <!-- Showcase de variações -->
+            <div class="logo-showcase">
+                <div class="logo-box dark">
+                    <span class="label">Versão Principal — Fundo Escuro</span>
+                    <div class="logo-wordmark" style="color: var(--branco); text-align: center;">
+                        <span class="exp" style="color: var(--roxo-glow);">EXPERIENCE</span>
+                        NOGRAU
+                        <span class="year">2026</span>
+                    </div>
+                </div>
+                <div class="logo-box light">
+                    <span class="label">Versão Principal — Fundo Claro</span>
+                    <div class="logo-wordmark" style="color: var(--grafite-profundo); text-align: center;">
+                        <span class="exp" style="color: var(--roxo-grau);">EXPERIENCE</span>
+                        NOGRAU
+                        <span class="year" style="color: var(--cinza-medio);">2026</span>
+                    </div>
+                </div>
+                <div class="logo-box purple">
+                    <span class="label">Versão sobre Roxo</span>
+                    <div class="logo-wordmark" style="color: var(--branco); text-align: center;">
+                        <span class="exp" style="color: rgba(255,255,255,0.6);">EXPERIENCE</span>
+                        NOGRAU
+                        <span class="year" style="color: rgba(255,255,255,0.3);">2026</span>
+                    </div>
+                </div>
+                <div class="logo-box gray">
+                    <span class="label">Versão Monocromática</span>
+                    <div class="logo-wordmark" style="color: var(--branco); text-align: center;">
+                        <span class="exp" style="color: rgba(255,255,255,0.5);">EXPERIENCE</span>
+                        NOGRAU
+                        <span class="year">2026</span>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top: 60px;">
+                <h3
+                    style="font-family: var(--font-display); font-weight: 700; font-size: 18px; color: var(--branco); margin-bottom: 24px;">
+                    Variações obrigatórias</h3>
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <div style="display: flex; align-items: center; gap: 16px;">
+                        <span
+                            style="font-family: var(--font-mono); font-size: 11px; color: var(--roxo-neon); min-width: 24px;">01</span>
+                        <span style="font-size: 14px; color: rgba(255,255,255,0.7);"><strong
+                                style="color: var(--branco);">Versão completa empilhada</strong> — Experience + NOGRAU®
+                            + 2026 (uso em palco, telão, materiais institucionais)</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 16px;">
+                        <span
+                            style="font-family: var(--font-mono); font-size: 11px; color: var(--roxo-neon); min-width: 24px;">02</span>
+                        <span style="font-size: 14px; color: rgba(255,255,255,0.7);"><strong
+                                style="color: var(--branco);">Versão compacta horizontal</strong> — "Experience NOGRAU®
+                            2026" em linha única (crachás, cabeçalhos de slide)</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 16px;">
+                        <span
+                            style="font-family: var(--font-mono); font-size: 11px; color: var(--roxo-neon); min-width: 24px;">03</span>
+                        <span style="font-size: 14px; color: rgba(255,255,255,0.7);"><strong
+                                style="color: var(--branco);">NOGRAU® isolado</strong> — wordmark original registrada
+                            (quando o contexto "Experience" já está claro)</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 16px;">
+                        <span
+                            style="font-family: var(--font-mono); font-size: 11px; color: var(--roxo-neon); min-width: 24px;">04</span>
+                        <span style="font-size: 14px; color: rgba(255,255,255,0.7);"><strong
+                                style="color: var(--branco);">Selo circular Açaí no Grau</strong> — badge complementar
+                            (bag de delivery, crachá, materiais de parceiros)</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 16px;">
+                        <span
+                            style="font-family: var(--font-mono); font-size: 11px; color: var(--roxo-neon); min-width: 24px;">05</span>
+                        <span style="font-size: 14px; color: rgba(255,255,255,0.7);"><strong
+                                style="color: var(--branco);">Versão monocromática (P&B)</strong> — para gravação,
+                            serigrafia, contratos, e materiais de baixo custo de impressão</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- === 3. PALETA === -->
+    <section class="section" id="paleta">
+        <div class="section-number">03 — Paleta de Cores</div>
+        <div class="divider"></div>
+        <h2>Sistema cromático do evento</h2>
+
+        <p>A paleta parte do <strong>roxo institucional do Açaí no Grau</strong>, já consolidado na percepção da rede, e
+            o expande em um gradiente de profundidade — do mais denso (Roxo Grau) ao mais luminoso (Roxo Glow). Essa
+            escala permite criar hierarquia visual em projeções de palco, sinalização e materiais digitais. Os neutros
+            âncora (preto, grafite, off-white) garantem que o roxo nunca satura e sempre se destaca com autoridade.</p>
+
+        <p>As cores de acento — <strong>Verde Sistema</strong> e <strong>Laranja Alerta</strong> — são funcionais, não
+            decorativas: indicam status, CTAs e destaques em interfaces do GrauOS durante apresentações.</p>
+
+        <div class="color-grid">
+            <div class="color-swatch text-light" style="background: var(--roxo-grau);">
+                <span class="color-name">Roxo Grau</span>
+                <span class="color-hex">#6B1D9E — Primária institucional</span>
+            </div>
+            <div class="color-swatch text-light" style="background: var(--roxo-eletrico);">
+                <span class="color-name">Roxo Elétrico</span>
+                <span class="color-hex">#8B2FC9 — Destaque ativo</span>
+            </div>
+            <div class="color-swatch text-light" style="background: var(--roxo-neon);">
+                <span class="color-name">Roxo Neon</span>
+                <span class="color-hex">#A855F7 — Elementos interativos</span>
+            </div>
+            <div class="color-swatch text-dark" style="background: var(--roxo-glow);">
+                <span class="color-name">Roxo Glow</span>
+                <span class="color-hex">#C084FC — Luz, labels, subtítulos</span>
+            </div>
+            <div class="color-swatch text-light" style="background: var(--preto-absoluto);">
+                <span class="color-name">Preto Absoluto</span>
+                <span class="color-hex">#0A0A0A — Fundos de palco</span>
+            </div>
+        </div>
+
+        <div class="color-grid" style="margin-top: 2px;">
+            <div class="color-swatch text-light" style="background: var(--grafite-profundo);">
+                <span class="color-name">Grafite Profundo</span>
+                <span class="color-hex">#1A1A1A — Texto principal dark</span>
+            </div>
+            <div class="color-swatch text-light" style="background: var(--cinza-tech);">
+                <span class="color-name">Cinza Tech</span>
+                <span class="color-hex">#2D2D2D — Superfícies secundárias</span>
+            </div>
+            <div class="color-swatch text-dark" style="background: var(--cinza-claro);">
+                <span class="color-name">Cinza Claro</span>
+                <span class="color-hex">#E5E7EB — Bordas, divisores</span>
+            </div>
+            <div class="color-swatch text-dark" style="background: var(--off-white);">
+                <span class="color-name">Off-White</span>
+                <span class="color-hex">#F5F3F0 — Fundo claro padrão</span>
+            </div>
+            <div class="color-swatch text-light" style="background: var(--acento-verde);">
+                <span class="color-name">Verde Sistema</span>
+                <span class="color-hex">#10B981 — Status/confirmações</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- === 4. TIPOGRAFIA === -->
+    <div class="dark-section">
+        <section class="section" id="tipografia">
+            <div class="section-number">04 — Sistema Tipográfico</div>
+            <div class="divider" style="background: var(--roxo-neon);"></div>
+            <h2>Hierarquia de fontes</h2>
+
+            <p>O sistema tipográfico é construído em três camadas funcionais, cada uma com um papel claro na comunicação
+                do evento — do telão de palco ao crachá de participante.</p>
+
+            <div class="type-specimen">
+                <!-- Display -->
+                <div class="type-row" style="border-color: rgba(255,255,255,0.1);">
+                    <div class="type-meta">
+                        <span class="role"
+                            style="background: rgba(168, 85, 247, 0.15); color: var(--roxo-neon);">Display</span>
+                        <span class="font-name" style="color: rgba(255,255,255,0.4);">Outfit — 800/900 — Manchetes de
+                            palco, títulos de slide, backdrop</span>
+                    </div>
+                    <div class="type-display" style="color: var(--branco);">Vendas. Delivery.<br><span
+                            style="color: var(--roxo-neon);">Tecnologia.</span></div>
+                    <p
+                        style="margin-top: 16px; font-family: var(--font-mono); font-size: 11px; color: rgba(255,255,255,0.3);">
+                        Pesos: 200 (subtítulos editoriais) · 700 (destaques) · 900 (manchetes). Tracking: -2px em
+                        tamanhos acima de 48px.</p>
+                </div>
+
+                <!-- Body -->
+                <div class="type-row" style="border-color: rgba(255,255,255,0.1);">
+                    <div class="type-meta">
+                        <span class="role"
+                            style="background: rgba(168, 85, 247, 0.15); color: var(--roxo-neon);">Corpo</span>
+                        <span class="font-name" style="color: rgba(255,255,255,0.4);">Space Grotesk — 400/500 — Textos
+                            corridos, materiais impressos, site</span>
+                    </div>
+                    <div class="type-body-sample" style="color: rgba(255,255,255,0.65);">O No Grau Experience 2026 nasce
+                        com o propósito de alinhar, fortalecer e evoluir toda a rede de franqueados, promovendo uma
+                        imersão prática nos pilares que sustentam o crescimento sustentável da franquia.</div>
+                    <p
+                        style="margin-top: 16px; font-family: var(--font-mono); font-size: 11px; color: rgba(255,255,255,0.3);">
+                        Pesos: 400 (texto corrido) · 500 (destaques inline) · 600 (subtítulos de seção). Line-height:
+                        1.6–1.8.</p>
+                </div>
+
+                <!-- Mono -->
+                <div class="type-row" style="border-color: rgba(255,255,255,0.1);">
+                    <div class="type-meta">
+                        <span class="role"
+                            style="background: rgba(168, 85, 247, 0.15); color: var(--roxo-neon);">Técnica / Mono</span>
+                        <span class="font-name" style="color: rgba(255,255,255,0.4);">JetBrains Mono — 300/400 — Datas,
+                            horários, specs, labels</span>
+                    </div>
+                    <div class="type-mono-sample"
+                        style="background: rgba(255,255,255,0.05); border-color: var(--roxo-grau); color: rgba(255,255,255,0.5);">
+                        08:00 — CAFÉ DA MANHÃ · Boas-vindas e networking<br>
+                        08:45 — APRESENTAÇÃO GRAUOS · Demonstração prática<br>
+                        09:30 — UNIVERSIDADE NO GRAU · Estrutura dos cursos<br>
+                        10:00 — THIAGO PEDEBIS (DOREMUS) · Apresentação técnica<br>
+                        10:30 — MANUAL + TREINAMENTOS · Implementação<br>
+                        11:00 — ENCERRAMENTO + NETWORKING
+                    </div>
+                    <p
+                        style="margin-top: 16px; font-family: var(--font-mono); font-size: 11px; color: rgba(255,255,255,0.3);">
+                        Pesos: 300 (números e timestamps) · 400 (labels e categorias). Letter-spacing: 1–3px. Sempre
+                        uppercase em labels.</p>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- === 5. APLICAÇÕES === -->
+    <section class="section" id="aplicacoes">
+        <div class="section-number">05 — Aplicações Obrigatórias</div>
+        <div class="divider"></div>
+        <h2>Mockups e aplicações do evento</h2>
+
+        <p>As aplicações abaixo representam os pontos de contato prioritários do evento. Cada mockup foi desenhado para
+            validar a identidade em contextos reais — do backdrop de 5 metros ao crachá de bolso. Todas as aplicações
+            devem respeitar a hierarquia tipográfica, a paleta e as zonas de respiro definidas.</p>
+
+        <div class="apps-grid">
+            <!-- Crachá -->
+            <div class="app-mockup">
+                <span class="app-label">01 — Crachá do Participante (85×135mm)</span>
+                <div class="mockup-cracha">
+                    <div class="cracha-exp">EXPERIENCE</div>
+                    <div class="cracha-logo">NOGRAU</div>
+                    <div class="cracha-photo"></div>
+                    <div class="cracha-name">Juliana Galvão</div>
+                    <div class="cracha-role">CEO — Açaí no Grau</div>
+                    <div class="cracha-qr"></div>
+                </div>
+            </div>
+
+            <!-- Post Instagram -->
+            <div class="app-mockup">
+                <span class="app-label">02 — Post Instagram (1:1) — Convite</span>
+                <div class="mockup-insta">
+                    <div class="insta-sub">EXPERIENCE</div>
+                    <div class="insta-title">NOGRAU</div>
+                    <div class="insta-date">TERESINA — 2026</div>
+                    <div class="insta-pillars">
+                        <span class="pillar-tag">Vendas</span>
+                        <span class="pillar-tag">Delivery</span>
+                        <span class="pillar-tag">Tecnologia</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Backdrop de palco -->
+            <div class="app-mockup">
+                <span class="app-label">03 — Backdrop de Palco (16:9)</span>
+                <div class="mockup-stage">
+                    <div class="stage-exp">EXPERIENCE</div>
+                    <div class="stage-logo">NOGRAU</div>
+                    <div class="stage-year">2026</div>
+                    <div class="stage-pillars">
+                        <span class="stage-pillar">Vendas</span>
+                        <span class="stage-pillar">Delivery</span>
+                        <span class="stage-pillar">Tecnologia</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Camiseta -->
+            <div class="app-mockup">
+                <span class="app-label">04 — Camiseta do Evento (Frente)</span>
+                <div class="mockup-tshirt">
+                    <div class="tshirt-shape">
+                        <span class="ts-sub">EXPERIENCE</span>
+                        <span class="ts-logo">NOGRAU</span>
+                        <span class="ts-sub">2026</span>
+                    </div>
+                    <span
+                        style="font-family: var(--font-mono); font-size: 9px; color: var(--cinza-medio); margin-top: 12px; letter-spacing: 1px;">SERIGRAFIA
+                        OU DTF — FRENTE CENTRALIZADO</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- === 6. ELEMENTOS GRÁFICOS AUXILIARES === -->
+    <div class="dark-section">
+        <section class="section">
+            <div class="section-number">05.1 — Elementos Gráficos Auxiliares</div>
+            <div class="divider" style="background: var(--roxo-neon);"></div>
+            <h2>Grid, texturas e linguagem visual complementar</h2>
+
+            <p><strong>Grid modular tech:</strong> O sistema gráfico utiliza um grid de linhas finas (0.5px, opacidade
+                10–20%) em módulos quadrados, remetendo a interfaces de dashboard e ao visual do GrauOS. Esse grid pode
+                ser usado como background em slides, backdrops e materiais digitais.</p>
+
+            <p><strong>Gradiente de palco:</strong> Para aplicações em telão e projeção, utilizar radial gradients sutis
+                de roxo (do centro para as bordas, sobre fundo preto) — criando profundidade sem poluição visual. Nunca
+                usar gradiente linear horizontal "arco-íris" ou efeitos de luz tipo lens flare.</p>
+
+            <p><strong>Ícones e elementos de UI:</strong> Quando necessário, usar ícones em estilo outline/line com peso
+                de 1.5px, cor Roxo Glow (#C084FC). Os três pilares do evento (Vendas, Delivery, Tecnologia) podem ser
+                representados como tags/pills em estilo de interface — borda fina, fundo transparente, texto mono
+                uppercase.</p>
+
+            <p><strong>Fotografia:</strong> Fotos do evento devem ter tratamento com overlay roxo sutil (10–15% de
+                opacidade) e alto contraste. Priorizar fotos de bastidores, palestrantes em ação e networking — nunca
+                fotos posadas tipo "grupo sorrindo para a câmera". O mood é corporativo-tech, não confraternização
+                casual.</p>
+        </section>
+    </div>
+
+    <!-- === 7. RESTRIÇÕES === -->
+    <section class="section" id="restricoes">
+        <div class="section-number">06 — Restrições Críticas</div>
+        <div class="divider"></div>
+        <h2>O que evitar e o que valorizar</h2>
+
+        <div class="restrictions">
+            <div class="restrict-col">
+                <h3><span class="icon-no">✕</span> Evitar</h3>
+                <ul class="restrict-list restrict-no">
+                    <li>Uso de emojis na identidade do evento (crachás, backdrops, materiais oficiais)</li>
+                    <li>Gradientes multicoloridos ou efeitos "neon rave" — o roxo é tech, não festa</li>
+                    <li>Ícones genéricos de "evento" (microfone, palco, balão, confete)</li>
+                    <li>Fontes script, itálico decorativo ou cursivas tentando passar "sofisticação"</li>
+                    <li>Modificar o wordmark NOGRAU® registrado — ele é intocável</li>
+                    <li>Usar o selo circular "Açaí no Grau" como logo principal do evento — é complementar</li>
+                    <li>Fotos genéricas de bancos de imagem (grupo sorrindo, mãos empilhadas, etc.)</li>
+                    <li>Lorem ipsum — todo texto deve ser real, em português brasileiro, no tom da marca</li>
+                    <li>Misturar a identidade do evento com material promocional de venda de franquias</li>
+                    <li>Usar fundo branco puro (#FFFFFF) em materiais de palco — usar sempre preto ou off-white</li>
+                </ul>
+            </div>
+            <div class="restrict-col">
+                <h3><span class="icon-yes">✓</span> Valorizar</h3>
+                <ul class="restrict-list restrict-yes">
+                    <li>Hierarquia tipográfica rígida — display/corpo/mono, sem improvisação</li>
+                    <li>Silêncio visual: muito whitespace (ou blackspace em fundos escuros), poucos elementos, alta
+                        legibilidade</li>
+                    <li>Sensação de "sistema operacional" — tudo parece parte de uma plataforma coesa</li>
+                    <li>Os três pilares (Vendas, Delivery, Tecnologia) sempre presentes como âncoras conceituais</li>
+                    <li>Coerência com a identidade existente da marca-mãe Açaí no Grau (roxo, preto, atitude)</li>
+                    <li>Materiais que parecem de empresa de tecnologia, não de rede de fast food</li>
+                    <li>Uso do JetBrains Mono para dados, horários e especificações — reforça o DNA tech</li>
+                    <li>Tratamento fotográfico com overlay roxo sutil e alto contraste</li>
+                    <li>Marca de evento que poderia estar em uma conferência de produto SaaS</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- === 8. ENTREGÁVEIS === -->
+    <div class="dark-section">
+        <section class="section" id="entregaveis">
+            <div class="section-number">07 — Lista de Entregáveis</div>
+            <div class="divider" style="background: var(--roxo-neon);"></div>
+            <h2>Peças e formatos de entrega</h2>
+
+            <p>Abaixo, a lista completa de peças que devem ser produzidas a partir desta identidade. Cada item
+                especifica formato, dimensão e contexto de uso.</p>
+
+            <div class="deliverables-list">
+                <div class="deliverable-item"
+                    style="background: rgba(168, 85, 247, 0.06); border-color: var(--roxo-neon);">
+                    <span class="del-number" style="color: var(--roxo-neon);">01</span>
+                    <span class="del-name" style="color: var(--branco);">Logo do evento em SVG</span>
+                    <span class="del-spec" style="color: rgba(255,255,255,0.4);">Todas as 5 variações · Vetorial · Fundo
+                        transparente</span>
+                </div>
+                <div class="deliverable-item"
+                    style="background: rgba(168, 85, 247, 0.06); border-color: var(--roxo-neon);">
+                    <span class="del-number" style="color: var(--roxo-neon);">02</span>
+                    <span class="del-name" style="color: var(--branco);">Backdrop de palco</span>
+                    <span class="del-spec" style="color: rgba(255,255,255,0.4);">16:9 · Resolução para impressão em lona
+                        (5m×2.8m) + versão digital</span>
+                </div>
+                <div class="deliverable-item"
+                    style="background: rgba(168, 85, 247, 0.06); border-color: var(--roxo-neon);">
+                    <span class="del-number" style="color: var(--roxo-neon);">03</span>
+                    <span class="del-name" style="color: var(--branco);">Crachá do participante</span>
+                    <span class="del-spec" style="color: rgba(255,255,255,0.4);">85×135mm · Frente (dados+foto) e verso
+                        (QR+agenda) · Cordão roxo</span>
+                </div>
+                <div class="deliverable-item"
+                    style="background: rgba(168, 85, 247, 0.06); border-color: var(--roxo-neon);">
+                    <span class="del-number" style="color: var(--roxo-neon);">04</span>
+                    <span class="del-name" style="color: var(--branco);">Template de slides (DataShow)</span>
+                    <span class="del-spec" style="color: rgba(255,255,255,0.4);">16:9 · Capa, conteúdo, citação, dados,
+                        encerramento · Google Slides ou PPTX</span>
+                </div>
+                <div class="deliverable-item"
+                    style="background: rgba(168, 85, 247, 0.06); border-color: var(--roxo-neon);">
+                    <span class="del-number" style="color: var(--roxo-neon);">05</span>
+                    <span class="del-name" style="color: var(--branco);">Post Instagram (1:1)</span>
+                    <span class="del-spec" style="color: rgba(255,255,255,0.4);">1080×1080px · Convite, cronograma,
+                        palestrantes, parceiros</span>
+                </div>
+                <div class="deliverable-item"
+                    style="background: rgba(168, 85, 247, 0.06); border-color: var(--roxo-neon);">
+                    <span class="del-number" style="color: var(--roxo-neon);">06</span>
+                    <span class="del-name" style="color: var(--branco);">Story Instagram (9:16)</span>
+                    <span class="del-spec" style="color: rgba(255,255,255,0.4);">1080×1920px · Countdown, bastidores,
+                        CTA de inscrição</span>
+                </div>
+                <div class="deliverable-item"
+                    style="background: rgba(168, 85, 247, 0.06); border-color: var(--roxo-neon);">
+                    <span class="del-number" style="color: var(--roxo-neon);">07</span>
+                    <span class="del-name" style="color: var(--branco);">Camiseta do evento</span>
+                    <span class="del-spec" style="color: rgba(255,255,255,0.4);">Arte frente (logo) + costas (pilares +
+                        data) · Camiseta preta · Serigrafia/DTF</span>
+                </div>
+                <div class="deliverable-item"
+                    style="background: rgba(168, 85, 247, 0.06); border-color: var(--roxo-neon);">
+                    <span class="del-number" style="color: var(--roxo-neon);">08</span>
+                    <span class="del-name" style="color: var(--branco);">Banner/sinalização do espaço</span>
+                    <span class="del-spec" style="color: rgba(255,255,255,0.4);">Roll-up 80×200cm · Faixa de mesa ·
+                        Totem de recepção</span>
+                </div>
+                <div class="deliverable-item"
+                    style="background: rgba(168, 85, 247, 0.06); border-color: var(--roxo-neon);">
+                    <span class="del-number" style="color: var(--roxo-neon);">09</span>
+                    <span class="del-name" style="color: var(--branco);">Header do site do evento</span>
+                    <span class="del-spec" style="color: rgba(255,255,255,0.4);">experience.acacainograu.com.br · Hero
+                        section + favicon</span>
+                </div>
+                <div class="deliverable-item"
+                    style="background: rgba(168, 85, 247, 0.06); border-color: var(--roxo-neon);">
+                    <span class="del-number" style="color: var(--roxo-neon);">10</span>
+                    <span class="del-name" style="color: var(--branco);">Bag de delivery personalizada</span>
+                    <span class="del-spec" style="color: rgba(255,255,255,0.4);">Estampa lateral com selo do evento ·
+                        Bag roxa padrão da marca</span>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- === 9. FORMATO DE ENTREGA FINAL === -->
+    <section class="section">
+        <div class="section-number">08 — Formato de Entrega Final</div>
+        <div class="divider"></div>
+        <h2>Especificações técnicas de entrega</h2>
+
+        <p><strong>Logotipos:</strong> Arquivos em SVG (vetorial), PNG com fundo transparente (2x e 3x para digital), e
+            PDF vetorial para impressão. Todas as 5 variações em cada formato.</p>
+
+        <p><strong>Materiais de impressão:</strong> PDFs em CMYK, 300dpi, com sangria de 3mm. Fontes convertidas em
+            curvas. Marca de corte ativa.</p>
+
+        <p><strong>Materiais digitais:</strong> PNGs e JPGs em RGB, 72dpi (posts e stories em resolução nativa).
+            Templates de slides em formato editável (.pptx ou Google Slides).</p>
+
+        <p><strong>Brand book do evento:</strong> Um único documento HTML navegável (como este) OU um PDF de alta
+            qualidade com todas as especificações, paleta com códigos HEX/RGB/CMYK, tipografia com links de download, e
+            todas as aplicações mockupadas.</p>
+
+        <p><strong>Arquivos-fonte:</strong> Projeto editável em Figma, Adobe Illustrator (.ai) ou formato equivalente,
+            com layers nomeadas e organizadas por seção.</p>
+    </section>
+
+    <!-- FOOTER -->
+    <div class="footer">
+        <p>EXPERIENCE NOGRAU 2026 — LOGO DESIGN DOCUMENT — V1.0</p>
+        <p style="margin-top: 8px;">Açaí no Grau® · Teresina — PI · @acainograu</p>
+        <p style="margin-top: 24px; color: rgba(255,255,255,0.15);">Documento gerado como briefing criativo. Todos os
+            direitos da marca NOGRAU® reservados.</p>
+    </div>
+
+</body>
+
+</html>

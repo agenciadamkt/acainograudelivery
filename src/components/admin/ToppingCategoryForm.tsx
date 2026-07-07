@@ -12,10 +12,20 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { ToppingCategory } from '@/hooks/useToppingCategories';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { ToppingCategory, useToppingCategories } from '@/hooks/useToppingCategories';
+
+const NO_PARENT = '__none__';
 
 const toppingCategorySchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
+  parent_id: z.string().nullable().optional(),
   max_selections: z.number().nullable().optional(),
   display_order: z.number().default(0),
 });
@@ -35,18 +45,32 @@ export function ToppingCategoryForm({
   onCancel,
   isSubmitting = false,
 }: ToppingCategoryFormProps) {
+  const { data: allCategories } = useToppingCategories();
+
+  // Só categorias principais (sem pai) podem ser escolhidas como pai, para manter
+  // no máximo 2 níveis (categoria -> subcategoria). Uma categoria não pode ser
+  // pai dela mesma.
+  const parentOptions = (allCategories || []).filter(
+    (cat) => !cat.parent_id && cat.id !== category?.id
+  );
+
   const form = useForm<ToppingCategoryFormData>({
     resolver: zodResolver(toppingCategorySchema),
     defaultValues: category || {
       name: '',
+      parent_id: null,
       max_selections: null,
       display_order: 0,
     },
   });
 
+  const handleSubmit = (data: ToppingCategoryFormData) => {
+    onSubmit({ ...data, parent_id: data.parent_id || null });
+  };
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
         <FormField
           control={form.control}
           name="name"
@@ -56,6 +80,40 @@ export function ToppingCategoryForm({
               <FormControl>
                 <Input placeholder="Ex: Frutas, Caldas, Cremes..." {...field} />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="parent_id"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Categoria Pai</FormLabel>
+              <Select
+                value={field.value || NO_PARENT}
+                onValueChange={(value) =>
+                  field.onChange(value === NO_PARENT ? null : value)
+                }
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Nenhuma (categoria principal)" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value={NO_PARENT}>Nenhuma (categoria principal)</SelectItem>
+                  {parentOptions.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormDescription>
+                Escolha uma categoria existente para criar esta como subcategoria dela
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}

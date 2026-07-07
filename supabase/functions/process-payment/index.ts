@@ -19,6 +19,11 @@ serve(async (req) => {
       throw new Error('Store ID is required')
     }
 
+    const numericAmount = Number(amount)
+    if (!numericAmount || isNaN(numericAmount) || numericAmount <= 0) {
+      throw new Error('Valor do pedido inválido. Por favor, refaça o pedido.')
+    }
+
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -45,7 +50,7 @@ serve(async (req) => {
     // Processar pagamento com Mercado Pago
     const paymentBody: any = {
       token,
-      transaction_amount: amount,
+      transaction_amount: numericAmount,
       installments: installments || 1,
       description: description || 'Pedido - Açaí Delivery',
       statement_descriptor: 'ACAI APP',

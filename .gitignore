@@ -1,1 +1,35 @@
 node_modules
+
+# Gerado automaticamente a cada build (scripts/generate-version.js)
+src/version.ts
+
+# Segredos — nunca commitar
+supabase/.env.local
+*firebase-adminsdk*.json
+
+# Builds e temporários
+dev-dist/
+dist-delivery/
+dist-frota/
+supabase/.temp/
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+native-delivery/android/app/build/
+native-delivery/android/build/
+native-delivery/android/.gradle/
+native-delivery/android/local.properties
+ios/App/build/
+ios/App/Pods/
+native-delivery/ios/App/build/
+native-delivery/ios/App/Pods/
+
+# Sistema / editor
+.DS_Store
+.vscode/
+.claude/settings.local.json
+.claude/worktrees/
+
+# Material local de depuração (screenshots de erros + chave firebase)
+erros/

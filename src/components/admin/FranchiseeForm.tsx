@@ -152,10 +152,10 @@ export function FranchiseeForm({ onSuccess, initialData }: FranchiseeFormProps) 
           deliveryRadius: initialData.delivery_radius_km || 0,
           preparationTime: Number(initialData.preparation_time) || 0,
           deliveryTime: Number(initialData.delivery_time) || 0,
-          acceptsCash: true,
-          acceptsCard: true,
-          acceptsPix: true,
-          requiresChange: false,
+          acceptsCash: initialData.accepts_cash ?? true,
+          acceptsCard: initialData.accepts_card ?? true,
+          acceptsPix: initialData.accepts_pix ?? true,
+          requiresChange: initialData.requires_change ?? false,
           distribution_center_id: initialData.distribution_center_id || null,
         };
 
@@ -163,13 +163,14 @@ export function FranchiseeForm({ onSuccess, initialData }: FranchiseeFormProps) 
         if (initialData.franchisee_user_id) {
           const { data: profile } = await supabase
             .from('profiles')
-            .select('email, full_name')
+            .select('email, full_name, phone')
             .eq('id', initialData.franchisee_user_id)
             .single();
           
           if (profile) {
             formData.fullName = profile.full_name || '';
             formData.email = profile.email || '';
+            formData.phone = profile.phone || '';
           }
         }
 
@@ -205,17 +206,22 @@ export function FranchiseeForm({ onSuccess, initialData }: FranchiseeFormProps) 
             delivery_time: data.deliveryTime,
             distribution_center_id: data.distribution_center_id,
             business_hours: businessHours,
+            accepts_cash: data.acceptsCash,
+            accepts_card: data.acceptsCard,
+            accepts_pix: data.acceptsPix,
+            requires_change: data.requiresChange,
           }
         });
 
-        // Atualizar credenciais se houver mudança de e-mail ou se senha for informada
-        if (initialData.franchisee_user_id && (data.email !== initialData.franchisee_profile?.email || data.password)) {
+        // Atualizar credenciais
+        if (initialData.franchisee_user_id) {
           await updateFranchiseeUser.mutateAsync({
             userId: initialData.franchisee_user_id,
-            email: data.email !== initialData.franchisee_profile?.email ? data.email : undefined,
+            email: data.email,
             password: data.password || undefined,
             fullName: data.fullName,
-          });
+            phone: data.phone,
+          } as any);
         }
       } else {
         // Criar

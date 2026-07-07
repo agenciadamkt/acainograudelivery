@@ -342,6 +342,10 @@ function AdminLayoutContent({ children }: AdminLayoutProps) {
 
       {isMobile && <MobileBottomNav />}
 
+      {/* Alerta global de novo pedido de franquia agora vive na raiz do App
+          (App.tsx, via GlobalFranchiseeOrderAlert) — funciona em qualquer
+          rota, mesmo as que não usam este layout (ex: /admin/hub). */}
+
       {/* Global New Order Dialog */}
       <NewOrderDialog
         order={newOrderForDialog}

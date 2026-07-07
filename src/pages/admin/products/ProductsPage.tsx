@@ -219,6 +219,7 @@ export default function ProductsPage() {
             </DialogDescription>
           </DialogHeader>
           <ProductForm
+            key={editingProduct?.id ?? 'new'}
             product={editingProduct}
             onSubmit={editingProduct ? handleUpdate : handleCreate}
             onCancel={() => {

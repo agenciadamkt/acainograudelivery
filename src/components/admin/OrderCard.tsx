@@ -1,11 +1,15 @@
+
+import { useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Clock, MapPin, Phone, User, Check, X, MessageSquare } from 'lucide-react';
+import { Clock, MapPin, Phone, User, Check, X, RefreshCw, AlertTriangle } from 'lucide-react';
 import { Order } from '@/hooks/useOrders';
 import { WHATSAPP_MESSAGES, getWhatsAppUrl } from '@/utils/whatsappMessages';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 const WhatsAppIcon = ({ className }: { className?: string }) => (
   <svg
@@ -44,9 +48,14 @@ const orderTypeLabels = {
 };
 
 export function OrderCard({ order, onViewDetails, onUpdateStatus, onCancelOrder, onAssignDriver, stopSound }: OrderCardProps) {
+  const [isVerifyingPix, setIsVerifyingPix] = useState(false);
+
   const status = statusConfig[order.status as keyof typeof statusConfig];
   const orderType = orderTypeLabels[order.order_type as keyof typeof orderTypeLabels];
   const timeAgo = formatDistanceToNow(new Date(order.created_at), { addSuffix: true, locale: ptBR });
+
+  // PIX aguardando confirmação de pagamento
+  const isPixPending = (order as any).payment_method === 'pix' && (order as any).payment_status !== 'paid';
 
   const getNextStatus = () => {
     if (order.status === 'pending') return 'confirmed';
@@ -58,7 +67,6 @@ export function OrderCard({ order, onViewDetails, onUpdateStatus, onCancelOrder,
 
   const nextStatus = getNextStatus();
   const nextStatusLabel = nextStatus ? statusConfig[nextStatus as keyof typeof statusConfig].label : null;
-
   const isPending = order.status === 'pending';
 
   const handleAccept = () => {
@@ -69,6 +77,47 @@ export function OrderCard({ order, onViewDetails, onUpdateStatus, onCancelOrder,
   const handleDecline = () => {
     if (stopSound) stopSound();
     if (onCancelOrder) onCancelOrder();
+  };
+
+  // Verifica pagamento no MP e aceita automaticamente se confirmado
+  const handleVerifyAndAcceptPix = async () => {
+    setIsVerifyingPix(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        toast.error('Sessão expirada. Faça login novamente.');
+        return;
+      }
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/mercadopago-payment-check`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ orderId: order.id }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.paid) {
+        toast.success('PIX confirmado! Aceitando pedido...');
+        if (stopSound) stopSound();
+        if (onUpdateStatus) onUpdateStatus('confirmed');
+      } else {
+        toast.warning(`PIX ainda não pago. Status: ${data.status || 'pending'}`, {
+          description: 'Aguarde o cliente realizar o pagamento.',
+          duration: 5000,
+        });
+      }
+    } catch {
+      toast.error('Erro ao verificar pagamento PIX.');
+    } finally {
+      setIsVerifyingPix(false);
+    }
   };
 
   return (
@@ -92,6 +141,16 @@ export function OrderCard({ order, onViewDetails, onUpdateStatus, onCancelOrder,
           </div>
           <Badge className={status.color}>{status.label}</Badge>
         </div>
+
+        {/* PIX pendente — aviso em destaque */}
+        {isPixPending && (
+          <div className="flex items-start gap-2 rounded-md border border-orange-300 bg-orange-50 px-3 py-2 text-orange-800">
+            <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+            <div className="text-xs font-medium leading-snug">
+              <span className="font-bold">PIX não confirmado.</span> Verifique o pagamento antes de aceitar o pedido.
+            </div>
+          </div>
+        )}
 
         {/* Customer Info */}
         <div className="space-y-1 text-sm">
@@ -153,13 +212,31 @@ export function OrderCard({ order, onViewDetails, onUpdateStatus, onCancelOrder,
                 <X className="w-4 h-4 mr-1" />
                 Recusar
               </Button>
-              <Button
-                onClick={handleAccept}
-                className="flex-1 bg-success hover:bg-success/90"
-              >
-                <Check className="w-4 h-4 mr-1" />
-                Aceitar
-              </Button>
+
+              {isPixPending ? (
+                // PIX não confirmado: botão de verificar (aceita automaticamente se pago)
+                <Button
+                  onClick={handleVerifyAndAcceptPix}
+                  disabled={isVerifyingPix}
+                  className="flex-1 bg-orange-500 hover:bg-orange-600 text-white"
+                >
+                  {isVerifyingPix ? (
+                    <RefreshCw className="w-4 h-4 mr-1 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4 mr-1" />
+                  )}
+                  Verificar PIX
+                </Button>
+              ) : (
+                // Pagamento confirmado (ou não-PIX): aceitar normalmente
+                <Button
+                  onClick={handleAccept}
+                  className="flex-1 bg-success hover:bg-success/90"
+                >
+                  <Check className="w-4 h-4 mr-1" />
+                  Aceitar
+                </Button>
+              )}
             </>
           ) : (
             <>

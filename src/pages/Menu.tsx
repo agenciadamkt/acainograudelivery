@@ -25,7 +25,7 @@ const Menu = () => {
   const [customerId, setCustomerId] = useState<string>();
 
   const { data: categories, isLoading: loadingCategories } = useCategories(true, currentStore?.id, { excludePdvOnly: true });
-  const { data: products, isLoading: loadingProducts } = useProducts(selectedCategoryId, true);
+  const { data: products, isLoading: loadingProducts } = useProducts(selectedCategoryId, true, currentStore?.id);
   const { data: favorites } = useFavorites(customerId);
   const toggleFavorite = useToggleFavorite();
 

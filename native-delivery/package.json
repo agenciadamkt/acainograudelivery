@@ -1,0 +1,10 @@
+{
+  "name": "acainograu-delivery-native",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Projetos nativos (iOS/Android) do app \"Açaí no Grau\" (storefront do cliente) — isolado do app do motorista (capacitor.config.ts na raiz do repo). O código web é o mesmo build enxuto gerado por vite.delivery.config.ts (../dist-delivery). As dependências abaixo só existem aqui pra o Capacitor CLI descobrir os plugins (ele lê o package.json do diretório onde roda) — os pacotes de verdade já estão instalados em ../node_modules (raiz do repo) e são resolvidos por lá, sem duplicar instalação.",
+  "dependencies": {
+    "@capacitor/app": "^7.1.2",
+    "@capacitor/push-notifications": "^7.0.7"
+  }
+}

@@ -15,7 +15,8 @@ import {
     ShoppingBag,
     Search,
     Calendar,
-    ArrowRight
+    ArrowRight,
+    AlertTriangle
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -33,6 +34,7 @@ interface Order {
     total_amount: number;
     created_at: string;
     payment_method: string;
+    edited_by_admin: boolean;
 }
 
 const OrderHistory = () => {
@@ -42,10 +44,13 @@ const OrderHistory = () => {
     const { data: orders, isLoading } = useQuery({
         queryKey: ['franchisee_orders_history', user?.id],
         queryFn: async () => {
+            // Sem filtro explícito por franchisee_user_id: a RLS já restringe
+            // o retorno aos pedidos de quem compartilha a mesma unidade (via
+            // user_unidades), não só os feitos pelo próprio usuário logado —
+            // várias pessoas podem operar a mesma franquia.
             const { data, error } = await supabase
                 .from('franchisee_orders' as any)
                 .select('*')
-                .eq('franchisee_user_id', user?.id)
                 .order('created_at', { ascending: false });
             if (error) throw error;
             return (data as any) as Order[];
@@ -152,7 +157,14 @@ const OrderHistory = () => {
                                                                 <ShoppingBag className="h-3 w-3" />
                                                                 COD: #{order.id.slice(0, 8).toUpperCase()}
                                                             </div>
-                                                            <h4 className="text-xl font-black text-gray-900 dark:text-white tracking-tight">Pedido de Insumos</h4>
+                                                            <div className="flex items-center gap-2">
+                                                                <h4 className="text-xl font-black text-gray-900 dark:text-white tracking-tight">Pedido de Insumos</h4>
+                                                                {order.edited_by_admin && (
+                                                                    <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-0 gap-1 text-[9px] uppercase font-black">
+                                                                        <AlertTriangle className="h-3 w-3" /> Alterado
+                                                                    </Badge>
+                                                                )}
+                                                            </div>
                                                             <div className="flex items-center gap-2 text-xs text-gray-500 font-bold">
                                                                 <Calendar className="h-3.5 w-3.5" />
                                                                 {format(new Date(order.created_at), "dd 'de' MMMM, yyyy", { locale: ptBR })}

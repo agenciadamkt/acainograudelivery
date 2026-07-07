@@ -59,9 +59,10 @@ interface RecordFormDialogProps {
     onOpenChange: (open: boolean) => void;
     record?: any; // If editing
     onSuccess: () => void;
+    readOnly?: boolean;
 }
 
-export function RecordFormDialog({ open, onOpenChange, record, onSuccess }: RecordFormDialogProps) {
+export function RecordFormDialog({ open, onOpenChange, record, onSuccess, readOnly = false }: RecordFormDialogProps) {
     const queryClient = useQueryClient();
     const [isUploading, setIsUploading] = useState(false);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -293,11 +294,24 @@ export function RecordFormDialog({ open, onOpenChange, record, onSuccess }: Reco
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto bg-white dark:bg-[#1A1A1A] border-gray-200 dark:border-white/10">
                 <DialogHeader>
-                    <DialogTitle className="text-gray-900 dark:text-white">
-                        {record ? 'Editar Lançamento' : 'Novo Lançamento'}
+                    <DialogTitle className="text-gray-900 dark:text-white flex items-center gap-2">
+                        {readOnly ? (
+                            <>
+                                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/30">
+                                    <svg className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                </span>
+                                Visualizar Lançamento
+                            </>
+                        ) : record ? 'Editar Lançamento' : 'Novo Lançamento'}
                     </DialogTitle>
                 </DialogHeader>
 
+                {readOnly && (
+                    <div className="mx-0 mb-2 px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/30 text-xs text-blue-600 dark:text-blue-400 flex items-center gap-2">
+                        <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        Modo visualização — nenhum campo pode ser alterado.
+                    </div>
+                )}
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
 
@@ -309,7 +323,7 @@ export function RecordFormDialog({ open, onOpenChange, record, onSuccess }: Reco
                                     <FormItem>
                                         <FormLabel>Data</FormLabel>
                                         <FormControl>
-                                            <Input type="date" {...field} />
+                                            <Input type="date" {...field} disabled={readOnly} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -321,7 +335,7 @@ export function RecordFormDialog({ open, onOpenChange, record, onSuccess }: Reco
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Tipo</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value} disabled={readOnly}>
                                             <FormControl>
                                                 <SelectTrigger>
                                                     <SelectValue placeholder="Selecione" />
@@ -350,6 +364,7 @@ export function RecordFormDialog({ open, onOpenChange, record, onSuccess }: Reco
                                         <DistributionCenterSelect
                                             value={field.value}
                                             onChange={field.onChange}
+                                            disabled={readOnly}
                                         />
                                     </FormControl>
                                     <FormMessage />
@@ -368,6 +383,7 @@ export function RecordFormDialog({ open, onOpenChange, record, onSuccess }: Reco
                                         <AccountSelect
                                             value={field.value}
                                             onChange={field.onChange}
+                                            disabled={readOnly}
                                         />
                                     </FormControl>
                                     <FormMessage />
@@ -385,6 +401,7 @@ export function RecordFormDialog({ open, onOpenChange, record, onSuccess }: Reco
                                         <ClientSelect
                                             value={field.value}
                                             onChange={field.onChange}
+                                            disabled={readOnly}
                                         />
                                     </FormControl>
                                     <FormMessage />
@@ -403,12 +420,14 @@ export function RecordFormDialog({ open, onOpenChange, record, onSuccess }: Reco
                                             <PaymentMethodSelect
                                                 value={field.value || ''}
                                                 onChange={(val, isCredit) => {
+                                                    if (readOnly) return;
                                                     field.onChange(val);
                                                     if (!isCredit) {
                                                         form.setValue('installments', 1);
                                                     }
                                                     setIsCreditMethod(isCredit);
                                                 }}
+                                                disabled={readOnly}
                                             />
                                         </FormControl>
                                         <FormMessage />
@@ -459,6 +478,7 @@ export function RecordFormDialog({ open, onOpenChange, record, onSuccess }: Reco
                                             <CurrencyInput
                                                 value={Number(field.value) || 0}
                                                 onChange={(num) => field.onChange(String(num))}
+                                                disabled={readOnly}
                                             />
                                         </FormControl>
                                         <FormMessage />
@@ -472,7 +492,7 @@ export function RecordFormDialog({ open, onOpenChange, record, onSuccess }: Reco
                                     <FormItem>
                                         <FormLabel>Nº Pedido (Opcional)</FormLabel>
                                         <FormControl>
-                                            <Input placeholder="Ex: 12345" {...field} />
+                                            <Input placeholder="Ex: 12345" {...field} disabled={readOnly} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -487,13 +507,14 @@ export function RecordFormDialog({ open, onOpenChange, record, onSuccess }: Reco
                                 <FormItem>
                                     <FormLabel>Observação</FormLabel>
                                     <FormControl>
-                                        <Textarea placeholder="Detalhes da transação..." {...field} />
+                                        <Textarea placeholder="Detalhes da transação..." {...field} disabled={readOnly} />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )}
                         />
 
+                        {!readOnly && (
                         <div className="grid grid-cols-2 gap-3">
                             <div className="border-2 border-dashed border-purple-200 dark:border-purple-500/20 rounded-lg p-3 text-center cursor-pointer hover:bg-purple-50 dark:hover:bg-purple-500/5 transition-colors relative group">
                                 <Input
@@ -536,6 +557,7 @@ export function RecordFormDialog({ open, onOpenChange, record, onSuccess }: Reco
                                 </div>
                             </div>
                         </div>
+                        )}
                         {form.watch('evidence_url') && (
                             <div className="flex items-center justify-between text-xs text-emerald-500 bg-emerald-50 dark:bg-emerald-900/10 p-2 rounded border border-emerald-100 dark:border-emerald-900/20">
                                 <div className="flex items-center gap-1">
@@ -552,11 +574,13 @@ export function RecordFormDialog({ open, onOpenChange, record, onSuccess }: Reco
                             </div>
                         )}
 
+                        {!readOnly && (
                         <DialogFooter>
                             <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700 text-white" disabled={mutation.isPending}>
                                 {mutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Salvar Lançamento'}
                             </Button>
                         </DialogFooter>
+                        )}
                     </form>
                 </Form>
             </DialogContent>

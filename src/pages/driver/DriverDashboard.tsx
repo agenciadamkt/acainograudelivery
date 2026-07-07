@@ -78,6 +78,7 @@ export default function DriverDashboard() {
 
     const audioRef = useState(new Audio('https://github.com/rafaelreis-hotmart/audio-assets/raw/main/notification_simple_02.mp3'))[0];
     const [previousOrderCount, setPreviousOrderCount] = useState(0);
+    const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
 
     // Load Driver Info
     useEffect(() => {
@@ -131,71 +132,87 @@ export default function DriverDashboard() {
     // GPS Tracking Logic
     useEffect(() => {
         let watchId: number;
-        let lastUpdateTime = 0;
+        let lastThrottleTime = 0;
+        let lastDbUpdateTime = 0;
 
-        if (isOnline && driverId) {
-            if (!navigator.geolocation) {
-                setLocationError('Geolocalização não suportada neste dispositivo');
-                return;
-            }
-
-            navigator.geolocation.getCurrentPosition(
-                () => setLocationError(null),
-                (err) => {
-                    if (err.code === 1) {
-                        setLocationError('Permissão de localização negada. Ative nas configurações.');
-                    }
-                }
-            );
-
-            watchId = navigator.geolocation.watchPosition(
-                async (position) => {
-                    const { latitude, longitude, accuracy } = position.coords;
-                    const now = Date.now();
-
-                    if (now - lastUpdateTime < 2000) return;
-                    lastUpdateTime = now;
-
-                    setLocationError(null);
-
-                    try {
-                        await supabase
-                            .from('delivery_drivers' as any)
-                            .update({
-                                current_location: {
-                                    lat: latitude,
-                                    lng: longitude,
-                                    accuracy: accuracy,
-                                    timestamp: now
-                                },
-                                updated_at: new Date().toISOString()
-                            })
-                            .eq('id', driverId);
-                    } catch (e) {
-                        console.error('GPS Network Error:', e);
-                    }
-                },
-                (error) => {
-                    switch (error.code) {
-                        case 1:
-                            setLocationError('Permissão de localização negada');
-                            break;
-                        case 2:
-                            setLocationError('Localização indisponível');
-                            break;
-                        case 3:
-                            setLocationError('Tempo esgotado ao obter localização');
-                            break;
-                        default:
-                            setLocationError('Erro ao obter localização');
-                    }
-                },
-                { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-            );
+        if (!isOnline || !driverId) {
+            setGpsAccuracy(null);
+            return;
         }
+
+        if (!navigator.geolocation) {
+            setLocationError('Geolocalização não suportada neste dispositivo');
+            return;
+        }
+
+        // Solicitar permissão imediata para mostrar erro cedo
+        navigator.geolocation.getCurrentPosition(
+            () => setLocationError(null),
+            (err) => {
+                if (err.code === 1) setLocationError('Permissão de localização negada. Ative nas configurações do navegador.');
+            },
+            { timeout: 10000 }
+        );
+
+        watchId = navigator.geolocation.watchPosition(
+            async (position) => {
+                const { latitude, longitude, accuracy } = position.coords;
+                const now = Date.now();
+
+                // Sempre atualiza o indicador de precisão na UI
+                setGpsAccuracy(Math.round(accuracy));
+                setLocationError(null);
+
+                // Throttle: no máximo 1 leitura a cada 3 segundos
+                if (now - lastThrottleTime < 3000) return;
+                lastThrottleTime = now;
+
+                // Limiar de acurácia aceitável para rastreamento de entrega
+                const ACCURACY_THRESHOLD_M = 100; // metros
+                const MAX_STALE_MS = 30_000;       // envia mesmo impreciso após 30s sem update
+
+                const isAccurate = accuracy <= ACCURACY_THRESHOLD_M;
+                const isStale = (now - lastDbUpdateTime) > MAX_STALE_MS;
+
+                if (!isAccurate && !isStale) {
+                    console.log(`[GPS] Skipped — accuracy ${Math.round(accuracy)}m > ${ACCURACY_THRESHOLD_M}m`);
+                    return;
+                }
+
+                lastDbUpdateTime = now;
+
+                try {
+                    await supabase
+                        .from('delivery_drivers' as any)
+                        .update({
+                            current_location: {
+                                lat: latitude,
+                                lng: longitude,
+                                accuracy: Math.round(accuracy),
+                                timestamp: now
+                            },
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('id', driverId);
+                } catch (e) {
+                    console.error('GPS Network Error:', e);
+                }
+            },
+            (error) => {
+                switch (error.code) {
+                    case 1: setLocationError('Permissão de localização negada. Ative nas configurações.'); break;
+                    case 2: setLocationError('Localização indisponível. Verifique o GPS do dispositivo.'); break;
+                    case 3: setLocationError('Tempo esgotado ao obter localização. Tente novamente.'); break;
+                    default: setLocationError('Erro ao obter localização.');
+                }
+                setGpsAccuracy(null);
+            },
+            { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+        );
 
         return () => {
             if (watchId) navigator.geolocation.clearWatch(watchId);
+            setGpsAccuracy(null);
         };
     }, [isOnline, driverId]);
 
@@ -380,6 +397,16 @@ export default function DriverDashboard() {
         return <Badge className="bg-yellow-500">💰 A receber</Badge>;
     };
 
+    // GPS accuracy status helper
+    const getGpsStatus = () => {
+        if (!isOnline) return null;
+        if (gpsAccuracy === null) return { label: 'Aguardando GPS...', colorClass: 'text-yellow-300', dot: '🔄' };
+        if (gpsAccuracy <= 20)  return { label: `GPS ±${gpsAccuracy}m`, colorClass: 'text-green-300', dot: '🛰️' };
+        if (gpsAccuracy <= 50)  return { label: `GPS ±${gpsAccuracy}m`, colorClass: 'text-green-200', dot: '🛰️' };
+        if (gpsAccuracy <= 100) return { label: `GPS ±${gpsAccuracy}m`, colorClass: 'text-yellow-300', dot: '📡' };
+        return { label: `GPS fraco ±${gpsAccuracy}m`, colorClass: 'text-red-300', dot: '⚠️' };
+    };
+
     // Report calculations
     const reportTotalDeliveries = reportOrders.length;
     const reportTotalFees = reportOrders.reduce((sum, o) => sum + (o.delivery_fee || 0), 0);
@@ -419,7 +446,13 @@ export default function DriverDashboard() {
                 <div className="flex justify-between items-center">
                     <div>
                         <h1 className="font-bold text-lg">Olá, {driverName}</h1>
-                        <p className="text-xs opacity-90">{isOnline ? '🟢 Online e Rastreado' : '🔴 Offline'}</p>
+                        {isOnline ? (
+                            <p className={`text-xs font-medium ${getGpsStatus()?.colorClass ?? 'text-white/80'}`}>
+                                {getGpsStatus()?.dot} {getGpsStatus()?.label}
+                            </p>
+                        ) : (
+                            <p className="text-xs text-white/70">🔴 Offline</p>
+                        )}
                     </div>
                     <Button
                         variant={isOnline ? "destructive" : "secondary"}
@@ -467,8 +500,22 @@ export default function DriverDashboard() {
                 {/* Deliveries Tab */}
                 <TabsContent value="deliveries" className="p-4 space-y-4">
                     {locationError && (
-                        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-                            <strong>Erro GPS:</strong> {locationError}
+                        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded flex items-start gap-2">
+                            <Navigation className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                            <div>
+                                <strong>Erro GPS:</strong> {locationError}
+                            </div>
+                        </div>
+                    )}
+                    {!locationError && isOnline && gpsAccuracy !== null && gpsAccuracy > 100 && (
+                        <div className="bg-yellow-50 border border-yellow-300 text-yellow-800 px-4 py-3 rounded flex items-start gap-2">
+                            <Navigation className="w-4 h-4 mt-0.5 flex-shrink-0 text-yellow-600" />
+                            <div>
+                                <strong className="block">Sinal GPS fraco ({gpsAccuracy}m de precisão)</strong>
+                                <p className="text-xs mt-0.5">
+                                    Vá para um local aberto ou desative o WiFi. Sua posição pode estar imprecisa até o sinal melhorar.
+                                </p>
+                            </div>
                         </div>
                     )}
 
