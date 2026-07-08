@@ -15,6 +15,23 @@ serve(async (req) => {
   const requestId = crypto.randomUUID();
   console.log(`[${requestId}] infinitepay-webhook received`);
 
+  // Validar segredo compartilhado para impedir chamadas não autorizadas.
+  // Configurar INFINITEPAY_WEBHOOK_SECRET nos secrets do Supabase e incluir
+  // ?secret=<valor> na webhook_url ao criar o checkout.
+  const webhookSecret = Deno.env.get("INFINITEPAY_WEBHOOK_SECRET");
+  if (webhookSecret) {
+    const url = new URL(req.url);
+    const providedSecret = url.searchParams.get("secret")
+      ?? req.headers.get("x-webhook-secret");
+    if (providedSecret !== webhookSecret) {
+      console.warn(`[${requestId}] Webhook secret inválido — rejeitando`);
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+  }
+
   try {
     // Initialize Supabase client with service role
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;

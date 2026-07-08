@@ -1,6 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 
+const ALLOWED_ROLES = ['admin', 'manager', 'franchisee_master']
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -17,6 +19,43 @@ Deno.serve(async (req) => {
         }
       }
     )
+
+    // Verificar que o chamador é um usuário autenticado com role permitida
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    const callerClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } } }
+    )
+
+    const { data: { user: caller }, error: callerError } = await callerClient.auth.getUser()
+    if (callerError || !caller) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    const { data: roleRows } = await supabaseAdmin
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', caller.id)
+      .in('role', ALLOWED_ROLES)
+      .limit(1)
+
+    if (!roleRows || roleRows.length === 0) {
+      return new Response(JSON.stringify({ error: 'Forbidden' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
 
     const { userId: providedUserId, email, password, fullName, phone, action } = await req.json()
 

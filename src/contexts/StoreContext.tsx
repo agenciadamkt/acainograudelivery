@@ -21,7 +21,7 @@ interface Store {
   banner_url: string | null;
   delivery_time: string | null;
   mercadopago_public_key: string | null;
-  mercadopago_access_token: string | null;
+  // mercadopago_access_token é chave secreta — nunca carregada no cliente
   business_hours: any;
   zip_code: string | null;
   neighborhood: string | null;
@@ -59,15 +59,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       let storesData: Store[] = [];
 
       if (userRole?.includes('franchisee_master')) {
-        // Master vê todas as lojas
-        const { data, error } = await supabase.from('stores').select('*').order('name');
+        // Master vê todas as lojas — access_token excluído intencionalmente (chave secreta)
+        const { data, error } = await supabase.from('stores')
+          .select('id, name, slug, status, city, state, address, phone, logo_url, delivery_fee, min_order_value, delivery_radius_km, franchisee_user_id, active, banner_url, delivery_time, mercadopago_public_key, business_hours, zip_code, neighborhood, latitude, longitude')
+          .order('name');
         if (error) throw error;
         storesData = (data as unknown as Store[]) || [];
       } else {
+        const STORE_COLS = 'id, name, slug, status, city, state, address, phone, logo_url, delivery_fee, min_order_value, delivery_radius_km, franchisee_user_id, active, banner_url, delivery_time, mercadopago_public_key, business_hours, zip_code, neighborhood, latitude, longitude';
+
         // 1. Lojas vinculadas pelo franchisee_user_id legado
         const { data: legacyStores } = await supabase
           .from('stores')
-          .select('*')
+          .select(STORE_COLS)
           .eq('franchisee_user_id', user.id);
 
         // 2. Lojas vinculadas via user_unidades (novo sistema RBAC)
@@ -82,7 +86,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (linkedStoreIds.length > 0) {
           const { data: rbacData } = await supabase
             .from('stores')
-            .select('*')
+            .select(STORE_COLS)
             .in('id', linkedStoreIds);
           rbacStores = (rbacData as unknown as Store[]) || [];
         }

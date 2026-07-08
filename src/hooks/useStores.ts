@@ -20,7 +20,9 @@ export interface Store {
   preparation_time: number | null;
   delivery_time: number | null;
   mercadopago_public_key: string | null;
-  mercadopago_access_token: string | null;
+  // mercadopago_access_token é segredo: existe na coluna do banco mas NUNCA é
+  // lido pelo cliente (só a Edge Function acessa via service_role). Não declarar
+  // aqui evita que um select('*') ou Partial<Store> volte a expô-lo (SEC-014).
   accepts_cash?: boolean;
   accepts_card?: boolean;
   accepts_pix?: boolean;
@@ -47,7 +49,8 @@ export function useStores() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('stores')
-        .select('*, distribution_center:distribution_centers(id, name)')
+        // mercadopago_access_token excluído intencionalmente — chave secreta, processada só na Edge Function
+        .select('id, name, slug, status, city, state, address, zipcode, phone, logo_url, banner_url, delivery_fee, min_order_value, delivery_radius_km, preparation_time, delivery_time, mercadopago_public_key, accepts_cash, accepts_card, accepts_pix, requires_change, business_hours, distribution_center_id, franchisee_user_id, created_by, approved_by, approved_at, active, created_at, updated_at, distribution_center:distribution_centers(id, name)')
         .order('name');
 
       if (error) throw error;
@@ -64,7 +67,7 @@ export function useStoreBySlug(slug: string | undefined) {
 
       const { data, error } = await supabase
         .from('stores')
-        .select('*')
+        .select('id, name, slug, status, city, state, address, zipcode, phone, logo_url, banner_url, delivery_fee, min_order_value, delivery_radius_km, preparation_time, delivery_time, mercadopago_public_key, accepts_cash, accepts_card, accepts_pix, requires_change, business_hours, active, created_at, updated_at, franchisee_user_id, distribution_center_id, created_by, approved_by, approved_at, latitude, longitude')
         .eq('slug', slug)
         .eq('status', 'active')
         .single();

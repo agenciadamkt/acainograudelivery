@@ -3,6 +3,8 @@ import { initMercadoPago, Payment } from '@mercadopago/sdk-react';
 import { Card } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+
 
 interface PaymentFormProps {
   amount: number;
@@ -45,63 +47,101 @@ export function PaymentForm({ amount, email, storeId, publicKey, onSuccess, onEr
   }
 
   const onSubmit = async ({ formData, selectedPaymentMethod }: any) => {
+    console.log('[PaymentForm] === PAYMENT SUBMIT START ===');
+    console.log('[PaymentForm] selectedPaymentMethod:', selectedPaymentMethod);
+    console.log('[PaymentForm] formData:', JSON.stringify(formData, null, 2));
+    console.log('[PaymentForm] formData.payment_method_id:', formData.payment_method_id);
+    console.log('[PaymentForm] formData.token:', formData.token);
+
+    let sessionToken = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        sessionToken = session.access_token;
+      }
+    } catch (err) {
+      console.warn('[PaymentForm] Failed to get session token:', err);
+    }
+
     return new Promise<void>((resolve, reject) => {
-      // Map payment method ID to simple types for our backend/frontend logic
-      const paymentTypeId = selectedPaymentMethod === 'bank_transfer' ? 'pix' : 'credit_card';
+      // O Brick envia payment_method_id = 'pix' para PIX, ou o id do cartão para cartão
+      const actualPaymentMethodId = formData.payment_method_id || selectedPaymentMethod;
+      const isPix = actualPaymentMethodId === 'pix' || selectedPaymentMethod === 'bank_transfer';
+
+      console.log('[PaymentForm] isPix:', isPix, '| actualPaymentMethodId:', actualPaymentMethodId);
+
+      const requestBody = {
+        // Common fields
+        token: isPix ? undefined : formData.token, // PIX não usa token
+        paymentMethodId: isPix ? 'pix' : (formData.payment_method_id || actualPaymentMethodId),
+        issuerId: formData.issuer_id,
+        amount: safeAmount,
+        email,
+        storeId,
+        installments: isPix ? undefined : (formData.installments || 1),
+        transactionAmount: safeAmount,
+        description: `Pedido ${email}`,
+        payer: {
+          email,
+          identification: formData.payer?.identification,
+          first_name: formData.payer?.first_name,
+          last_name: formData.payer?.last_name,
+          entity_type: formData.payer?.entity_type,
+          type: formData.payer?.type,
+        },
+      };
+
+      console.log('[PaymentForm] Request body:', JSON.stringify(requestBody, null, 2));
 
       fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-payment`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          Authorization: `Bearer ${sessionToken}`,
         },
-        body: JSON.stringify({
-          // Common fields
-          token: formData.token,
-          paymentMethodId: formData.payment_method_id, // Payment Brick uses snake_case here usually
-          issuerId: formData.issuer_id,
-          amount: safeAmount,
-          email,
-          storeId,
-          installments: formData.installments,
-          transactionAmount: safeAmount,
-          description: `Pedido ${email}`,
-          payer: {
-            email,
-            identification: formData.payer?.identification,
-            first_name: formData.payer?.first_name,
-            last_name: formData.payer?.last_name,
-            entity_type: formData.payer?.entity_type,
-            type: formData.payer?.type,
-          },
-        }),
+        body: JSON.stringify(requestBody),
       })
-        .then((response) => response.json())
+        .then((response) => {
+          console.log('[PaymentForm] Response status:', response.status);
+          return response.json();
+        })
         .then((result) => {
+          console.log('[PaymentForm] Response body:', JSON.stringify(result, null, 2));
+
           if (result.error) {
             throw new Error(result.error);
           }
 
-          if (result.status === 'approved' || result.status === 'pending') {
-            if (result.status === 'approved') toast.success('Pagamento aprovado!');
-            if (result.status === 'pending') toast.success('Pagamento gerado com sucesso!');
+          // Para PIX, o status será 'pending' (aguardando pagamento do QR Code)
+          // Para cartão, o status será 'approved' ou 'rejected'
+          const paymentType = result.payment_type_id === 'bank_transfer' ? 'pix' : (isPix ? 'pix' : 'credit_card');
 
-            // Pass payment info back
-            onSuccess(result.payment_id || result.id, result.status, result.payment_type_id || paymentTypeId);
+          if (result.status === 'approved') {
+            toast.success('Pagamento aprovado!');
+            onSuccess(result.payment_id || result.id, result.status, paymentType);
+            resolve();
+          } else if (result.status === 'pending') {
+            // PIX gera pagamento pendente — isso é SUCESSO, não erro
+            toast.success('PIX gerado com sucesso! Escaneie o QR Code para pagar.');
+            onSuccess(result.payment_id || result.id, result.status, paymentType);
             resolve();
           } else {
+            console.error('[PaymentForm] REJECTED - status:', result.status, 'detail:', result.status_detail);
             toast.error(result.status_detail || 'Pagamento rejeitado');
             reject();
           }
         })
         .catch((error) => {
+          console.error('[PaymentForm] ERROR:', error);
           const errorMsg = error.message || 'Erro ao processar pagamento';
           toast.error(errorMsg);
           onError(errorMsg);
           reject();
         });
     });
+
   };
+
 
   if (!mpReady) {
     return (

@@ -6,7 +6,6 @@ export interface Integration {
   id: string;
   name: string;
   provider: string | null;
-  config: any;
   active: boolean;
   created_at: string;
   updated_at: string;
@@ -16,9 +15,12 @@ export function useIntegrations() {
   return useQuery({
     queryKey: ['integrations'],
     queryFn: async () => {
+      // Nunca selecionar `config`: ele contém o token da instância (segredo).
+      // O token nunca deve chegar ao cliente. O isolamento por franqueado é
+      // garantido pela policy RLS da tabela integrations.
       const { data, error } = await supabase
         .from('integrations')
-        .select('*')
+        .select('id, name, provider, active, created_at, updated_at')
         .order('name');
 
       if (error) throw error;

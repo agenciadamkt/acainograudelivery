@@ -29,11 +29,6 @@ export interface WhatsAppApiConfig {
     base_url: string;
 }
 
-const DEFAULT_CONFIG: WhatsAppApiConfig = {
-    token: "4a0e432a-2717-42ed-a2cf-39127a768cd8",
-    base_url: "https://btzap.uazapi.com",
-};
-
 export function formatWhatsAppNumber(phone: string) {
     const cleanPhone = phone.replace(/\D/g, '');
     return cleanPhone.length <= 11 ? `55${cleanPhone}` : cleanPhone;
@@ -48,7 +43,7 @@ export function getWhatsAppUrl(phone: string, message: string) {
  * Envia uma mensagem via API do UazAPI.
  * Aceita config dinâmica do franqueado; usa config padrão se não fornecida.
  */
-export async function sendWhatsAppApiMessage(phone: string, text: string, cfg: WhatsAppApiConfig = DEFAULT_CONFIG) {
+export async function sendWhatsAppApiMessage(phone: string, text: string, cfg: WhatsAppApiConfig) {
     try {
         const url = cfg.base_url.replace(/\/$/, '');
         const response = await fetch(`${url}/send/text`, {
@@ -82,7 +77,7 @@ export async function sendWhatsAppApiMessage(phone: string, text: string, cfg: W
  * Envia um menu interativo (botões) via API do UazAPI.
  * Aceita config dinâmica do franqueado; usa config padrão se não fornecida.
  */
-export async function sendWhatsAppApiMenu(phone: string, text: string, options: string[], cfg: WhatsAppApiConfig = DEFAULT_CONFIG) {
+export async function sendWhatsAppApiMenu(phone: string, text: string, options: string[], cfg: WhatsAppApiConfig) {
     try {
         const url = cfg.base_url.replace(/\/$/, '');
         const response = await fetch(`${url}/send/menu`, {

@@ -24,7 +24,7 @@ export function useNearbyStores({ city, state, coordinates }: UseNearbyStoresPar
     queryFn: async () => {
       const { data, error } = await supabase
         .from('stores')
-        .select('*')
+        .select('id, name, slug, status, city, state, address, zipcode, phone, logo_url, banner_url, delivery_fee, min_order_value, delivery_radius_km, preparation_time, delivery_time, mercadopago_public_key, accepts_cash, accepts_card, accepts_pix, business_hours, active, created_at, updated_at, franchisee_user_id, latitude, longitude')
         .eq('status', 'active')
         .eq('active', true)
         .eq('city', city)

@@ -160,7 +160,10 @@ serve(async (req) => {
     // Get app URL for redirect
     const appUrl = Deno.env.get("APP_URL") || "https://xjibukpltjwijyecklio.lovableproject.com";
     const redirect_url = `${appUrl}/checkout/infinitepay/success`;
-    const webhook_url = `${supabaseUrl}/functions/v1/infinitepay-webhook`;
+    const ipSecret = Deno.env.get("INFINITEPAY_WEBHOOK_SECRET");
+    const webhook_url = ipSecret
+      ? `${supabaseUrl}/functions/v1/infinitepay-webhook?secret=${encodeURIComponent(ipSecret)}`
+      : `${supabaseUrl}/functions/v1/infinitepay-webhook`;
 
     // Build InfinitePay payload
     const infinitePayPayload = {
