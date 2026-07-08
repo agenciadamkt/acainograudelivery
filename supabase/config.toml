@@ -1,5 +1,12 @@
 project_id = "sixzfcpdjtnftacuwvph"
 
+[functions.mercadopago-webhook]
+# O Mercado Pago chama a notification_url SEM JWT do Supabase. Sem esta linha,
+# o gateway responde 401 antes do código rodar e o PIX nunca é confirmado
+# automaticamente. A segurança do endpoint vem da re-consulta à API do MP
+# dentro da função (nunca confia só no payload do webhook).
+verify_jwt = false
+
 [functions.infinitepay-webhook]
 verify_jwt = false
 
