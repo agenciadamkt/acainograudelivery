@@ -38,7 +38,7 @@ serve(async (req) => {
         const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
         // ── Buscar config do franqueado ─────────────────────────────────────
-        let apiUrl   = 'https://btzap.uazapi.com';
+        let apiUrl   = 'https://acainograu.uazapi.com';
         let apiToken = Deno.env.get('BTZAP_TOKEN') ?? '';
 
         if (franchiseeId) {

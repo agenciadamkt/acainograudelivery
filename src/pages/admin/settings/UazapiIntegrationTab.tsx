@@ -9,8 +9,9 @@ import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Loader2, MessageCircle, CheckCircle2, XCircle,
-  Eye, EyeOff, Wifi, Webhook, Send, Settings2, Copy, Check,
+  Wifi, Webhook, Send, Settings2, Copy, Check, AlertCircle, Lock,
 } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   useUazapiIntegration,
   useSaveUazapiIntegration,
@@ -20,8 +21,10 @@ import {
 } from '@/hooks/useUazapiIntegration';
 import { useAuth } from '@/contexts/AuthContext';
 
-const SUPABASE_PROJECT_ID = 'sixzfcpdjtnftacuwvph';
 import { toast } from '@/hooks/use-toast';
+
+// Base de URL do Supabase derivada do ambiente — não hardcodar o project id (SEC-012).
+const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL as string) ?? '';
 
 const NOTIFY_STATUS_OPTIONS = [
   { value: 'pending',           label: 'Pedido recebido' },
@@ -39,11 +42,11 @@ type TestState = 'idle' | 'loading' | 'ok' | 'error';
 
 export function UazapiIntegrationTab() {
   const { user } = useAuth();
-  const { data: integration, isLoading } = useUazapiIntegration();
+  const { data: integration, isLoading } = useUazapiIntegration() as { data: any; isLoading: boolean };
   const save = useSaveUazapiIntegration();
 
   const webhookReceiveUrl = user
-    ? `https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/whatsapp-webhook?fid=${user.id}`
+    ? `${SUPABASE_URL}/functions/v1/whatsapp-webhook?fid=${user.id}`
     : '';
 
   const [config, setConfig] = useState<UazapiConfig>({
@@ -62,7 +65,6 @@ export function UazapiIntegrationTab() {
     },
   });
   const [active, setActive] = useState(false);
-  const [showToken, setShowToken] = useState(false);
 
   const [connTest, setConnTest] = useState<TestState>('idle');
   const [connMsg, setConnMsg]   = useState('');
@@ -72,9 +74,13 @@ export function UazapiIntegrationTab() {
 
   useEffect(() => {
     if (integration?.config) {
+      // Nunca propagar o token do banco para o estado — o campo começa sempre vazio.
+      // O token só é enviado se o usuário digitar um novo valor.
+      const { token: _ignored, ...configWithoutToken } = integration.config as UazapiConfig;
       setConfig(prev => ({
         ...prev,
-        ...integration.config,
+        ...configWithoutToken,
+        token: '',
         webhook: { ...prev.webhook, ...(integration.config as UazapiConfig).webhook },
       }));
       setActive(integration.active ?? false);
@@ -216,24 +222,36 @@ export function UazapiIntegrationTab() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="token">Instance Token</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="token">Instance Token</Label>
+              {integration?.hasToken === true && (
+                <Badge variant="outline" className="gap-1 text-emerald-600 border-emerald-300 bg-emerald-50 dark:bg-emerald-950">
+                  <CheckCircle2 className="h-3 w-3" /> Configurado
+                </Badge>
+              )}
+              {integration?.hasToken === false && (
+                <Badge variant="outline" className="gap-1 text-amber-600 border-amber-300 bg-amber-50 dark:bg-amber-950">
+                  <AlertCircle className="h-3 w-3" /> Não configurado
+                </Badge>
+              )}
+            </div>
+            <Alert className="border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200 py-2">
+              <AlertDescription className="text-xs">
+                O token nunca é exibido após ser salvo. Deixe o campo vazio para manter o token atual; preencha apenas para alterá-lo.
+              </AlertDescription>
+            </Alert>
             <div className="flex gap-2">
               <div className="relative flex-1">
                 <Input
                   id="token"
-                  type={showToken ? 'text' : 'password'}
+                  type="password"
                   value={config.token}
                   onChange={e => set('token', e.target.value)}
-                  placeholder="Cole aqui o token da instância"
+                  placeholder={integration?.hasToken ? '●●●●●●●● (deixe vazio para manter)' : 'Cole aqui o token da instância'}
                   className="pr-10 font-mono text-sm"
+                  autoComplete="new-password"
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowToken(v => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
+                <Lock className="h-4 w-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               </div>
               <Button
                 variant="outline"

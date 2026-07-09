@@ -50,7 +50,7 @@ serve(async (req) => {
             console.log('[WhatsApp Notification] 🧪 Modo teste/campanha');
 
             // Busca a config do franqueado do payload (opcional)
-            let apiUrl = 'https://btzap.uazapi.com';
+            let apiUrl = 'https://acainograu.uazapi.com';
             let apiToken = Deno.env.get('BTZAP_TOKEN') ?? '';
 
             if (payload.franchisee_id) {
@@ -123,7 +123,7 @@ serve(async (req) => {
 
         // 2. Buscar integração UazAPI do franqueado dono da loja
         const franchiseeId = order.store?.franchisee_user_id;
-        let apiUrl   = 'https://btzap.uazapi.com';
+        let apiUrl   = 'https://acainograu.uazapi.com';
         let apiToken = Deno.env.get('BTZAP_TOKEN') ?? '';
         let autoSendEnabled = true;
         let notifyStatuses: string[] = [];

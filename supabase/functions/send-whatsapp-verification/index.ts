@@ -1,8 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 
-const BTZAP_TOKEN = "4a0e432a-2717-42ed-a2cf-39127a768cd8";
-const BTZAP_URL = "https://btzap.uazapi.com";
+const BTZAP_TOKEN = Deno.env.get('BTZAP_TOKEN') ?? '';
+const BTZAP_URL = "https://acainograu.uazapi.com";
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',

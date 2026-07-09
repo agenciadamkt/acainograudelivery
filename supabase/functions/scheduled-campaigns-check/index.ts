@@ -1,9 +1,10 @@
 // SOLUÇÃO FINAL: AGENDAMENTO AUTOMÁTICO (COM FILTRO DE HORA)
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { getFcmAccessToken, sendFcmMessage } from '../_shared/fcm.ts';
+import { requireStaffOrService } from '../_shared/auth.ts';
 
-const BTZAP_TOKEN = "4a0e432a-2717-42ed-a2cf-39127a768cd8";
-const BTZAP_URL = "https://btzap.uazapi.com";
+const BTZAP_TOKEN = Deno.env.get('BTZAP_TOKEN') ?? '';
+const BTZAP_URL = "https://acainograu.uazapi.com";
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -82,6 +83,10 @@ async function processPushCampaign(
 
 Deno.serve(async (req) => {
     if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+
+    // Aciona apenas via cron (service_role) ou staff autenticado.
+    const authError = await requireStaffOrService(req);
+    if (authError) return authError;
 
     try {
         const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';

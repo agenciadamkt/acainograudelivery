@@ -36,8 +36,8 @@ const INTEGRATION_NAME = 'uazapi_whatsapp';
 
 const DEFAULT_CONFIG: UazapiConfig = {
   token: '',
-  base_url: 'https://btzap.uazapi.com',
-  instance_name: 'btzap',
+  base_url: 'https://acainograu.uazapi.com',
+  instance_name: 'acainograu',
   auto_send_enabled: false,
   notify_statuses: ['confirmed', 'preparing', 'out_for_delivery', 'delivered'],
   webhook: {
@@ -50,6 +50,9 @@ const DEFAULT_CONFIG: UazapiConfig = {
   },
 };
 
+// Tipo sem o token — usado para carregar configurações no estado do componente
+export type UazapiConfigSafe = Omit<UazapiConfig, 'token'>;
+
 export function useUazapiIntegration() {
   const { user } = useAuth();
 
@@ -58,9 +61,12 @@ export function useUazapiIntegration() {
     queryFn: async () => {
       if (!user) return null;
 
+      // Exclui config->token do select: o token nunca deve entrar no estado React.
+      // A coluna config é JSONB; excluímos apenas via cast na leitura — o token
+      // permanece no banco mas é omitido manualmente abaixo.
       const { data, error } = await (supabase
         .from('integrations' as any)
-        .select('*')
+        .select('id, franchisee_id, name, provider, active, created_at, updated_at, config')
         .eq('name', INTEGRATION_NAME)
         .eq('franchisee_id', user.id)
         .maybeSingle() as any);
@@ -75,13 +81,19 @@ export function useUazapiIntegration() {
           provider: 'uazapi',
           config: DEFAULT_CONFIG,
           active: false,
-        } as Partial<UazapiIntegration>;
+          hasToken: false,
+        } as Partial<UazapiIntegration> & { hasToken: boolean };
       }
+
+      // Remove o token do config antes de retornar — nunca expor no estado do componente
+      const { token: _token, ...configWithoutToken } = { ...DEFAULT_CONFIG, ...(data.config || {}) };
+      const hasToken = typeof data.config?.token === 'string' && data.config.token.length > 0;
 
       return {
         ...data,
-        config: { ...DEFAULT_CONFIG, ...(data.config || {}) },
-      } as UazapiIntegration;
+        config: { ...configWithoutToken, token: '' } as UazapiConfig,
+        hasToken,
+      } as UazapiIntegration & { hasToken: boolean };
     },
     enabled: !!user,
   });
@@ -97,16 +109,24 @@ export function useSaveUazapiIntegration() {
 
       const { data: existing } = await (supabase
         .from('integrations' as any)
-        .select('id')
+        .select('id, config')
         .eq('name', INTEGRATION_NAME)
         .eq('franchisee_id', user.id)
         .maybeSingle() as any);
+
+      // Se o token estiver vazio no payload, preserva o token já salvo no banco
+      const savedToken = existing?.config?.token ?? '';
+      const newToken = payload.config.token.trim();
+      const configToSave: UazapiConfig = {
+        ...payload.config,
+        token: newToken || savedToken,
+      };
 
       const record = {
         name: INTEGRATION_NAME,
         provider: 'uazapi',
         franchisee_id: user.id,
-        config: payload.config,
+        config: configToSave,
         active: payload.active,
       };
 
