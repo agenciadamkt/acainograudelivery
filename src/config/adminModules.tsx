@@ -53,7 +53,7 @@ const SEC_OPERACAO: MenuSection = {
   id: 'operacao', label: '🔥 OPERAÇÃO EM TEMPO REAL', defaultOpen: true,
   items: [
     { title: 'Dashboard', url: '/admin/dashboard', icon: LayoutDashboard },
-    { title: 'Nova Venda', url: '/admin/pdv/nova-venda', icon: ShoppingCart, highlight: true },
+    { title: 'PDV [BALCÃO]', url: '/admin/pdv/nova-venda', icon: ShoppingCart, highlight: true },
     { title: 'Mesas', url: '/admin/pdv/mesas', icon: Grid },
     { title: 'Pedidos', url: '/admin/orders', icon: ShoppingBag },
     { title: 'KDS Cozinha', url: '/admin/kds', icon: Monitor },
