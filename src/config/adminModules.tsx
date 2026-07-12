@@ -225,38 +225,53 @@ export const DEFAULT_MODULE: ModuleId = 'operacao';
 
 const STORAGE_ACTIVE_MODULE = 'grauos_active_module';
 
-// Fallback por prefixo de rota (acesso direto por URL, sem passar pelo Hub).
-// Rotas ambíguas (financeiro/marketing existem em vários módulos) caem no PDV,
-// que é o módulo operacional mais abrangente.
-const ROUTE_PREFIX_MODULE: [string, ModuleId][] = [
+// Rotas EXCLUSIVAS de um módulo — sempre determinam o módulo ativo, mesmo que
+// o usuário estivesse noutro módulo antes (evita ficar "preso" num módulo).
+const EXCLUSIVE_PREFIX: [string, ModuleId][] = [
   ['/admin/crm', 'crm'],
   ['/admin/caf', 'caf'],
   ['/admin/agenda', 'agenda'],
-  ['/admin/universidade', 'universidade'],
   ['/admin/frota', 'frota'],
   ['/admin/assistente', 'assistente'],
   ['/admin/performance', 'performance'],
+  // Operacionais (PDV)
+  ['/admin/dashboard', 'operacao'],
+  ['/admin/pdv', 'operacao'],
+  ['/admin/menu', 'operacao'],
+  ['/admin/kds', 'operacao'],
+  ['/admin/delivery', 'operacao'],
+  ['/admin/promotions', 'operacao'],
+  ['/admin/settings', 'operacao'],
+  ['/admin/loja', 'operacao'],
+  ['/admin/meu-perfil', 'operacao'],
+  ['/admin/help', 'operacao'],
+  ['/admin/feedback', 'operacao'],
+  ['/admin/franchisees', 'operacao'],
 ];
 
-export function inferModuleFromPath(pathname: string): ModuleId {
-  for (const [prefix, mod] of ROUTE_PREFIX_MODULE) {
+// Rotas COMPARTILHADAS entre módulos (a intenção vem do cartão clicado, então
+// mantêm o módulo persistido): /admin/stock (PDV ou Estoque), /admin/orders
+// (PDV ou Pedidos), /admin/marketing e /admin/analytics (PDV, CRM, etc.),
+// /admin/universidade (PDV/CRM ou Universidade).
+
+function matchExclusive(pathname: string): ModuleId | null {
+  for (const [prefix, mod] of EXCLUSIVE_PREFIX) {
     if (pathname.startsWith(prefix)) return mod;
   }
-  return DEFAULT_MODULE;
+  return null;
 }
 
 export function getActiveModule(pathname: string): ModuleId {
+  // Rota exclusiva de um módulo sempre ganha.
+  const exclusive = matchExclusive(pathname);
+  if (exclusive) return exclusive;
+
+  // Rota compartilhada/desconhecida: usa o módulo persistido (cartão clicado).
   try {
     const saved = localStorage.getItem(STORAGE_ACTIVE_MODULE) as ModuleId | null;
-    if (saved && saved in MODULE_MENUS) {
-      // Se a rota atual claramente pertence a outro módulo (por prefixo
-      // exclusivo), respeita a rota — evita ficar "preso" num módulo antigo.
-      const inferred = inferModuleFromPath(pathname);
-      if (inferred !== DEFAULT_MODULE && inferred !== saved) return inferred;
-      return saved;
-    }
+    if (saved && saved in MODULE_MENUS) return saved;
   } catch {}
-  return inferModuleFromPath(pathname);
+  return DEFAULT_MODULE;
 }
 
 export function setActiveModule(moduleId: ModuleId) {
