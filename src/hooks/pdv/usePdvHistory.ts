@@ -15,6 +15,8 @@ export interface UnifiedSaleRecord {
     created_at: string;
     order_type?: string;
     items?: any[] | null;
+    discount: number;        // desconto aplicado no pedido
+    cmv: number;             // custo dos produtos vendidos (Σ qtd × custo)
 }
 
 export interface HistoryFilters {
@@ -62,6 +64,17 @@ export function usePdvHistory(filters?: HistoryFilters) {
         queryFn: async (): Promise<UnifiedSaleRecord[]> => {
             if (!user || !currentStore?.id) return [];
 
+            // Mapa de custo por produto (para CMV). cost_price vem de products.
+            const { data: prods } = await (supabase as any)
+                .from('products')
+                .select('id, cost_price');
+            const costMap = new Map<string, number>(
+                (prods || []).map((p: any) => [p.id, Number(p.cost_price || 0)])
+            );
+            const cmvOf = (items: any[] | null | undefined): number =>
+                (items || []).reduce((s: number, it: any) =>
+                    s + Number(it.quantity || 0) * (costMap.get(it.product_id) || 0), 0);
+
             const [pdvResult, deliveryResult] = await Promise.all([
                 // ── PDV orders ───────────────────────────────────────────────
                 (async (): Promise<UnifiedSaleRecord[]> => {
@@ -88,6 +101,8 @@ export function usePdvHistory(filters?: HistoryFilters) {
                         status: o.status,
                         created_at: o.created_at,
                         items: o.items,
+                        discount: Number(o.discount || 0),
+                        cmv: cmvOf(o.items),
                     }));
                 })(),
 
@@ -96,7 +111,7 @@ export function usePdvHistory(filters?: HistoryFilters) {
                     if (filters?.canal === 'pdv') return [];
                     let q = supabase
                         .from('orders')
-                        .select('id, order_number, total_amount, payment_method, payment_status, status, order_type, created_at, customer:customers(name)')
+                        .select('id, order_number, total_amount, discount_amount, payment_method, payment_status, status, order_type, created_at, customer:customers(name), items:order_items(product_id, quantity)')
                         .eq('store_id', currentStore.id)
                         .neq('status', 'cancelled')
                         .order('created_at', { ascending: false })
@@ -117,7 +132,9 @@ export function usePdvHistory(filters?: HistoryFilters) {
                         status: o.payment_status === 'paid' ? 'paid' : o.status,
                         created_at: o.created_at,
                         order_type: o.order_type,
-                        items: null,
+                        items: o.items || null,
+                        discount: Number(o.discount_amount || 0),
+                        cmv: cmvOf(o.items),
                     }));
                 })(),
             ]);

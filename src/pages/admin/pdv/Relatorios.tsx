@@ -72,6 +72,15 @@ export default function Relatorios() {
   // aplicados client-side para manter UM filtro global consistente.
   const { historyData, isLoading } = usePdvHistory({ dateFrom, dateTo });
 
+  // Período anterior (mesma duração, deslocado para trás) para o comparativo.
+  const lengthMs = range.to.getTime() - range.from.getTime();
+  const prevTo = new Date(range.from.getTime() - 1);
+  const prevFrom = new Date(prevTo.getTime() - lengthMs);
+  const { historyData: prevData } = usePdvHistory({
+    dateFrom: format(prevFrom, 'yyyy-MM-dd'),
+    dateTo: format(prevTo, 'yyyy-MM-dd'),
+  });
+
   const rows = useMemo(() => {
     return historyData.filter((r) => {
       if (canal !== 'all' && channelOf(r) !== canal) return false;
@@ -97,8 +106,31 @@ export default function Relatorios() {
     const totPdv = valid.filter((r) => channelOf(r) === 'PDV').reduce((s, r) => s + r.total, 0);
     const totDelivery = valid.filter((r) => channelOf(r) === 'Delivery').reduce((s, r) => s + r.total, 0);
     const totMesas = valid.filter((r) => channelOf(r) === 'Mesa').reduce((s, r) => s + r.total, 0);
-    return { faturamento, pedidos, ticket, clientes, cancelamentos, totPdv, totDelivery, totMesas };
+    const descontos = valid.reduce((s, r) => s + (r.discount || 0), 0);
+    const cmv = valid.reduce((s, r) => s + (r.cmv || 0), 0);
+    const lucro = faturamento - cmv;
+    const margem = faturamento ? (lucro / faturamento) * 100 : 0;
+    return { faturamento, pedidos, ticket, clientes, cancelamentos, totPdv, totDelivery, totMesas, descontos, cmv, lucro, margem };
   }, [rows]);
+
+  // KPIs do período anterior (mesmos filtros) para o comparativo.
+  const prevKpis = useMemo(() => {
+    const valid = prevData.filter((r) => {
+      if (canal !== 'all' && channelOf(r) !== canal) return false;
+      if (payment !== 'all' && normalizedPayment(r) !== payment) return false;
+      if (isCancelled(r.status)) return false;
+      return true;
+    });
+    const faturamento = valid.reduce((s, r) => s + r.total, 0);
+    const pedidos = valid.length;
+    return { faturamento, pedidos, ticket: pedidos ? faturamento / pedidos : 0 };
+  }, [prevData, canal, payment]);
+
+  const delta = (cur: number, prev: number): { pct: number; up: boolean } | null => {
+    if (!prev) return null;
+    const pct = ((cur - prev) / prev) * 100;
+    return { pct, up: pct >= 0 };
+  };
 
   // ── Dados dos gráficos ──────────────────────────────────────────────────────
   const salesByDay = useMemo(() => {
@@ -178,11 +210,12 @@ export default function Relatorios() {
   };
 
   // ── Definição dos cards (agrupados) ─────────────────────────────────────────
-  const kpiGroups: { title: string; cards: { label: string; value: string; icon: any; soon?: boolean }[] }[] = [
+  type Kpi = { label: string; value: string; icon: any; soon?: boolean; delta?: { pct: number; up: boolean } | null };
+  const kpiGroups: { title: string; cards: Kpi[] }[] = [
     {
       title: 'Receita',
       cards: [
-        { label: 'Faturamento', value: BRL(kpis.faturamento), icon: DollarSign },
+        { label: 'Faturamento', value: BRL(kpis.faturamento), icon: DollarSign, delta: delta(kpis.faturamento, prevKpis.faturamento) },
         { label: 'PDV', value: BRL(kpis.totPdv), icon: Store },
         { label: 'Delivery', value: BRL(kpis.totDelivery), icon: Truck },
         { label: 'Mesas', value: BRL(kpis.totMesas), icon: Utensils },
@@ -191,19 +224,19 @@ export default function Relatorios() {
     {
       title: 'Operação',
       cards: [
-        { label: 'Pedidos', value: String(kpis.pedidos), icon: ShoppingBag },
+        { label: 'Pedidos', value: String(kpis.pedidos), icon: ShoppingBag, delta: delta(kpis.pedidos, prevKpis.pedidos) },
         { label: 'Clientes', value: String(kpis.clientes), icon: Users },
-        { label: 'Ticket Médio', value: BRL(kpis.ticket), icon: TrendingUp },
+        { label: 'Ticket Médio', value: BRL(kpis.ticket), icon: TrendingUp, delta: delta(kpis.ticket, prevKpis.ticket) },
         { label: 'Cancelamentos', value: String(kpis.cancelamentos), icon: XCircle },
       ],
     },
     {
       title: 'Financeiro',
       cards: [
-        { label: 'Descontos', value: '—', icon: Percent, soon: true },
-        { label: 'Estornos', value: '—', icon: Undo2, soon: true },
-        { label: 'Recebido', value: BRL(kpis.faturamento), icon: Wallet },
-        { label: 'A Receber', value: '—', icon: Clock, soon: true },
+        { label: 'Descontos', value: BRL(kpis.descontos), icon: Percent },
+        { label: 'CMV', value: BRL(kpis.cmv), icon: Undo2 },
+        { label: 'Lucro estimado', value: BRL(kpis.lucro), icon: Wallet },
+        { label: 'Margem', value: `${kpis.margem.toFixed(1)}%`, icon: TrendingUp },
       ],
     },
   ];
@@ -293,7 +326,14 @@ export default function Relatorios() {
                         <c.icon className="h-4 w-4 text-muted-foreground" />
                       </div>
                       <div className="min-w-0">
-                        <div className="text-lg font-bold leading-tight truncate">{c.value}</div>
+                        <div className="flex items-center gap-2">
+                          <div className="text-lg font-bold leading-tight truncate">{c.value}</div>
+                          {c.delta && (
+                            <span className={`text-[10px] font-semibold shrink-0 ${c.delta.up ? 'text-emerald-600' : 'text-red-600'}`}>
+                              {c.delta.up ? '▲' : '▼'} {Math.abs(c.delta.pct).toFixed(0)}%
+                            </span>
+                          )}
+                        </div>
                         <div className="text-xs text-muted-foreground flex items-center gap-1">
                           {c.label}{c.soon && <Badge variant="outline" className="text-[9px] px-1 py-0">em breve</Badge>}
                         </div>
