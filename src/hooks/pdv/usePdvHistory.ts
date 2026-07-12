@@ -18,6 +18,7 @@ export interface UnifiedSaleRecord {
     discount: number;        // desconto aplicado no pedido
     cmv: number;             // custo dos produtos vendidos (Σ qtd × custo)
     operator: string;        // operador do PDV (— para Delivery)
+    pending: boolean;        // pagamento ainda não recebido (A Receber)
 }
 
 export interface HistoryFilters {
@@ -126,6 +127,7 @@ export function usePdvHistory(filters?: HistoryFilters) {
                         discount: Number(o.discount || 0),
                         cmv: cmvOf(o.items),
                         operator: userMap.get(o.user_id) || 'Operador',
+                        pending: false,
                     }));
                 })(),
 
@@ -159,6 +161,7 @@ export function usePdvHistory(filters?: HistoryFilters) {
                         discount: Number(o.discount_amount || 0),
                         cmv: cmvOf(o.items),
                         operator: '—',
+                        pending: o.payment_status !== 'paid',
                     }));
                 })(),
             ]);

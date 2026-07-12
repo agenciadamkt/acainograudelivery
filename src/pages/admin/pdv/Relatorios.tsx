@@ -161,7 +161,9 @@ export default function Relatorios() {
     const cmv = valid.reduce((s, r) => s + (r.cmv || 0), 0);
     const lucro = faturamento - cmv;
     const margem = faturamento ? (lucro / faturamento) * 100 : 0;
-    return { faturamento, pedidos, ticket, clientes, cancelamentos, totPdv, totDelivery, totMesas, descontos, cmv, lucro, margem };
+    const aReceber = valid.filter((r) => r.pending).reduce((s, r) => s + r.total, 0);
+    const recebido = faturamento - aReceber;
+    return { faturamento, pedidos, ticket, clientes, cancelamentos, totPdv, totDelivery, totMesas, descontos, cmv, lucro, margem, aReceber, recebido };
   }, [rows]);
 
   // KPIs do período anterior (mesmos filtros) para o comparativo.
@@ -240,6 +242,17 @@ export default function Relatorios() {
     return Array.from(map, ([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
   }, [rows]);
 
+  // Mapa de calor: receita por dia da semana (0=Dom) × hora (0-23)
+  const heatmap = useMemo(() => {
+    const matrix = Array.from({ length: 7 }, () => Array(24).fill(0));
+    rows.filter((r) => !isCancelled(r.status)).forEach((r) => {
+      const d = new Date(r.created_at);
+      matrix[d.getDay()][d.getHours()] += r.total;
+    });
+    const max = Math.max(1, ...matrix.flat());
+    return { matrix, max };
+  }, [rows]);
+
   // ── Exportações ─────────────────────────────────────────────────────────────
   const tableRows = () => sortedRows.map((r) => ([
     String(r.order_number),
@@ -310,9 +323,12 @@ export default function Relatorios() {
       title: 'Financeiro',
       cards: [
         { label: 'Descontos', value: BRL(kpis.descontos), icon: Percent },
-        { label: 'CMV', value: BRL(kpis.cmv), icon: Undo2 },
+        { label: 'CMV', value: BRL(kpis.cmv), icon: ShoppingBag },
         { label: 'Lucro estimado', value: BRL(kpis.lucro), icon: Wallet },
         { label: 'Margem', value: `${kpis.margem.toFixed(1)}%`, icon: TrendingUp },
+        { label: 'Recebido', value: BRL(kpis.recebido), icon: DollarSign },
+        { label: 'A Receber', value: BRL(kpis.aReceber), icon: Clock },
+        { label: 'Estornos', value: '—', icon: Undo2, soon: true },
       ],
     },
   ];
@@ -540,6 +556,35 @@ export default function Relatorios() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Mapa de calor (largura total) */}
+        <Card>
+          <CardHeader><CardTitle className="text-sm">Mapa de calor — vendas por dia e hora</CardTitle></CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <div className="min-w-[680px]">
+                <div className="flex items-center gap-0.5 mb-1 pl-10">
+                  {Array.from({ length: 24 }, (_, h) => (
+                    <div key={h} className="flex-1 text-center text-[8px] text-muted-foreground">{h % 3 === 0 ? `${h}h` : ''}</div>
+                  ))}
+                </div>
+                {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((day, di) => (
+                  <div key={day} className="flex items-center gap-0.5 mb-0.5">
+                    <div className="w-10 text-[10px] text-muted-foreground shrink-0">{day}</div>
+                    {heatmap.matrix[di].map((v: number, h: number) => (
+                      <div
+                        key={h}
+                        className="flex-1 aspect-square rounded-sm"
+                        style={{ background: v > 0 ? `rgba(139,92,246,${0.15 + 0.85 * (v / heatmap.max)})` : 'var(--muted, #f1f1f1)' }}
+                        title={`${day} ${h}h — ${BRL(v)}`}
+                      />
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* ── 4. Extrato inteligente ── */}
         <Card>
