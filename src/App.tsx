@@ -950,26 +950,9 @@ const App = () => {
                           </PrivateRoute>
                         }
                       />
-                      <Route
-                        path="/admin/pdv/historico"
-                        element={
-                          <PrivateRoute requiredRole="staff">
-                            <AdminLayout>
-                              <Historico />
-                            </AdminLayout>
-                          </PrivateRoute>
-                        }
-                      />
-                      <Route
-                        path="/admin/pdv/extrato"
-                        element={
-                          <PrivateRoute requiredRole="staff">
-                            <AdminLayout>
-                              <ExtratoFinanceiro />
-                            </AdminLayout>
-                          </PrivateRoute>
-                        }
-                      />
+                      {/* Descontinuadas — unificadas na Central de Relatórios (/admin/pdv/relatorios) */}
+                      <Route path="/admin/pdv/historico" element={<Navigate to="/admin/pdv/relatorios" replace />} />
+                      <Route path="/admin/pdv/extrato" element={<Navigate to="/admin/pdv/relatorios" replace />} />
 
                       <Route
                         path="/admin/pdv/configuracoes"

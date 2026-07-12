@@ -59,8 +59,6 @@ const SEC_OPERACAO: MenuSection = {
     { title: 'KDS Cozinha', url: '/admin/kds', icon: Monitor },
     { title: 'Caixa', url: '/admin/pdv/caixa', icon: Wallet },
     { title: 'Entregas', url: '/admin/delivery', icon: Truck },
-    { title: 'Histórico PDV', url: '/admin/pdv/historico', icon: History },
-    { title: 'Extrato Financeiro', url: '/admin/pdv/extrato', icon: FileText },
   ],
 };
 
@@ -98,7 +96,7 @@ const SEC_PDV_FINANCEIRO: MenuSection = {
   id: 'pdv-financeiro', label: '💰 FINANCEIRO & GESTÃO',
   items: [
     { title: 'Financeiro', url: '/admin/financeiro', icon: DollarSign },
-    { title: 'Relatórios PDV', url: '/admin/pdv/relatorios', icon: PieChart, requireRole: 'manager' },
+    { title: 'Central de Relatórios', url: '/admin/pdv/relatorios', icon: BarChart3, requireRole: 'manager' },
   ],
 };
 
@@ -150,7 +148,7 @@ export const MODULE_MENUS: Record<ModuleId, MenuSection[]> = {
   financeiro: [
     { id: 'financeiro', label: '💰 FINANCEIRO', defaultOpen: true, items: [
       { title: 'Financeiro', url: '/admin/financeiro', icon: DollarSign },
-      { title: 'Relatórios PDV', url: '/admin/pdv/relatorios', icon: PieChart, requireRole: 'manager' },
+      { title: 'Central de Relatórios', url: '/admin/pdv/relatorios', icon: BarChart3, requireRole: 'manager' },
       { title: 'Food Analytics', url: '/admin/analytics', icon: BarChart3, requireRole: 'manager' },
     ] },
   ],
