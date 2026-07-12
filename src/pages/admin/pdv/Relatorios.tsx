@@ -26,9 +26,9 @@ import { toast } from 'sonner';
 const BRL = (v: number) => `R$ ${Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
 const PIE_COLORS = ['#8b5cf6', '#10b981', '#f59e0b', '#3b82f6', '#ef4444', '#6366f1'];
 
-type PeriodKey = 'hoje' | 'ontem' | '7d' | '30d';
+type PeriodKey = 'hoje' | 'ontem' | '7d' | '30d' | 'custom';
 
-function periodRange(key: PeriodKey): { from: Date; to: Date } {
+function periodRange(key: Exclude<PeriodKey, 'custom'>): { from: Date; to: Date } {
   const now = new Date();
   switch (key) {
     case 'hoje':  return { from: startOfDay(now), to: endOfDay(now) };
@@ -58,13 +58,17 @@ const isCancelled = (s: string) => s === 'cancelled' || s === 'canceled';
 
 export default function Relatorios() {
   const [period, setPeriod] = useState<PeriodKey>('hoje');
+  const [customFrom, setCustomFrom] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [customTo, setCustomTo] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [canal, setCanal] = useState<'all' | 'PDV' | 'Delivery' | 'Mesa'>('all');
   const [payment, setPayment] = useState<'all' | 'PIX' | 'Crédito' | 'Débito' | 'Dinheiro'>('all');
   const [status, setStatus] = useState<'all' | 'active' | 'cancelled'>('all');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<UnifiedSaleRecord | null>(null);
 
-  const range = periodRange(period);
+  const range = period === 'custom'
+    ? { from: startOfDay(new Date(`${customFrom}T12:00:00`)), to: endOfDay(new Date(`${customTo}T12:00:00`)) }
+    : periodRange(period);
   const dateFrom = format(range.from, 'yyyy-MM-dd');
   const dateTo = format(range.to, 'yyyy-MM-dd');
 
@@ -257,8 +261,8 @@ export default function Relatorios() {
         {/* ── 1. Filtros globais ── */}
         <Card>
           <CardContent className="p-4 space-y-3">
-            <div className="flex flex-wrap gap-2">
-              {([['hoje', 'Hoje'], ['ontem', 'Ontem'], ['7d', '7 dias'], ['30d', '30 dias']] as [PeriodKey, string][]).map(([k, l]) => (
+            <div className="flex flex-wrap items-center gap-2">
+              {([['hoje', 'Hoje'], ['ontem', 'Ontem'], ['7d', '7 dias'], ['30d', '30 dias'], ['custom', 'Personalizado']] as [PeriodKey, string][]).map(([k, l]) => (
                 <button
                   key={k}
                   onClick={() => setPeriod(k)}
@@ -267,6 +271,14 @@ export default function Relatorios() {
                   {l}
                 </button>
               ))}
+              {period === 'custom' && (
+                <div className="flex items-center gap-2 ml-1">
+                  <label className="text-xs text-muted-foreground">De:</label>
+                  <Input type="date" value={customFrom} max={customTo} onChange={(e) => setCustomFrom(e.target.value)} className="h-8 w-auto text-sm" />
+                  <label className="text-xs text-muted-foreground">Até:</label>
+                  <Input type="date" value={customTo} min={customFrom} onChange={(e) => setCustomTo(e.target.value)} className="h-8 w-auto text-sm" />
+                </div>
+              )}
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
               <Select value={canal} onValueChange={(v) => setCanal(v as any)}>
