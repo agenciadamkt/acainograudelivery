@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Plus, Pencil, Trash2, Image as ImageIcon, FolderPlus, FilterX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
@@ -141,9 +141,18 @@ export default function ToppingsPage() {
       key: 'active',
       label: 'Status',
       render: (topping: Topping) => (
-        <Badge variant={topping.active ? 'default' : 'secondary'}>
-          {topping.active ? 'Ativo' : 'Inativo'}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Switch
+            checked={topping.active}
+            onCheckedChange={(checked) =>
+              updateTopping.mutate({ id: topping.id, active: checked })
+            }
+            aria-label={topping.active ? 'Desativar complemento' : 'Ativar complemento'}
+          />
+          <span className={`text-sm ${topping.active ? '' : 'text-muted-foreground'}`}>
+            {topping.active ? 'Ativo' : 'Inativo'}
+          </span>
+        </div>
       ),
     },
     {
