@@ -232,6 +232,14 @@ export default function FluxoCaixaPage() {
         return acc;
     }, { total: 0, count: 0, approved: 0, pending: 0, rejected: 0, cancelled: 0 }) || { total: 0, count: 0, approved: 0, pending: 0, rejected: 0, cancelled: 0 };
 
+    // Registros exibidos na LISTA da tela. Cancelados não aparecem, a menos que
+    // o usuário filtre explicitamente por "Cancelado". Os cards de resumo e as
+    // exportações (PDF/Excel/comprovantes) continuam usando filteredRecords —
+    // os comprovantes de lançamentos cancelados precisam sair nos documentos.
+    const reportRecords = statusFilter === 'cancelled'
+        ? filteredRecords
+        : filteredRecords?.filter((r: any) => r.status !== 'cancelled');
+
     const handleAction = (record: any, type: 'approve' | 'reject' | 'cancel') => {
         setSelectedRecord(record);
         setActionType(type);
@@ -984,9 +992,9 @@ export default function FluxoCaixaPage() {
                             <tbody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
                                 {isLoading ? (
                                     <tr><td colSpan={7} className="px-6 py-8 text-center text-gray-500">Carregando registros...</td></tr>
-                                ) : filteredRecords?.length === 0 ? (
+                                ) : reportRecords?.length === 0 ? (
                                     <tr><td colSpan={7} className="px-6 py-8 text-center text-gray-500">Nenhum registro encontrado.</td></tr>
-                                ) : filteredRecords?.map((record: any) => (
+                                ) : reportRecords?.map((record: any) => (
                                     <tr key={record.id} className="hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors">
                                         <td className="px-6 py-4 text-gray-900 dark:text-white font-medium">
                                             {format(new Date(record.transaction_date + 'T12:00:00'), 'dd/MM/yyyy')}
