@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { useStore } from '@/contexts/StoreContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, Upload, AlertCircle, Clock, MapPin, Search } from 'lucide-react';
+import { Loader2, Upload, AlertCircle, Clock, MapPin, Search, FileText, Globe } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Switch } from '@/components/ui/switch';
 import { BusinessHours } from '@/utils/businessHours';
@@ -222,7 +222,16 @@ export function StoreSettingsTab() {
             delivery_fee: parseFloat(formData.get('delivery_fee') as string) || 0,
             business_hours: businessHours as any,
             status: storeActive ? 'active' : 'inactive',
-            active: true // Always keep active/visible. Only status controls open/closed
+            active: true, // Always keep active/visible. Only status controls open/closed
+            // Dados fiscais
+            cnpj: (formData.get('cnpj') as string) || null,
+            razao_social: (formData.get('razao_social') as string) || null,
+            inscricao_estadual: (formData.get('inscricao_estadual') as string) || null,
+            inscricao_municipal: (formData.get('inscricao_municipal') as string) || null,
+            // Redes sociais
+            instagram: (formData.get('instagram') as string) || null,
+            facebook: (formData.get('facebook') as string) || null,
+            website: (formData.get('website') as string) || null,
         };
 
         try {
@@ -513,6 +522,58 @@ export function StoreSettingsTab() {
                                 </div>
                             );
                         })}
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <FileText className="w-5 h-5" />
+                            Dados Fiscais
+                        </CardTitle>
+                        <CardDescription>Informações fiscais da unidade (usadas em documentos e cadastro).</CardDescription>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="cnpj">CNPJ</Label>
+                            <Input id="cnpj" name="cnpj" defaultValue={(currentStore as any).cnpj || ''} placeholder="00.000.000/0000-00" />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="razao_social">Razão Social</Label>
+                            <Input id="razao_social" name="razao_social" defaultValue={(currentStore as any).razao_social || ''} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="inscricao_estadual">Inscrição Estadual</Label>
+                            <Input id="inscricao_estadual" name="inscricao_estadual" defaultValue={(currentStore as any).inscricao_estadual || ''} placeholder="Isento ou número" />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="inscricao_municipal">Inscrição Municipal</Label>
+                            <Input id="inscricao_municipal" name="inscricao_municipal" defaultValue={(currentStore as any).inscricao_municipal || ''} />
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <Globe className="w-5 h-5" />
+                            Redes Sociais
+                        </CardTitle>
+                        <CardDescription>Links públicos da sua unidade exibidos ao cliente.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="instagram">Instagram</Label>
+                            <Input id="instagram" name="instagram" defaultValue={(currentStore as any).instagram || ''} placeholder="@usuario ou link" />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="facebook">Facebook</Label>
+                            <Input id="facebook" name="facebook" defaultValue={(currentStore as any).facebook || ''} placeholder="Link da página" />
+                        </div>
+                        <div className="space-y-2 md:col-span-2">
+                            <Label htmlFor="website">Site / Website</Label>
+                            <Input id="website" name="website" defaultValue={(currentStore as any).website || ''} placeholder="https://..." />
+                        </div>
                     </CardContent>
                 </Card>
 

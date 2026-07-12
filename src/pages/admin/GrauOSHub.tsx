@@ -116,6 +116,7 @@ const modules = [
         path: '/admin/frota',
         color: '#4F46E5',
         hoverColor: '#4338CA',
+        isMasterOnly: true,
         icon: Bike,
     },
     {
