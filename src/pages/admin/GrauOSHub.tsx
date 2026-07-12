@@ -28,6 +28,8 @@ import {
     BookOpen,
     Package,
     MessageSquare,
+    Headphones,
+    CalendarDays,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import logoCircular from '@/assets/logo-circular.png';
@@ -128,12 +130,33 @@ const modules = [
     },
     {
         id: 'crm',
-        title: 'CRM & Atendimento',
+        title: 'CRM & Marketing',
         subtitle: 'Pipeline de leads e scripts',
         path: '/admin/crm/pipeline',
         color: '#E11D48',
         hoverColor: '#BE123C',
+        isMasterOnly: true,
         icon: MessageSquare,
+    },
+    {
+        id: 'caf',
+        title: 'Atendimento CAF',
+        subtitle: 'Central de atendimento',
+        path: '/admin/caf/dashboard',
+        color: '#0EA5E9',
+        hoverColor: '#0284C7',
+        isMasterOnly: true,
+        icon: Headphones,
+    },
+    {
+        id: 'agenda',
+        title: 'Agenda',
+        subtitle: 'Calendário e compromissos',
+        path: '/admin/agenda/calendario',
+        color: '#F59E0B',
+        hoverColor: '#D97706',
+        isMasterOnly: true,
+        icon: CalendarDays,
     },
 ];
 
