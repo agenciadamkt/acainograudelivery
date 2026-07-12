@@ -63,6 +63,7 @@ export default function Relatorios() {
   const [canal, setCanal] = useState<'all' | 'PDV' | 'Delivery' | 'Mesa'>('all');
   const [payment, setPayment] = useState<'all' | 'PIX' | 'Crédito' | 'Débito' | 'Dinheiro'>('all');
   const [status, setStatus] = useState<'all' | 'active' | 'cancelled'>('all');
+  const [operatorFilter, setOperatorFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<UnifiedSaleRecord | null>(null);
   const [sortKey, setSortKey] = useState<string>('created_at');
@@ -89,19 +90,25 @@ export default function Relatorios() {
     dateTo: format(prevTo, 'yyyy-MM-dd'),
   });
 
+  const operators = useMemo(
+    () => Array.from(new Set(historyData.map((r) => r.operator).filter((o) => o && o !== '—'))).sort(),
+    [historyData]
+  );
+
   const rows = useMemo(() => {
     return historyData.filter((r) => {
       if (canal !== 'all' && channelOf(r) !== canal) return false;
       if (payment !== 'all' && normalizedPayment(r) !== payment) return false;
       if (status === 'active' && isCancelled(r.status)) return false;
       if (status === 'cancelled' && !isCancelled(r.status)) return false;
+      if (operatorFilter !== 'all' && r.operator !== operatorFilter) return false;
       if (search.trim()) {
         const t = search.trim().toLowerCase();
         if (!r.customer_name?.toLowerCase().includes(t) && !String(r.order_number).toLowerCase().includes(t)) return false;
       }
       return true;
     });
-  }, [historyData, canal, payment, status, search]);
+  }, [historyData, canal, payment, status, operatorFilter, search]);
 
   const lucroOf = (r: UnifiedSaleRecord) => r.total - (r.cmv || 0);
 
@@ -111,6 +118,7 @@ export default function Relatorios() {
       case 'order_number': return String(r.order_number);
       case 'customer': return r.customer_name || '';
       case 'canal': return channelOf(r);
+      case 'operator': return r.operator || '';
       case 'payment': return labelPayment(r.payment_method, r.canal);
       case 'status': return r.status;
       case 'total': return r.total;
@@ -131,7 +139,7 @@ export default function Relatorios() {
   const pagedRows = sortedRows.slice((page - 1) * pageSize, page * pageSize);
 
   // Volta pra 1ª página quando os filtros mudam
-  useEffect(() => { setPage(1); }, [canal, payment, status, search, period, dateFrom, dateTo]);
+  useEffect(() => { setPage(1); }, [canal, payment, status, operatorFilter, search, period, dateFrom, dateTo]);
 
   const toggleSort = (key: string) => {
     if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
@@ -237,6 +245,7 @@ export default function Relatorios() {
     String(r.order_number),
     r.customer_name,
     channelOf(r),
+    r.operator,
     labelPayment(r.payment_method, r.canal),
     format(new Date(r.created_at), 'dd/MM/yyyy HH:mm'),
     isCancelled(r.status) ? 'Cancelado' : r.status,
@@ -254,7 +263,7 @@ export default function Relatorios() {
     doc.text(`Faturamento: ${BRL(kpis.faturamento)}  ·  Pedidos: ${kpis.pedidos}  ·  Ticket: ${BRL(kpis.ticket)}`, 14, 27);
     autoTable(doc, {
       startY: 32,
-      head: [['Pedido', 'Cliente', 'Canal', 'Pagamento', 'Data/Hora', 'Status', 'Valor', 'Lucro']],
+      head: [['Pedido', 'Cliente', 'Canal', 'Operador', 'Pagamento', 'Data/Hora', 'Status', 'Valor', 'Lucro']],
       body: tableRows(),
       styles: { fontSize: 8 },
       headStyles: { fillColor: [139, 92, 246] },
@@ -267,7 +276,7 @@ export default function Relatorios() {
     if (!rows.length) return toast.error('Nada para exportar.');
     const XLSX = await import('xlsx');
     const ws = XLSX.utils.aoa_to_sheet([
-      ['Pedido', 'Cliente', 'Canal', 'Pagamento', 'Data/Hora', 'Status', 'Valor', 'Lucro'],
+      ['Pedido', 'Cliente', 'Canal', 'Operador', 'Pagamento', 'Data/Hora', 'Status', 'Valor', 'Lucro'],
       ...tableRows(),
     ]);
     const wb = XLSX.utils.book_new();
@@ -371,11 +380,14 @@ export default function Relatorios() {
                   <SelectItem value="cancelled">Cancelados</SelectItem>
                 </SelectContent>
               </Select>
-              {/* Operador e Categoria: preparados para a Fase 2 (dados ainda não disponíveis) */}
-              <Select value="all" disabled>
+              <Select value={operatorFilter} onValueChange={setOperatorFilter}>
                 <SelectTrigger><SelectValue placeholder="Operador" /></SelectTrigger>
-                <SelectContent><SelectItem value="all">Operador: Todos</SelectItem></SelectContent>
+                <SelectContent>
+                  <SelectItem value="all">Operador: Todos</SelectItem>
+                  {operators.map((op) => <SelectItem key={op} value={op}>{op}</SelectItem>)}
+                </SelectContent>
               </Select>
+              {/* Categoria: preparado para próximo incremento (filtro por categoria) */}
               <Select value="all" disabled>
                 <SelectTrigger><SelectValue placeholder="Categoria" /></SelectTrigger>
                 <SelectContent><SelectItem value="all">Categoria: Todos</SelectItem></SelectContent>
@@ -550,7 +562,8 @@ export default function Relatorios() {
                   <tr className="border-b text-left text-xs text-muted-foreground">
                     {([
                       ['order_number', 'Pedido', 'left'], ['customer', 'Cliente', 'left'],
-                      ['canal', 'Canal', 'left'], ['payment', 'Pagamento', 'left'],
+                      ['canal', 'Canal', 'left'], ['operator', 'Operador', 'left'],
+                      ['payment', 'Pagamento', 'left'],
                       ['created_at', 'Data/Hora', 'left'], ['status', 'Status', 'left'],
                       ['total', 'Valor', 'right'], ['lucro', 'Lucro', 'right'],
                     ] as [string, string, string][]).map(([key, label, align]) => (
@@ -567,14 +580,15 @@ export default function Relatorios() {
                 </thead>
                 <tbody>
                   {isLoading ? (
-                    <tr><td colSpan={9} className="text-center py-10 text-muted-foreground">Carregando...</td></tr>
+                    <tr><td colSpan={10} className="text-center py-10 text-muted-foreground">Carregando...</td></tr>
                   ) : pagedRows.length === 0 ? (
-                    <tr><td colSpan={9} className="text-center py-10 text-muted-foreground">Nenhuma venda encontrada para os filtros selecionados.</td></tr>
+                    <tr><td colSpan={10} className="text-center py-10 text-muted-foreground">Nenhuma venda encontrada para os filtros selecionados.</td></tr>
                   ) : pagedRows.map((r) => (
                     <tr key={`${r.canal}-${r.id}`} className="border-b hover:bg-muted/30">
                       <td className="px-4 py-2 font-medium">#{r.order_number}</td>
                       <td className="px-4 py-2">{r.customer_name}</td>
                       <td className="px-4 py-2"><Badge variant="outline" className="text-xs">{channelOf(r)}</Badge></td>
+                      <td className="px-4 py-2 text-muted-foreground">{r.operator}</td>
                       <td className="px-4 py-2">{labelPayment(r.payment_method, r.canal)}</td>
                       <td className="px-4 py-2 text-muted-foreground">{format(new Date(r.created_at), 'dd/MM HH:mm', { locale: ptBR })}</td>
                       <td className="px-4 py-2">

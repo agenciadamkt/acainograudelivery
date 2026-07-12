@@ -17,6 +17,7 @@ export interface UnifiedSaleRecord {
     items?: any[] | null;
     discount: number;        // desconto aplicado no pedido
     cmv: number;             // custo dos produtos vendidos (Σ qtd × custo)
+    operator: string;        // operador do PDV (— para Delivery)
 }
 
 export interface HistoryFilters {
@@ -66,11 +67,13 @@ export function usePdvHistory(filters?: HistoryFilters) {
 
             // Mapas de produto (custo, nome, categoria) — fonte única para CMV,
             // "produtos mais vendidos" e "categorias", nos dois canais.
-            const [{ data: prods }, { data: cats }] = await Promise.all([
+            const [{ data: prods }, { data: cats }, { data: profs }] = await Promise.all([
                 (supabase as any).from('products').select('id, name, cost_price, category_id'),
                 (supabase as any).from('categories').select('id, name'),
+                (supabase as any).from('profiles').select('id, full_name'),
             ]);
             const catMap = new Map<string, string>((cats || []).map((c: any) => [c.id, c.name]));
+            const userMap = new Map<string, string>((profs || []).map((p: any) => [p.id, p.full_name || 'Operador']));
             const productMap = new Map<string, { name: string; cost: number; category: string }>(
                 (prods || []).map((p: any) => [p.id, {
                     name: p.name,
@@ -122,6 +125,7 @@ export function usePdvHistory(filters?: HistoryFilters) {
                         items: normItems(o.items),
                         discount: Number(o.discount || 0),
                         cmv: cmvOf(o.items),
+                        operator: userMap.get(o.user_id) || 'Operador',
                     }));
                 })(),
 
@@ -154,6 +158,7 @@ export function usePdvHistory(filters?: HistoryFilters) {
                         items: normItems(o.items),
                         discount: Number(o.discount_amount || 0),
                         cmv: cmvOf(o.items),
+                        operator: '—',
                     }));
                 })(),
             ]);
