@@ -170,6 +170,29 @@ export default function Relatorios() {
     { name: 'Mesa', value: kpis.totMesas },
   ].filter((c) => c.value > 0)), [kpis]);
 
+  const topProducts = useMemo(() => {
+    const map = new Map<string, { qty: number; revenue: number }>();
+    rows.filter((r) => !isCancelled(r.status)).forEach((r) => {
+      (r.items || []).forEach((it: any) => {
+        const cur = map.get(it.name) || { qty: 0, revenue: 0 };
+        cur.qty += it.quantity; cur.revenue += it.revenue;
+        map.set(it.name, cur);
+      });
+    });
+    return Array.from(map, ([name, v]) => ({ name, qty: v.qty, revenue: v.revenue }))
+      .sort((a, b) => b.qty - a.qty).slice(0, 8);
+  }, [rows]);
+
+  const categoryData = useMemo(() => {
+    const map = new Map<string, number>();
+    rows.filter((r) => !isCancelled(r.status)).forEach((r) => {
+      (r.items || []).forEach((it: any) => {
+        map.set(it.category, (map.get(it.category) || 0) + it.revenue);
+      });
+    });
+    return Array.from(map, ([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+  }, [rows]);
+
   // ── Exportações ─────────────────────────────────────────────────────────────
   const tableRows = () => rows.map((r) => ([
     String(r.order_number),
@@ -421,6 +444,49 @@ export default function Relatorios() {
               </ResponsiveContainer>
             </CardContent>
           </Card>
+          <Card>
+            <CardHeader><CardTitle className="text-sm">Produtos mais vendidos</CardTitle></CardHeader>
+            <CardContent>
+              {topProducts.length === 0 ? (
+                <div className="text-center text-xs text-muted-foreground py-16">Sem itens no período.</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={240}>
+                  <BarChart data={topProducts} layout="vertical" margin={{ left: 8, right: 16 }}>
+                    <XAxis type="number" fontSize={11} tickLine={false} axisLine={false} />
+                    <YAxis type="category" dataKey="name" width={130} fontSize={10} tickLine={false} axisLine={false} />
+                    <Tooltip formatter={(v: number, n: string) => n === 'qty' ? `${v} un` : BRL(v)} />
+                    <Bar dataKey="qty" name="qty" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader><CardTitle className="text-sm">Categorias</CardTitle></CardHeader>
+            <CardContent>
+              {categoryData.length === 0 ? (
+                <div className="text-center text-xs text-muted-foreground py-16">Sem itens no período.</div>
+              ) : (
+                <>
+                  <ResponsiveContainer width="100%" height={240}>
+                    <PieChart>
+                      <Pie data={categoryData} cx="50%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={4} dataKey="value" nameKey="name">
+                        {categoryData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                      </Pie>
+                      <Tooltip formatter={(v: number) => BRL(v)} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="flex flex-wrap gap-3 justify-center mt-2">
+                    {categoryData.slice(0, 6).map((c, i) => (
+                      <span key={c.name} className="text-xs flex items-center gap-1">
+                        <span className="h-2 w-2 rounded-full" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} />{c.name}
+                      </span>
+                    ))}
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         {/* ── 4. Extrato inteligente ── */}
@@ -499,8 +565,8 @@ export default function Relatorios() {
                   <div className="text-muted-foreground mb-1">Itens</div>
                   {selected.items.map((it: any, i: number) => (
                     <div key={i} className="flex justify-between text-xs">
-                      <span>{it.quantity || 1}× {it.product_name || it.name || 'Item'}</span>
-                      <span>{BRL(Number(it.total || it.price || 0))}</span>
+                      <span>{it.quantity || 1}× {it.name || 'Item'}</span>
+                      <span>{BRL(Number(it.revenue || 0))}</span>
                     </div>
                   ))}
                 </div>

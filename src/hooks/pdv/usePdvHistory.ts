@@ -64,16 +64,35 @@ export function usePdvHistory(filters?: HistoryFilters) {
         queryFn: async (): Promise<UnifiedSaleRecord[]> => {
             if (!user || !currentStore?.id) return [];
 
-            // Mapa de custo por produto (para CMV). cost_price vem de products.
-            const { data: prods } = await (supabase as any)
-                .from('products')
-                .select('id, cost_price');
-            const costMap = new Map<string, number>(
-                (prods || []).map((p: any) => [p.id, Number(p.cost_price || 0)])
+            // Mapas de produto (custo, nome, categoria) — fonte única para CMV,
+            // "produtos mais vendidos" e "categorias", nos dois canais.
+            const [{ data: prods }, { data: cats }] = await Promise.all([
+                (supabase as any).from('products').select('id, name, cost_price, category_id'),
+                (supabase as any).from('categories').select('id, name'),
+            ]);
+            const catMap = new Map<string, string>((cats || []).map((c: any) => [c.id, c.name]));
+            const productMap = new Map<string, { name: string; cost: number; category: string }>(
+                (prods || []).map((p: any) => [p.id, {
+                    name: p.name,
+                    cost: Number(p.cost_price || 0),
+                    category: catMap.get(p.category_id) || 'Sem categoria',
+                }])
             );
             const cmvOf = (items: any[] | null | undefined): number =>
                 (items || []).reduce((s: number, it: any) =>
-                    s + Number(it.quantity || 0) * (costMap.get(it.product_id) || 0), 0);
+                    s + Number(it.quantity || 0) * (productMap.get(it.product_id)?.cost || 0), 0);
+            // Normaliza itens de PDV e Delivery para o mesmo formato.
+            const normItems = (items: any[] | null | undefined): any[] =>
+                (items || []).map((it: any) => {
+                    const p = productMap.get(it.product_id);
+                    return {
+                        product_id: it.product_id,
+                        name: it.product_name || p?.name || 'Item',
+                        category: p?.category || 'Sem categoria',
+                        quantity: Number(it.quantity || 0),
+                        revenue: Number(it.total_price ?? it.subtotal ?? 0),
+                    };
+                });
 
             const [pdvResult, deliveryResult] = await Promise.all([
                 // ── PDV orders ───────────────────────────────────────────────
@@ -100,7 +119,7 @@ export function usePdvHistory(filters?: HistoryFilters) {
                         total: Number(o.total || 0),
                         status: o.status,
                         created_at: o.created_at,
-                        items: o.items,
+                        items: normItems(o.items),
                         discount: Number(o.discount || 0),
                         cmv: cmvOf(o.items),
                     }));
@@ -111,7 +130,7 @@ export function usePdvHistory(filters?: HistoryFilters) {
                     if (filters?.canal === 'pdv') return [];
                     let q = supabase
                         .from('orders')
-                        .select('id, order_number, total_amount, discount_amount, payment_method, payment_status, status, order_type, created_at, customer:customers(name), items:order_items(product_id, quantity)')
+                        .select('id, order_number, total_amount, discount_amount, payment_method, payment_status, status, order_type, created_at, customer:customers(name), items:order_items(product_id, quantity, subtotal)')
                         .eq('store_id', currentStore.id)
                         .neq('status', 'cancelled')
                         .order('created_at', { ascending: false })
@@ -132,7 +151,7 @@ export function usePdvHistory(filters?: HistoryFilters) {
                         status: o.payment_status === 'paid' ? 'paid' : o.status,
                         created_at: o.created_at,
                         order_type: o.order_type,
-                        items: o.items || null,
+                        items: normItems(o.items),
                         discount: Number(o.discount_amount || 0),
                         cmv: cmvOf(o.items),
                     }));
