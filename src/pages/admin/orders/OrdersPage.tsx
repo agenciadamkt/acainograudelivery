@@ -87,7 +87,8 @@ export default function OrdersPage() {
   );
 
   const countByStatuses = (statuses: string[]) => visible.filter((o: any) => statuses.includes(o.status)).length;
-  const deliveredCount = visible.filter((o: any) => o.status === 'delivered').length;
+  const deliveredOrders = useMemo(() => visible.filter((o: any) => o.status === 'delivered'), [visible]);
+  const deliveredCount = deliveredOrders.length;
 
   const handleUpdateStatus = (orderId: string, status: string) => updateStatus.mutate({ orderId, status });
 
@@ -233,6 +234,32 @@ export default function OrdersPage() {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* Entregues do dia */}
+        {!isLoading && deliveredOrders.length > 0 && (
+          <div className="pt-2">
+            <div className="flex items-center gap-2 mb-3">
+              <CheckCheck className="w-5 h-5 text-green-600" />
+              <span className="font-semibold">Entregues</span>
+              <span className="text-xs font-bold rounded-full px-2 py-0.5 bg-green-100 text-green-700">
+                {deliveredOrders.length}
+              </span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+              {deliveredOrders.map((order) => (
+                <OrderCard
+                  key={order.id}
+                  order={order}
+                  onViewDetails={() => setSelectedOrder(order.id)}
+                  onUpdateStatus={(status) => handleUpdateStatus(order.id, status)}
+                  onCancelOrder={() => setCancelDialog({ open: true, orderId: order.id })}
+                  onAssignDriver={() => setAssignDialog({ open: true, orderId: order.id })}
+                  stopSound={() => { }}
+                />
+              ))}
+            </div>
           </div>
         )}
 
