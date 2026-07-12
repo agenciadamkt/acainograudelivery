@@ -34,7 +34,6 @@ const COLUMNS: { id: string; label: string; statuses: string[]; icon: any; accen
   { id: 'recebidos', label: 'Recebidos',   statuses: ['pending', 'confirmed'], icon: Inbox,        accent: 'text-indigo-600', badge: 'bg-indigo-100 text-indigo-700' },
   { id: 'producao',  label: 'Em produção', statuses: ['preparing'],            icon: Timer,        accent: 'text-amber-600',  badge: 'bg-amber-100 text-amber-700' },
   { id: 'prontos',   label: 'Prontos',     statuses: ['ready'],                icon: CheckCircle2, accent: 'text-emerald-600', badge: 'bg-emerald-100 text-emerald-700' },
-  { id: 'rota',      label: 'Em rota',      statuses: ['out_for_delivery'],     icon: Truck,        accent: 'text-blue-600',   badge: 'bg-blue-100 text-blue-700' },
 ];
 
 export default function OrdersPage() {
@@ -89,6 +88,7 @@ export default function OrdersPage() {
   const countByStatuses = (statuses: string[]) => visible.filter((o: any) => statuses.includes(o.status)).length;
   const deliveredOrders = useMemo(() => visible.filter((o: any) => o.status === 'delivered'), [visible]);
   const deliveredCount = deliveredOrders.length;
+  const emRotaOrders = useMemo(() => visible.filter((o: any) => o.status === 'out_for_delivery'), [visible]);
 
   const handleUpdateStatus = (orderId: string, status: string) => updateStatus.mutate({ orderId, status });
 
@@ -200,7 +200,7 @@ export default function OrdersPage() {
         {isLoading ? (
           <div className="text-center py-16 text-muted-foreground">Carregando pedidos...</div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {COLUMNS.map((col) => {
               const colOrders = visible.filter((o: any) => col.statuses.includes(o.status));
               return (
@@ -234,6 +234,38 @@ export default function OrdersPage() {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* Em rota */}
+        {!isLoading && (
+          <div className="pt-2">
+            <div className="flex items-center gap-2 mb-3">
+              <Truck className="w-5 h-5 text-blue-600" />
+              <span className="font-semibold">Em rota</span>
+              <span className="text-xs font-bold rounded-full px-2 py-0.5 bg-blue-100 text-blue-700">
+                {emRotaOrders.length}
+              </span>
+            </div>
+            {emRotaOrders.length === 0 ? (
+              <div className="rounded-xl border bg-muted/20 text-center text-sm text-muted-foreground py-10">
+                Nenhum pedido em rota.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                {emRotaOrders.map((order) => (
+                  <OrderCard
+                    key={order.id}
+                    order={order}
+                    onViewDetails={() => setSelectedOrder(order.id)}
+                    onUpdateStatus={(status) => handleUpdateStatus(order.id, status)}
+                    onCancelOrder={() => setCancelDialog({ open: true, orderId: order.id })}
+                    onAssignDriver={() => setAssignDialog({ open: true, orderId: order.id })}
+                    stopSound={() => { }}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
 
