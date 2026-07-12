@@ -3,6 +3,15 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStore } from '@/contexts/StoreContext';
+import { setActiveModule, type ModuleId } from '@/config/adminModules';
+
+// Mapeia o id do cartão do Hub para o módulo de navegação correspondente.
+const HUB_ID_TO_MODULE: Record<string, ModuleId> = {
+  operacao: 'operacao', estoque: 'estoque', universidade: 'universidade',
+  performance: 'performance', assistente: 'assistente', financeiro: 'financeiro',
+  pedidos: 'pedidos', frota: 'frota', crm: 'crm', caf: 'caf', agenda: 'agenda',
+  'gestao-franquia': 'pedidos',
+};
 import {
     Bell,
     LogOut,
@@ -205,7 +214,11 @@ function GrauOSHubContent() {
                                 initial={{ opacity: 0, scale: 0.95 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 transition={{ delay: i * 0.05 }}
-                                onClick={() => navigate(mod.path!)}
+                                onClick={() => {
+                                    const targetModule = HUB_ID_TO_MODULE[mod.id];
+                                    if (targetModule) setActiveModule(targetModule);
+                                    navigate(mod.path!);
+                                }}
                                 onMouseEnter={() => setHoveredModule(mod.id)}
                                 onMouseLeave={() => setHoveredModule(null)}
                                 className={clsx(

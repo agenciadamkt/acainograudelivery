@@ -69,30 +69,11 @@ import { usePermissions } from '@/contexts/PermissionContext';
 import { useSidebarBadges } from '@/hooks/useSidebarBadges';
 import logoCircular from '@/assets/logo-circular.png';
 import logoGrauOS from '@/assets/logo-grauos.png';
+import { MODULE_MENUS, getActiveModule, type MenuItem, type MenuSection } from '@/config/adminModules';
 
 interface BadgeConfig {
   count: number;
   color: string;
-}
-
-interface MenuItem {
-  title: string;
-  url: string;
-  icon: any;
-  highlight?: boolean;
-  requireRole?: UserRole;
-  isMasterOnly?: boolean;
-  requiredPermission?: string;
-  subGroup?: string;
-}
-
-interface MenuSection {
-  id: string;
-  label: string;
-  requireRole?: UserRole;
-  isMasterOnly?: boolean;
-  defaultOpen?: boolean;
-  items: MenuItem[];
 }
 
 const STORAGE_OPEN = 'grauos_sidebar_open';
@@ -115,136 +96,6 @@ function getInitialFavorites(): Set<string> {
   return new Set();
 }
 
-const menuSections: MenuSection[] = [
-  {
-    id: 'operacao',
-    label: '🔥 OPERAÇÃO EM TEMPO REAL',
-    defaultOpen: true,
-    items: [
-      { title: 'Dashboard', url: '/admin/dashboard', icon: LayoutDashboard },
-      { title: 'Pedidos', url: '/admin/orders', icon: ShoppingBag },
-      { title: 'KDS Cozinha', url: '/admin/kds', icon: Monitor },
-      { title: 'Nova Venda', url: '/admin/pdv/nova-venda', icon: ShoppingCart, highlight: true },
-      { title: 'Mesas', url: '/admin/pdv/mesas', icon: Grid },
-      { title: 'Caixa', url: '/admin/pdv/caixa', icon: Wallet },
-      { title: 'Entregas', url: '/admin/delivery', icon: Truck },
-      { title: 'Histórico PDV', url: '/admin/pdv/historico', icon: History },
-      { title: 'Extrato Financeiro', url: '/admin/pdv/extrato', icon: FileText },
-    ],
-  },
-  {
-    id: 'cardapio',
-    label: '📋 CARDÁPIO & MENU',
-    defaultOpen: true,
-    items: [
-      { title: 'Categorias', url: '/admin/menu/categories', icon: FolderTree },
-      { title: 'Produtos', url: '/admin/menu/products', icon: PackageOpen },
-      { title: 'Complementos', url: '/admin/menu/toppings', icon: Plus },
-      { title: 'Ingredientes', url: '/admin/menu/ingredients', icon: Leaf },
-      { title: 'Promoções', url: '/admin/promotions', icon: Megaphone },
-    ],
-  },
-  {
-    id: 'estoque',
-    label: '📦 ESTOQUE & SUPRIMENTOS',
-    defaultOpen: false,
-    items: [
-      { title: 'Painel Estoque', url: '/admin/stock/dashboard', icon: BarChart3, subGroup: 'Controle' },
-      { title: 'Estoque Central', url: '/admin/stock/inventory', icon: Package, subGroup: 'Controle' },
-      { title: 'Movimentações', url: '/admin/stock/movements', icon: History, subGroup: 'Controle' },
-      { title: 'Contagem (Inventário)', url: '/admin/stock/counts', icon: Barcode, subGroup: 'Controle' },
-      { title: 'Grupos de Contagem', url: '/admin/stock/count-groups', icon: ListChecks, requireRole: 'manager', subGroup: 'Controle' },
-      { title: 'Contagem Recorrente', url: '/admin/stock/recurring-counts', icon: RotateCcw, requireRole: 'manager', subGroup: 'Controle' },
-      { title: 'Lista de Compras', url: '/admin/stock/purchases', icon: ShoppingCart, subGroup: 'Compras' },
-      { title: 'Histórico de Compras', url: '/admin/stock/purchase-history', icon: ClipboardCheck, subGroup: 'Compras' },
-      { title: 'Rotinas Operacionais', url: '/admin/stock/checklists/execution', icon: ClipboardList, subGroup: 'Operacional' },
-      { title: 'Relatórios de Rotinas', url: '/admin/stock/checklists/reports', icon: FileText, subGroup: 'Operacional' },
-      { title: 'Gestão de Rotinas', url: '/admin/stock/checklists/admin', icon: Settings2, requireRole: 'manager', subGroup: 'Operacional' },
-      { title: 'Gestão de CMV', url: '/admin/stock/cmv', icon: PieChart, subGroup: 'Operacional' },
-      { title: 'Bonificações', url: '/admin/stock/bonificacoes', icon: Gift, subGroup: 'Operacional' },
-    ],
-  },
-  {
-    id: 'financeiro',
-    label: '💰 FINANCEIRO & GESTÃO',
-    defaultOpen: false,
-    items: [
-      { title: 'Financeiro', url: '/admin/financeiro', icon: DollarSign },
-      { title: 'Relatórios PDV', url: '/admin/pdv/relatorios', icon: PieChart, requireRole: 'manager' },
-      { title: 'Food Analytics', url: '/admin/analytics', icon: BarChart3, requireRole: 'manager' },
-      { title: 'Clientes (CRM)', url: '/admin/customers', icon: Users },
-      { title: 'Avaliações NPS', url: '/admin/feedback', icon: MessageSquare, requireRole: 'manager' },
-      { title: 'Controle de Frota', url: '/admin/frota', icon: Truck },
-    ],
-  },
-  {
-    id: 'crm',
-    label: '💬 CRM & MARKETING',
-    defaultOpen: false,
-    requireRole: 'manager',
-    items: [
-      { title: 'Pipeline de Leads', url: '/admin/crm/pipeline', icon: KanbanSquare },
-      { title: 'Scripts / Playbook', url: '/admin/crm/scripts', icon: BookMarked },
-      { title: 'Dashboard CRM', url: '/admin/crm/dashboard', icon: BarChart2 },
-      { title: 'Campanhas', url: '/admin/marketing', icon: Megaphone },
-      { title: 'Universidade', url: '/admin/universidade/admin', icon: GraduationCap },
-    ],
-  },
-  {
-    id: 'franquias',
-    label: '🤝 FRANQUIAS',
-    defaultOpen: false,
-    items: [
-      { title: 'Pedido de Insumos', url: '/admin/orders/catalog', icon: ShoppingCart },
-      { title: 'Meus Pedidos', url: '/admin/orders/history', icon: History },
-      { title: 'Gestão de Cargas', url: '/admin/orders/management', icon: Package, requiredPermission: 'mas.cargas' },
-      { title: 'Relatórios', url: '/admin/orders/reports', icon: BarChart2, requiredPermission: 'mas.relatorios' },
-      { title: 'Catálogo de Insumos', url: '/admin/orders/products', icon: Grid, requiredPermission: 'mas.catalogo' },
-      { title: 'Lista de Franqueados', url: '/admin/franchisees', icon: Store, requiredPermission: 'mas.franqueados' },
-    ],
-  },
-  {
-    id: 'caf',
-    label: '🎯 ATENDIMENTO CAF',
-    defaultOpen: false,
-    requireRole: 'staff',
-    items: [
-      { title: 'Dashboard CAF', url: '/admin/caf/dashboard', icon: Headphones },
-      { title: 'Atendimentos', url: '/admin/caf/atendimentos', icon: MessageSquare },
-      { title: 'Base de Conhecimento', url: '/admin/caf/base-conhecimento', icon: BookOpen },
-      { title: 'Relatórios CAF', url: '/admin/caf/relatorios', icon: BarChart2, requireRole: 'manager' },
-      { title: 'Cadastros CAF', url: '/admin/caf/cadastros', icon: Settings2, requireRole: 'manager' },
-      { title: 'CAF Connect', url: '/admin/caf/connect', icon: Video },
-    ],
-  },
-  {
-    id: 'agenda',
-    label: '📅 AGENDA',
-    defaultOpen: false,
-    requireRole: 'staff',
-    items: [
-      { title: 'Calendário', url: '/admin/agenda/calendario', icon: CalendarRange },
-      { title: 'Dashboard', url: '/admin/agenda/dashboard', icon: LayoutDashboard },
-      { title: 'Minha Agenda', url: '/admin/agenda/minha', icon: CalendarDays },
-      { title: 'Equipe', url: '/admin/agenda/equipe', icon: Users },
-      { title: 'Compromissos', url: '/admin/agenda/compromissos', icon: ListChecks },
-      { title: 'Relatórios', url: '/admin/agenda/relatorios', icon: FileText },
-    ],
-  },
-  {
-    id: 'admin',
-    label: '🛠️ ADMINISTRAÇÃO',
-    defaultOpen: false,
-    items: [
-      { title: 'Configurações PDV', url: '/admin/pdv/configuracoes', icon: Settings },
-      { title: 'Configurações Gerais', url: '/admin/settings', icon: Settings },
-      { title: 'Áreas de Entrega', url: '/admin/delivery/areas', icon: Truck },
-      { title: 'Usuários & Permissões', url: '/admin/settings/usuarios', icon: Users, requireRole: 'manager', requiredPermission: 'sis.usuarios' },
-      { title: 'Segurança do Sistema', url: '/admin/settings/seguranca', icon: ShieldCheck, isMasterOnly: true },
-      { title: 'Manual Operacional', url: '/admin/help', icon: BookOpen },
-    ],
-  },
-];
 
 export function AdminSidebar() {
   const { state } = useSidebar();
@@ -304,7 +155,12 @@ export function AdminSidebar() {
     });
   };
 
-  const filteredSections = menuSections
+  // Módulo ativo (definido pelo cartão do Hub / inferido pela rota).
+  // O sidebar renderiza APENAS as seções deste módulo — nunca mistura módulos.
+  const activeModule = getActiveModule(location.pathname);
+  const moduleSections = MODULE_MENUS[activeModule] ?? [];
+
+  const filteredSections = moduleSections
     .map(section => {
       if (section.isMasterOnly && !isMasterAdmin) return null;
       if (section.requireRole && !hasRole(section.requireRole)) return null;

@@ -90,6 +90,7 @@ import Caixa from "./pages/admin/pdv/Caixa";
 import Historico from "./pages/admin/pdv/Historico";
 import ExtratoFinanceiro from "./pages/admin/pdv/ExtratoFinanceiro";
 import Configuracoes from "./pages/admin/pdv/Configuracoes";
+import DadosLojaPage from "./pages/admin/loja/DadosLojaPage";
 import Relatorios from "./pages/admin/pdv/Relatorios";
 
 // GrauOS pages
@@ -976,6 +977,16 @@ const App = () => {
                           <PrivateRoute requiredRole="manager">
                             <AdminLayout>
                               <Configuracoes />
+                            </AdminLayout>
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/loja/dados"
+                        element={
+                          <PrivateRoute>
+                            <AdminLayout>
+                              <DadosLojaPage />
                             </AdminLayout>
                           </PrivateRoute>
                         }
