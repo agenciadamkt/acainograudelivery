@@ -16,7 +16,12 @@
     "preview:frota": "vite preview --config vite.frota.config.ts --outDir dist-frota",
     "dev:delivery": "vite --config vite.delivery.config.ts",
     "build:delivery": "vite build --config vite.delivery.config.ts",
-    "preview:delivery": "vite preview --config vite.delivery.config.ts --outDir dist-delivery"
+    "preview:delivery": "vite preview --config vite.delivery.config.ts --outDir dist-delivery",
+    "sync:delivery": "npm run build:delivery && cd native-delivery && npx cap sync",
+    "ios:delivery": "npm run build:delivery && cd native-delivery && npx cap sync ios && npx cap run ios",
+    "android:delivery": "npm run build:delivery && cd native-delivery && npx cap sync android && npx cap run android",
+    "open:ios:delivery": "cd native-delivery && npx cap open ios",
+    "open:android:delivery": "cd native-delivery && npx cap open android"
   },
   "dependencies": {
     "@capacitor-community/background-geolocation": "^1.2.26",

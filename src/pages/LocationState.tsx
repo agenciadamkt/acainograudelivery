@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import InstallPWAModal from "@/components/InstallPWAModal";
-import locationBg from "@/assets/location-bg.jpg";
+import locationBg from "@/assets/capa.png";
 import { useActiveStates } from "@/hooks/useActiveStates";
 import { toast } from "sonner";
 import { MapPin, Search } from "lucide-react";
