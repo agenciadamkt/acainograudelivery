@@ -53,7 +53,10 @@ export default function Historico() {
     const today = format(new Date(), 'yyyy-MM-dd');
     const thirtyDaysAgo = format(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd');
 
-    const [dateFrom, setDateFrom]           = useState(thirtyDaysAgo);
+    // Padrão: o dia atual (não os últimos 30 dias) — o histórico abre mostrando
+    // apenas as vendas de hoje. Para ver períodos anteriores, o usuário ajusta
+    // as datas e clica em Buscar.
+    const [dateFrom, setDateFrom]           = useState(today);
     const [dateTo, setDateTo]               = useState(today);
     const [canal, setCanal]                 = useState<HistoryFilters['canal']>('all');
     const [paymentMethod, setPaymentMethod] = useState('all');
@@ -62,7 +65,7 @@ export default function Historico() {
 
     // Applied filters — only update when user clicks Buscar
     const [appliedFilters, setAppliedFilters] = useState<HistoryFilters>({
-        dateFrom: thirtyDaysAgo,
+        dateFrom: today,
         dateTo: today,
         canal: 'all',
         paymentMethod: 'all',
