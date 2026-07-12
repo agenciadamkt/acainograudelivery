@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -65,6 +65,10 @@ export default function Relatorios() {
   const [status, setStatus] = useState<'all' | 'active' | 'cancelled'>('all');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<UnifiedSaleRecord | null>(null);
+  const [sortKey, setSortKey] = useState<string>('created_at');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const [page, setPage] = useState(1);
+  const pageSize = 15;
 
   const range = period === 'custom'
     ? { from: startOfDay(new Date(`${customFrom}T12:00:00`)), to: endOfDay(new Date(`${customTo}T12:00:00`)) }
@@ -98,6 +102,41 @@ export default function Relatorios() {
       return true;
     });
   }, [historyData, canal, payment, status, search]);
+
+  const lucroOf = (r: UnifiedSaleRecord) => r.total - (r.cmv || 0);
+
+  // Ordenação
+  const sortVal = (r: UnifiedSaleRecord, key: string): string | number => {
+    switch (key) {
+      case 'order_number': return String(r.order_number);
+      case 'customer': return r.customer_name || '';
+      case 'canal': return channelOf(r);
+      case 'payment': return labelPayment(r.payment_method, r.canal);
+      case 'status': return r.status;
+      case 'total': return r.total;
+      case 'lucro': return lucroOf(r);
+      default: return new Date(r.created_at).getTime();
+    }
+  };
+  const sortedRows = useMemo(() => {
+    return [...rows].sort((a, b) => {
+      const va = sortVal(a, sortKey), vb = sortVal(b, sortKey);
+      if (va < vb) return sortDir === 'asc' ? -1 : 1;
+      if (va > vb) return sortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [rows, sortKey, sortDir]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedRows.length / pageSize));
+  const pagedRows = sortedRows.slice((page - 1) * pageSize, page * pageSize);
+
+  // Volta pra 1ª página quando os filtros mudam
+  useEffect(() => { setPage(1); }, [canal, payment, status, search, period, dateFrom, dateTo]);
+
+  const toggleSort = (key: string) => {
+    if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else { setSortKey(key); setSortDir('desc'); }
+  };
 
   // ── KPIs ──────────────────────────────────────────────────────────────────
   const kpis = useMemo(() => {
@@ -194,7 +233,7 @@ export default function Relatorios() {
   }, [rows]);
 
   // ── Exportações ─────────────────────────────────────────────────────────────
-  const tableRows = () => rows.map((r) => ([
+  const tableRows = () => sortedRows.map((r) => ([
     String(r.order_number),
     r.customer_name,
     channelOf(r),
@@ -202,6 +241,7 @@ export default function Relatorios() {
     format(new Date(r.created_at), 'dd/MM/yyyy HH:mm'),
     isCancelled(r.status) ? 'Cancelado' : r.status,
     BRL(r.total),
+    BRL(lucroOf(r)),
   ]));
 
   const exportPdf = () => {
@@ -214,7 +254,7 @@ export default function Relatorios() {
     doc.text(`Faturamento: ${BRL(kpis.faturamento)}  ·  Pedidos: ${kpis.pedidos}  ·  Ticket: ${BRL(kpis.ticket)}`, 14, 27);
     autoTable(doc, {
       startY: 32,
-      head: [['Pedido', 'Cliente', 'Canal', 'Pagamento', 'Data/Hora', 'Status', 'Valor']],
+      head: [['Pedido', 'Cliente', 'Canal', 'Pagamento', 'Data/Hora', 'Status', 'Valor', 'Lucro']],
       body: tableRows(),
       styles: { fontSize: 8 },
       headStyles: { fillColor: [139, 92, 246] },
@@ -227,7 +267,7 @@ export default function Relatorios() {
     if (!rows.length) return toast.error('Nada para exportar.');
     const XLSX = await import('xlsx');
     const ws = XLSX.utils.aoa_to_sheet([
-      ['Pedido', 'Cliente', 'Canal', 'Pagamento', 'Data/Hora', 'Status', 'Valor'],
+      ['Pedido', 'Cliente', 'Canal', 'Pagamento', 'Data/Hora', 'Status', 'Valor', 'Lucro'],
       ...tableRows(),
     ]);
     const wb = XLSX.utils.book_new();
@@ -508,22 +548,29 @@ export default function Relatorios() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b text-left text-xs text-muted-foreground">
-                    <th className="px-4 py-2">Pedido</th>
-                    <th className="px-4 py-2">Cliente</th>
-                    <th className="px-4 py-2">Canal</th>
-                    <th className="px-4 py-2">Pagamento</th>
-                    <th className="px-4 py-2">Data/Hora</th>
-                    <th className="px-4 py-2">Status</th>
-                    <th className="px-4 py-2 text-right">Valor</th>
+                    {([
+                      ['order_number', 'Pedido', 'left'], ['customer', 'Cliente', 'left'],
+                      ['canal', 'Canal', 'left'], ['payment', 'Pagamento', 'left'],
+                      ['created_at', 'Data/Hora', 'left'], ['status', 'Status', 'left'],
+                      ['total', 'Valor', 'right'], ['lucro', 'Lucro', 'right'],
+                    ] as [string, string, string][]).map(([key, label, align]) => (
+                      <th
+                        key={key}
+                        onClick={() => toggleSort(key)}
+                        className={`px-4 py-2 cursor-pointer select-none hover:text-foreground ${align === 'right' ? 'text-right' : ''}`}
+                      >
+                        {label}{sortKey === key ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}
+                      </th>
+                    ))}
                     <th className="px-4 py-2 text-right">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
                   {isLoading ? (
-                    <tr><td colSpan={8} className="text-center py-10 text-muted-foreground">Carregando...</td></tr>
-                  ) : rows.length === 0 ? (
-                    <tr><td colSpan={8} className="text-center py-10 text-muted-foreground">Nenhuma venda encontrada para os filtros selecionados.</td></tr>
-                  ) : rows.map((r) => (
+                    <tr><td colSpan={9} className="text-center py-10 text-muted-foreground">Carregando...</td></tr>
+                  ) : pagedRows.length === 0 ? (
+                    <tr><td colSpan={9} className="text-center py-10 text-muted-foreground">Nenhuma venda encontrada para os filtros selecionados.</td></tr>
+                  ) : pagedRows.map((r) => (
                     <tr key={`${r.canal}-${r.id}`} className="border-b hover:bg-muted/30">
                       <td className="px-4 py-2 font-medium">#{r.order_number}</td>
                       <td className="px-4 py-2">{r.customer_name}</td>
@@ -536,6 +583,7 @@ export default function Relatorios() {
                         </Badge>
                       </td>
                       <td className="px-4 py-2 text-right font-bold">{BRL(r.total)}</td>
+                      <td className="px-4 py-2 text-right text-emerald-700">{BRL(lucroOf(r))}</td>
                       <td className="px-4 py-2 text-right">
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSelected(r)}><Eye className="h-4 w-4" /></Button>
                       </td>
@@ -544,6 +592,18 @@ export default function Relatorios() {
                 </tbody>
               </table>
             </div>
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-4 py-3 border-t text-sm">
+                <span className="text-muted-foreground">
+                  {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, sortedRows.length)} de {sortedRows.length}
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Anterior</Button>
+                  <span className="text-muted-foreground">Página {page} de {totalPages}</span>
+                  <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Próxima</Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
