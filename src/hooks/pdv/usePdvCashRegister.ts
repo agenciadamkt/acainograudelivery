@@ -146,7 +146,7 @@ export function usePdvCashRegister() {
 
     // Close register
     const closeRegister = useMutation({
-        mutationFn: async ({ closingAmount, notes, checkedById }: { closingAmount: number; notes?: string; checkedById?: string | null }) => {
+        mutationFn: async ({ closingAmount, notes, checkedById, conference }: { closingAmount: number; notes?: string; checkedById?: string | null; conference?: { payment_method: string; system_amount: number; counted_amount: number }[] }) => {
             if (!currentRegister) throw new Error('No open register');
             const opening = Number(currentRegister.opening_amount);
             const supply = (movements || []).filter(m => m.type === 'suprimento').reduce((s, m) => s + Number(m.amount), 0);
@@ -165,6 +165,19 @@ export function usePdvCashRegister() {
                 notes,
             }).eq('id', currentRegister.id);
             if (error) throw error;
+            // Conferência flexível por forma de pagamento
+            if (conference && conference.length > 0) {
+                const rows = conference.map(c => ({
+                    cash_register_id: currentRegister.id,
+                    payment_method: c.payment_method,
+                    system_amount: c.system_amount,
+                    counted_amount: c.counted_amount,
+                }));
+                const { error: confErr } = await (supabase as any)
+                    .from('pdv_cash_conference')
+                    .upsert(rows, { onConflict: 'cash_register_id,payment_method' });
+                if (confErr) console.error('Erro ao salvar conferência:', confErr.message);
+            }
             await logAudit({ entity_type: 'pdv_cash_register', entity_id: currentRegister.id, action: 'fechamento', user_id: user?.id, operator_id: (currentRegister as any).operator_id, store_id: currentStore?.id, details: { closing_amount: closingAmount, expected, difference } });
         },
         onSuccess: () => {
@@ -172,6 +185,43 @@ export function usePdvCashRegister() {
             toast.success('Caixa fechado com sucesso!');
         },
         onError: (err) => toast.error('Erro ao fechar caixa: ' + err.message),
+    });
+
+    // Reopen a closed register (correção/governança)
+    const reopenRegister = useMutation({
+        mutationFn: async ({ registerId, reason }: { registerId: string; reason: string }) => {
+            // Busca o turno alvo
+            const { data: target, error: tErr } = await (supabase as any)
+                .from('pdv_cash_registers')
+                .select('id, user_id, operator_id, status')
+                .eq('id', registerId)
+                .single();
+            if (tErr) throw tErr;
+            if (target.status === 'open') throw new Error('Este turno já está aberto.');
+            // Impede dois turnos abertos para o mesmo usuário
+            const { data: other } = await (supabase as any)
+                .from('pdv_cash_registers')
+                .select('id')
+                .eq('user_id', target.user_id)
+                .eq('status', 'open')
+                .maybeSingle();
+            if (other) throw new Error('Já existe outro caixa aberto para este operador. Feche-o antes de reabrir.');
+            const { error } = await (supabase as any).from('pdv_cash_registers').update({
+                status: 'open',
+                reopened_at: new Date().toISOString(),
+                reopened_by: user?.id ?? null,
+                reopen_reason: reason,
+            }).eq('id', registerId);
+            if (error) throw error;
+            await logAudit({ entity_type: 'pdv_cash_register', entity_id: registerId, action: 'reabertura', user_id: user?.id, operator_id: target.operator_id, store_id: currentStore?.id, reason });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['pdv_cash_register'] });
+            queryClient.invalidateQueries({ queryKey: ['pdv_shift_detail'] });
+            queryClient.invalidateQueries({ queryKey: ['pdv_cash_shifts'] });
+            toast.success('Turno reaberto.');
+        },
+        onError: (err: any) => toast.error('Erro ao reabrir: ' + err.message),
     });
 
     // Add movement
@@ -206,5 +256,6 @@ export function usePdvCashRegister() {
         openRegister,
         closeRegister,
         addMovement,
+        reopenRegister,
     };
 }

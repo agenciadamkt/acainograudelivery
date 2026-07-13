@@ -113,7 +113,18 @@ export default function Caixa() {
             dinheiro: amount,
             ...Object.fromEntries(Object.entries(closingFields).map(([k, v]) => [k, parseFloat(v) || 0])),
         });
-        closeRegister.mutate({ closingAmount: amount, notes }, {
+        // Conferência flexível por forma de pagamento (sistema x contado)
+        const conference = [
+            { payment_method: 'money', system_amount: cashBalance, counted_amount: amount },
+            ...Object.entries(closingFields)
+                .map(([k, v]) => ({
+                    payment_method: k,
+                    system_amount: Number(salesSummary.byMethod[k] || 0),
+                    counted_amount: parseFloat(v) || 0,
+                }))
+                .filter(c => c.system_amount > 0 || c.counted_amount > 0),
+        ];
+        closeRegister.mutate({ closingAmount: amount, notes, conference }, {
             onSuccess: () => {
                 setIsCloseOpen(false);
                 setClosingCash('');

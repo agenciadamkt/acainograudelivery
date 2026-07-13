@@ -1,16 +1,23 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   ArrowLeft, Wallet, TrendingUp, Truck, ArrowDownCircle, ArrowUpCircle,
-  CheckCircle2, Clock, ListChecks, Receipt,
+  CheckCircle2, Clock, ListChecks, Receipt, Printer, FileText, FileDown, RotateCcw,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { usePdvSettings } from '@/hooks/pdv/usePdvSettings';
+import { usePdvCashRegister } from '@/hooks/pdv/usePdvCashRegister';
+import { exportShiftPdf, printShiftThermal, exportShiftExcel, type ShiftReportData } from '@/lib/shiftReport';
+import { toast } from 'sonner';
 
 const BRL = (v: number | null | undefined) => `R$ ${Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
 
@@ -38,6 +45,10 @@ function durationLabel(fromIso?: string | null, toIso?: string | null): string {
 export default function DetalheTurno() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { settings } = usePdvSettings();
+  const { reopenRegister } = usePdvCashRegister();
+  const [reopenOpen, setReopenOpen] = useState(false);
+  const [reopenReason, setReopenReason] = useState('');
 
   const { data: shift, isLoading } = useQuery({
     queryKey: ['pdv_shift_detail', id],
@@ -175,10 +186,40 @@ export default function DetalheTurno() {
     return rows.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
   }, [pdvSales, deliverySales]);
 
+  const grandTotal = totals.pdvTotal + totals.deliveryTotal;
+
+  // Payload para impressão/PDF/Excel
+  const reportData: ShiftReportData = useMemo(() => ({
+    id: shift?.id,
+    operatorName: shift?.operator?.name || 'Operador',
+    physicalName: shift?.physical?.name,
+    openedAt: shift?.opened_at,
+    closedAt: shift?.closed_at,
+    status: shift?.status || 'closed',
+    opening: totals.opening,
+    pdvTotal: totals.pdvTotal,
+    deliveryTotal: totals.deliveryTotal,
+    grandTotal,
+    suprimentos: totals.suprimentos,
+    sangrias: totals.sangrias,
+    expectedCash: shift?.expected_amount ?? totals.expectedCash,
+    countedCash: shift?.closing_amount ?? null,
+    difference: shift?.difference ?? null,
+    checkedByName: shift?.checked_by?.name,
+    conference: conferenceRows,
+    movements: movements.map((m: any) => ({ at: m.created_at, type: m.type, reason: m.reason, amount: Number(m.amount) })),
+    extrato,
+  }), [shift, totals, grandTotal, conferenceRows, movements, extrato]);
+
+  const handleReopen = () => {
+    if (!reopenReason.trim()) { toast.error('Informe o motivo da reabertura.'); return; }
+    reopenRegister.mutate({ registerId: id!, reason: reopenReason.trim() }, {
+      onSuccess: () => { setReopenOpen(false); setReopenReason(''); },
+    });
+  };
+
   if (isLoading) return <div className="p-8 text-center text-muted-foreground">Carregando turno...</div>;
   if (!shift) return <div className="p-8 text-center text-muted-foreground">Turno não encontrado.</div>;
-
-  const grandTotal = totals.pdvTotal + totals.deliveryTotal;
 
   return (
     <div className="space-y-5">
@@ -199,7 +240,30 @@ export default function DetalheTurno() {
             {shift.physical?.name ? ` · ${shift.physical.name}` : ''}
           </p>
         </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => printShiftThermal(reportData, (settings as any)?.qz_printer_name)}>
+            <Printer className="h-4 w-4" /> Imprimir
+          </Button>
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => exportShiftPdf(reportData)}>
+            <FileText className="h-4 w-4" /> PDF
+          </Button>
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => exportShiftExcel(reportData)}>
+            <FileDown className="h-4 w-4" /> Excel
+          </Button>
+          {shift.status === 'closed' && (
+            <Button variant="outline" size="sm" className="gap-1.5 border-purple-300 text-purple-700 hover:bg-purple-50" onClick={() => setReopenOpen(true)}>
+              <RotateCcw className="h-4 w-4" /> Reabrir
+            </Button>
+          )}
+        </div>
       </div>
+
+      {shift.reopened_at && (
+        <div className="rounded-md border border-purple-200 bg-purple-50 px-3 py-2 text-sm text-purple-800">
+          Turno reaberto em {format(new Date(shift.reopened_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+          {shift.reopen_reason ? ` — ${shift.reopen_reason}` : ''}
+        </div>
+      )}
 
       {/* Cards de totais */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -364,6 +428,28 @@ export default function DetalheTurno() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Reabertura de turno */}
+      <Dialog open={reopenOpen} onOpenChange={setReopenOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reabrir turno</DialogTitle>
+            <DialogDescription>
+              Reabrir um turno fechado é uma ação de correção e fica registrada na auditoria. Informe o motivo.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label>Motivo da reabertura</Label>
+            <Input value={reopenReason} onChange={(e) => setReopenReason(e.target.value)} placeholder="Ex: correção de conferência" autoFocus />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReopenOpen(false)}>Cancelar</Button>
+            <Button onClick={handleReopen} disabled={reopenRegister.isPending} className="bg-purple-600 hover:bg-purple-700 text-white">
+              {reopenRegister.isPending ? 'Reabrindo...' : 'Confirmar Reabertura'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
