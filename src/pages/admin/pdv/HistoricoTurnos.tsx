@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useStore } from '@/contexts/StoreContext';
@@ -7,7 +8,6 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { History, Eye } from 'lucide-react';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -32,7 +32,7 @@ export default function HistoricoTurnos() {
   const [dateTo, setDateTo] = useState(today);
   const [operatorId, setOperatorId] = useState('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'closed' | 'open'>('all');
-  const [selected, setSelected] = useState<any | null>(null);
+  const navigate = useNavigate();
 
   const { data: shifts = [], isLoading } = useQuery({
     queryKey: ['pdv_cash_shifts', currentStore?.id, dateFrom, dateTo],
@@ -141,7 +141,7 @@ export default function HistoricoTurnos() {
                         </Badge>
                       </td>
                       <td className="px-4 py-2 text-right">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSelected(s)}><Eye className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigate(`/admin/pdv/caixa/turno/${s.id}`)}><Eye className="h-4 w-4" /></Button>
                       </td>
                     </tr>
                   );
@@ -151,26 +151,6 @@ export default function HistoricoTurnos() {
           </div>
         </CardContent>
       </Card>
-
-      {/* Resumo do turno (o detalhe completo — timeline, conferência, impressão — vem na Fase 2) */}
-      <Dialog open={!!selected} onOpenChange={() => setSelected(null)}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>Turno — {selected?.operator?.name || 'Operador'}</DialogTitle></DialogHeader>
-          {selected && (
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between"><span className="text-muted-foreground">Abertura</span><span>{selected.opened_at ? format(new Date(selected.opened_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }) : '—'}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Fechamento</span><span>{selected.closed_at ? format(new Date(selected.closed_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }) : '—'}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Duração</span><span>{durationLabel(selected.opened_at, selected.closed_at)}</span></div>
-              <div className="flex justify-between border-t pt-2"><span className="text-muted-foreground">Fundo de caixa</span><span>{BRL(selected.opening_amount)}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Esperado</span><span>{selected.expected_amount != null ? BRL(selected.expected_amount) : '—'}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Conferido</span><span>{selected.closing_amount != null ? BRL(selected.closing_amount) : '—'}</span></div>
-              <div className="flex justify-between font-bold"><span className="text-muted-foreground">Diferença</span><span className={Number(selected.difference) < 0 ? 'text-red-600' : ''}>{selected.difference != null ? BRL(selected.difference) : '—'}</span></div>
-              {selected.checked_by?.name && <div className="flex justify-between border-t pt-2"><span className="text-muted-foreground">Conferente</span><span>{selected.checked_by.name}</span></div>}
-              <p className="text-xs text-muted-foreground pt-3 border-t">Detalhe completo (timeline, conferência por forma de pagamento, extrato e impressão) chega na Fase 2.</p>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
