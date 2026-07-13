@@ -10,6 +10,8 @@ import { useProducts } from '@/hooks/useProducts';
 import { usePdvOrders } from '@/hooks/pdv/usePdvOrders';
 import { usePdvSettings } from '@/hooks/pdv/usePdvSettings';
 import { usePdvCashRegister } from '@/hooks/pdv/usePdvCashRegister';
+import { useFiscalCompany } from '@/hooks/fiscal/useFiscalCompany';
+import { FiscalService } from '@/services/fiscal/FiscalService';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStore } from '@/contexts/StoreContext';
 import { toast } from 'sonner';
@@ -48,6 +50,7 @@ export default function NovaVenda() {
     const { createSale } = usePdvOrders();
     const { settings } = usePdvSettings();
     const { currentRegister } = usePdvCashRegister();
+    const { company: fiscalCompany } = useFiscalCompany();
     const navigate = useNavigate();
 
     // Política da loja: exige caixa aberto antes de vender
@@ -290,6 +293,13 @@ export default function NovaVenda() {
                     } catch (err) {
                         toast.error("Erro ao imprimir cupom automático.");
                     }
+                }
+
+                // Emissão fiscal automática — nunca bloqueia o fechamento da venda (fire-and-forget)
+                if ((fiscalCompany as any)?.auto_emitir && createdOrder?.id && currentStore?.id) {
+                    FiscalService.emitir({ storeId: currentStore.id, tipo: 'NFCE', pdvOrderId: createdOrder.id })
+                        .then(() => toast.success('Nota fiscal em emissão...'))
+                        .catch(() => toast.error('Falha ao iniciar a emissão fiscal.'));
                 }
             }
         });

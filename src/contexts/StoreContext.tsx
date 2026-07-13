@@ -27,6 +27,15 @@ interface Store {
   neighborhood: string | null;
   latitude: number | null;
   longitude: number | null;
+  cnpj: string | null;
+  razao_social: string | null;
+  inscricao_estadual: string | null;
+  inscricao_municipal: string | null;
+  instagram: string | null;
+  facebook: string | null;
+  website: string | null;
+  regime_tributario: number | null;
+  codigo_municipio_ibge: string | null;
 }
 
 interface StoreContextType {
@@ -61,12 +70,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (userRole?.includes('franchisee_master')) {
         // Master vê todas as lojas — access_token excluído intencionalmente (chave secreta)
         const { data, error } = await supabase.from('stores')
-          .select('id, name, slug, status, city, state, address, phone, logo_url, delivery_fee, min_order_value, delivery_radius_km, franchisee_user_id, active, banner_url, delivery_time, mercadopago_public_key, business_hours, zip_code, neighborhood, latitude, longitude')
+          .select('id, name, slug, status, city, state, address, phone, logo_url, delivery_fee, min_order_value, delivery_radius_km, franchisee_user_id, active, banner_url, delivery_time, mercadopago_public_key, business_hours, zip_code, neighborhood, latitude, longitude, cnpj, razao_social, inscricao_estadual, inscricao_municipal, instagram, facebook, website, regime_tributario, codigo_municipio_ibge')
           .order('name');
         if (error) throw error;
         storesData = (data as unknown as Store[]) || [];
       } else {
-        const STORE_COLS = 'id, name, slug, status, city, state, address, phone, logo_url, delivery_fee, min_order_value, delivery_radius_km, franchisee_user_id, active, banner_url, delivery_time, mercadopago_public_key, business_hours, zip_code, neighborhood, latitude, longitude';
+        const STORE_COLS = 'id, name, slug, status, city, state, address, phone, logo_url, delivery_fee, min_order_value, delivery_radius_km, franchisee_user_id, active, banner_url, delivery_time, mercadopago_public_key, business_hours, zip_code, neighborhood, latitude, longitude, cnpj, razao_social, inscricao_estadual, inscricao_municipal, instagram, facebook, website, regime_tributario, codigo_municipio_ibge';
 
         // 1. Lojas vinculadas pelo franchisee_user_id legado
         const { data: legacyStores } = await supabase

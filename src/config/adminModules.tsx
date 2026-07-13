@@ -98,6 +98,8 @@ const SEC_PDV_FINANCEIRO: MenuSection = {
   items: [
     { title: 'Financeiro', url: '/admin/financeiro', icon: DollarSign },
     { title: 'Central de Relatórios', url: '/admin/pdv/relatorios', icon: BarChart3, requireRole: 'manager' },
+    { title: 'Dashboard Fiscal', url: '/admin/fiscal/dashboard', icon: FileText, requireRole: 'manager' },
+    { title: 'Histórico Fiscal', url: '/admin/fiscal/historico', icon: FileText, requireRole: 'manager' },
   ],
 };
 
@@ -150,6 +152,9 @@ export const MODULE_MENUS: Record<ModuleId, MenuSection[]> = {
     { id: 'financeiro', label: '💰 FINANCEIRO', defaultOpen: true, items: [
       { title: 'Financeiro', url: '/admin/financeiro', icon: DollarSign },
       { title: 'Central de Relatórios', url: '/admin/pdv/relatorios', icon: BarChart3, requireRole: 'manager' },
+      { title: 'Fiscal', url: '/admin/fiscal', icon: FileText, requireRole: 'manager' },
+      { title: 'Dashboard Fiscal', url: '/admin/fiscal/dashboard', icon: FileText, requireRole: 'manager' },
+      { title: 'Histórico Fiscal', url: '/admin/fiscal/historico', icon: FileText, requireRole: 'manager' },
       { title: 'Food Analytics', url: '/admin/analytics', icon: BarChart3, requireRole: 'manager' },
     ] },
   ],
@@ -242,6 +247,7 @@ const EXCLUSIVE_PREFIX: [string, ModuleId][] = [
   ['/admin/promotions', 'operacao'],
   ['/admin/settings', 'operacao'],
   ['/admin/loja', 'operacao'],
+  ['/admin/fiscal', 'operacao'],
   ['/admin/meu-perfil', 'operacao'],
   ['/admin/help', 'operacao'],
   ['/admin/feedback', 'operacao'],

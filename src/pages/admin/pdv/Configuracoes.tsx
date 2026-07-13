@@ -4,7 +4,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Printer, Settings, Plug, RefreshCw, Monitor, Store, MessageCircle } from 'lucide-react';
+import { Printer, Settings, Plug, RefreshCw, Monitor, Store, MessageCircle, Receipt } from 'lucide-react';
 import { usePdvSettings } from '@/hooks/pdv/usePdvSettings';
 import { qzPrinter } from '@/lib/qz-printer';
 import { useState, useEffect } from 'react';
@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { StoreSettingsTab } from '@/pages/admin/settings/StoreSettingsTab';
 import { UazapiIntegrationTab } from '@/pages/admin/settings/UazapiIntegrationTab';
+import FiscalPage from '@/pages/admin/fiscal/FiscalPage';
 
 export default function Configuracoes() {
     const { settings, updateSettings, isLoading } = usePdvSettings();
@@ -64,7 +65,7 @@ export default function Configuracoes() {
             </div>
 
             <Tabs defaultValue="pdv" className="space-y-6">
-                <TabsList className="grid w-full max-w-xl grid-cols-3">
+                <TabsList className="grid w-full max-w-2xl grid-cols-4">
                     <TabsTrigger value="pdv" className="flex items-center gap-2">
                         <Monitor className="h-4 w-4" />
                         PDV
@@ -76,6 +77,10 @@ export default function Configuracoes() {
                     <TabsTrigger value="integrations" className="flex items-center gap-2">
                         <MessageCircle className="h-4 w-4" />
                         Integrações
+                    </TabsTrigger>
+                    <TabsTrigger value="fiscal" className="flex items-center gap-2">
+                        <Receipt className="h-4 w-4" />
+                        Fiscal
                     </TabsTrigger>
                 </TabsList>
 
@@ -222,15 +227,11 @@ export default function Configuracoes() {
                                     <Switch disabled />
                                 </div>
                                 <div className="flex items-center justify-between">
-                                    <Label>Módulo Fiscal (NFC-e)</Label>
-                                    <Switch disabled />
-                                </div>
-                                <div className="space-y-2 pt-2 border-t">
-                                    <Label className="text-xs text-muted-foreground">Status do Serviço Fiscal</Label>
-                                    <div className="flex items-center gap-2">
-                                        <div className="h-2 w-2 rounded-full bg-yellow-500"></div>
-                                        <span className="text-sm font-medium text-muted-foreground">Não configurado</span>
+                                    <div>
+                                        <Label>Emissão Fiscal (NFC-e / NF-e)</Label>
+                                        <p className="text-xs text-muted-foreground">Configurado na aba Fiscal.</p>
                                     </div>
+                                    <span className="text-xs font-medium text-muted-foreground border rounded-full px-2 py-0.5">Ver aba Fiscal</span>
                                 </div>
                             </CardContent>
                         </Card>
@@ -243,6 +244,10 @@ export default function Configuracoes() {
 
                 <TabsContent value="integrations" className="space-y-6">
                     <UazapiIntegrationTab />
+                </TabsContent>
+
+                <TabsContent value="fiscal" className="space-y-6">
+                    <FiscalPage embedded />
                 </TabsContent>
             </Tabs>
         </div>

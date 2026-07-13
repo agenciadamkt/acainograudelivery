@@ -2,6 +2,7 @@
 
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/contexts/PermissionContext';
 import { useStore } from '@/contexts/StoreContext';
 import { setActiveModule, type ModuleId } from '@/config/adminModules';
 
@@ -44,6 +45,27 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { clsx } from 'clsx';
 
 /* ───────────────────────── data ───────────────────────── */
+
+// Módulos RBAC que cada card do Hub agrupa. O card só aparece se o usuário
+// tiver permissão (nível ≥1) em ALGUM desses códigos. Visibilidade 100% RBAC.
+const HUB_GROUPS: Record<string, string[]> = {
+    operacao: [
+        'pdv.nova-venda', 'pdv.mesas', 'pdv.caixa', 'pdv.historico',
+        'op.dashboard', 'op.pedidos', 'op.kds', 'op.entregas', 'op.areas-entrega',
+        'cardapio.cats', 'cardapio.produtos', 'cardapio.toppings', 'cardapio.ingreds', 'cardapio.promo',
+    ],
+    estoque: ['est.central', 'est.movimentos', 'est.contagem', 'est.cmv', 'est.compras', 'est.hist-compras', 'est.rotinas', 'est.bonificacoes'],
+    universidade: ['sis.universidade'],
+    performance: ['op.performance'],
+    assistente: ['sis.assistente'],
+    financeiro: ['fin.dashboard', 'fin.lancamentos', 'fin.fluxo-semanal', 'fin.despesas', 'fin.fechamentos', 'fin.dre', 'fin.receber', 'fin.cadastros', 'fin.fiscal'],
+    pedidos: ['fra.pedidos', 'fra.meus-pedidos'],
+    frota: ['op.frota'],
+    'gestao-franquia': ['mas.cargas', 'mas.relatorios', 'mas.catalogo', 'mas.franqueados'],
+    crm: ['cli.crm', 'cli.nps', 'mkt.campanhas', 'mkt.analytics', 'cli.comunidade'],
+    caf: ['caf.dashboard', 'caf.atendimentos', 'caf.base-conhecimento', 'caf.relatorios', 'caf.cadastros'],
+    agenda: ['op.agenda'],
+};
 
 const modules = [
     {
@@ -173,7 +195,8 @@ export default function GrauOSHub() {
 
 function GrauOSHubContent() {
     const navigate = useNavigate();
-    const { signOut, user } = useAuth();
+    const { signOut, user, hasRole } = useAuth();
+    const { can } = usePermissions();
     const { currentStore } = useStore();
     const { toggleManual } = useManual();
     const isMobile = useIsMobile();
@@ -184,8 +207,12 @@ function GrauOSHubContent() {
         setIsMounted(true);
     }, []);
 
-    const isMasterAdmin = user?.email === 'agenciadamkt@gmail.com';
-    const visibleModules = modules.filter(mod => !mod.isMasterOnly || isMasterAdmin);
+    const isMasterAdmin = user?.email === 'agenciadamkt@gmail.com' || hasRole('franchisee_master');
+    // Visibilidade 100% RBAC: master vê tudo; os demais só veem o card se
+    // tiverem permissão (nível ≥1) em algum módulo agrupado naquele card.
+    const visibleModules = modules.filter(mod =>
+        isMasterAdmin || (HUB_GROUPS[mod.id]?.some(code => can(code, 1)) ?? false)
+    );
 
     if (!isMounted) return null;
 

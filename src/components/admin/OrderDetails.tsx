@@ -10,6 +10,7 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { WHATSAPP_MESSAGES, getWhatsAppUrl } from '@/utils/whatsappMessages';
+import { FiscalDocumentPanel } from '@/components/fiscal/FiscalDocumentPanel';
 
 const WhatsAppIcon = ({ className }: { className?: string }) => (
   <svg
@@ -538,6 +539,10 @@ export function OrderDetails({ order }: OrderDetailsProps) {
           </div>
         </>
       )}
+
+      {/* Situação Fiscal */}
+      <Separator />
+      <FiscalDocumentPanel orderId={order.id} defaultTipo="NFCE" />
 
       {/* Timeline */}
       {order.confirmed_at && (

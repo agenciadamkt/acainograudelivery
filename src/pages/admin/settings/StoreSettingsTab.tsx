@@ -235,12 +235,18 @@ export function StoreSettingsTab() {
         };
 
         try {
-            const { error } = await supabase
+            const { data, error } = await supabase
                 .from('stores')
                 .update(updates as any)
-                .eq('id', currentStore.id);
+                .eq('id', currentStore.id)
+                .select('id');
 
             if (error) throw error;
+            // RLS pode "atualizar" 0 linhas sem erro — detecta e avisa em vez de fingir sucesso
+            if (!data || data.length === 0) {
+                toast.error('Não foi possível salvar: seu usuário não tem permissão para editar esta loja.');
+                return;
+            }
             toast.success('Dados da loja atualizados!');
             refreshStores();
         } catch (error: any) {

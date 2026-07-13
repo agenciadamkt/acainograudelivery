@@ -51,3 +51,26 @@ export async function requireStaffOrService(req: Request): Promise<Response | nu
 
   return null
 }
+
+/**
+ * Extrai o id do usuário autenticado a partir do Bearer token da requisição.
+ * Retorna null para chamadas internas (service_role) ou sem token válido.
+ * Uso para auditoria (quem executou a ação).
+ */
+export async function getCallerUserId(req: Request): Promise<string | null> {
+  const authHeader = req.headers.get('Authorization') ?? ''
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : ''
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  if (!token || token === serviceKey) return null
+  try {
+    const caller = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: `Bearer ${token}` } } },
+    )
+    const { data } = await caller.auth.getUser()
+    return data?.user?.id ?? null
+  } catch {
+    return null
+  }
+}

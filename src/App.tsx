@@ -89,6 +89,9 @@ import Mesas from "./pages/admin/pdv/Mesas";
 import Caixa from "./pages/admin/pdv/Caixa";
 import HistoricoTurnos from "./pages/admin/pdv/HistoricoTurnos";
 import DetalheTurno from "./pages/admin/pdv/DetalheTurno";
+import FiscalPage from "./pages/admin/fiscal/FiscalPage";
+import HistoricoFiscal from "./pages/admin/fiscal/HistoricoFiscal";
+import FiscalDashboard from "./pages/admin/fiscal/FiscalDashboard";
 import Historico from "./pages/admin/pdv/Historico";
 import ExtratoFinanceiro from "./pages/admin/pdv/ExtratoFinanceiro";
 import Configuracoes from "./pages/admin/pdv/Configuracoes";
@@ -327,7 +330,7 @@ const App = () => {
                       <Route
                         path="/admin/frota"
                         element={
-                          <PrivateRoute requiredRole="manager">
+                          <PrivateRoute requiredRole="manager" requiredPermission="op.frota" requireAny>
                             <FrotaPage />
                           </PrivateRoute>
                         }
@@ -958,6 +961,36 @@ const App = () => {
                           <PrivateRoute requiredRole="manager">
                             <AdminLayout>
                               <HistoricoTurnos />
+                            </AdminLayout>
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/fiscal"
+                        element={
+                          <PrivateRoute requiredRole="manager">
+                            <AdminLayout>
+                              <FiscalPage />
+                            </AdminLayout>
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/fiscal/historico"
+                        element={
+                          <PrivateRoute requiredRole="manager">
+                            <AdminLayout>
+                              <HistoricoFiscal />
+                            </AdminLayout>
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/fiscal/dashboard"
+                        element={
+                          <PrivateRoute requiredRole="manager">
+                            <AdminLayout>
+                              <FiscalDashboard />
                             </AdminLayout>
                           </PrivateRoute>
                         }

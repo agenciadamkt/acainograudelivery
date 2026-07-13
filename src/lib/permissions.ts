@@ -47,6 +47,8 @@ export const MODULOS = [
   { codigo: 'op.entregas',      nome: 'Entregas',              categoria: 'OPERACAO',   descricao: 'Controle de pedidos em rota' },
   { codigo: 'op.areas-entrega', nome: 'Áreas de Entrega',      categoria: 'OPERACAO',   descricao: 'Configuração de zonas e taxas' },
   { codigo: 'op.frota',         nome: 'Frota',                 categoria: 'OPERACAO',   descricao: 'Gestão de rotas e entregadores' },
+  { codigo: 'op.agenda',        nome: 'Agenda',                categoria: 'OPERACAO',   descricao: 'Calendário e compromissos' },
+  { codigo: 'op.performance',   nome: 'Performance',           categoria: 'OPERACAO',   descricao: 'Métricas e ranking da unidade' },
   // Cardápio
   { codigo: 'cardapio.cats',     nome: 'Categorias',           categoria: 'CARDAPIO',   descricao: 'Grupos de produtos no cardápio' },
   { codigo: 'cardapio.produtos', nome: 'Produtos',             categoria: 'CARDAPIO',   descricao: 'Cadastro e disponibilidade' },
@@ -62,6 +64,7 @@ export const MODULOS = [
   { codigo: 'fin.dre',          nome: 'DRE',                   categoria: 'FINANCEIRO', descricao: 'Demonstrativo de resultado' },
   { codigo: 'fin.receber',      nome: 'Contas a Receber',      categoria: 'FINANCEIRO', descricao: 'Valores pendentes de recebimento' },
   { codigo: 'fin.cadastros',    nome: 'Cadastros Financeiros', categoria: 'FINANCEIRO', descricao: 'Plano de contas e centros de custo' },
+  { codigo: 'fin.fiscal',       nome: 'Fiscal (NFC-e / NF-e)', categoria: 'FINANCEIRO', descricao: 'Emissão de notas fiscais (PlugNotas)' },
   // Estoque
   { codigo: 'est.central',      nome: 'Estoque Central',       categoria: 'ESTOQUE',    descricao: 'Cadastro e gestão de insumos' },
   { codigo: 'est.movimentos',   nome: 'Movimentações',         categoria: 'ESTOQUE',    descricao: 'Entradas e saídas de estoque' },
@@ -97,6 +100,7 @@ export const MODULOS = [
   { codigo: 'sis.usuarios',     nome: 'Usuários',              categoria: 'SISTEMA',    descricao: 'Cadastro e permissões de usuários' },
   { codigo: 'sis.uazapi',       nome: 'UazAPI / WhatsApp',     categoria: 'SISTEMA',    descricao: 'Integração e assistente WhatsApp' },
   { codigo: 'sis.grauzinho',    nome: 'Grauzinho',             categoria: 'SISTEMA',    descricao: 'Gamificação e ranking de entregadores' },
+  { codigo: 'sis.assistente',   nome: 'Assistente IA (GrauBot)', categoria: 'SISTEMA',  descricao: 'Assistente inteligente 24/7' },
 ] as const
 
 export type ModuloCodigo = typeof MODULOS[number]['codigo']

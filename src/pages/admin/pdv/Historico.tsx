@@ -17,6 +17,7 @@ import {
     Search, Eye, Printer, ShoppingBag, Bike, TrendingUp, Users, Filter, RefreshCw, FileDown,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { FiscalDocumentPanel } from '@/components/fiscal/FiscalDocumentPanel';
 import { format } from 'date-fns';
 import { usePdvHistory, labelPayment, type HistoryFilters, type UnifiedSaleRecord } from '@/hooks/pdv/usePdvHistory';
 import { usePdvSettings } from '@/hooks/pdv/usePdvSettings';
@@ -535,6 +536,13 @@ export default function Historico() {
                                 <span>Total</span>
                                 <span>{fmt(selectedOrder.total)}</span>
                             </div>
+
+                            <Separator />
+                            <FiscalDocumentPanel
+                                orderId={selectedOrder.canal === 'PDV' ? undefined : String(selectedOrder.id)}
+                                pdvOrderId={selectedOrder.canal === 'PDV' ? String(selectedOrder.id) : undefined}
+                                defaultTipo="NFCE"
+                            />
 
                             {selectedOrder.canal === 'PDV' && (
                                 <Button className="w-full gap-2" onClick={() => handlePrint(selectedOrder)}>
