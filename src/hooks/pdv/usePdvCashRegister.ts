@@ -5,6 +5,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStore } from '@/contexts/StoreContext';
 import { toast } from 'sonner';
+import { logAudit } from '@/lib/audit';
+
+const deviceInfo = () => (typeof navigator !== 'undefined' ? navigator.userAgent.slice(0, 160) : null);
 
 export function usePdvCashRegister() {
     const { user } = useAuth();
@@ -112,7 +115,7 @@ export function usePdvCashRegister() {
 
     // Open register
     const openRegister = useMutation({
-        mutationFn: async (openingAmount: number) => {
+        mutationFn: async ({ openingAmount, operatorId, physicalRegisterId }: { openingAmount: number; operatorId?: string | null; physicalRegisterId?: string | null }) => {
             if (!user) throw new Error('No user');
             const { data: existing } = await supabase
                 .from('pdv_cash_registers')
@@ -121,13 +124,18 @@ export function usePdvCashRegister() {
                 .eq('status', 'open')
                 .maybeSingle();
             if (existing) throw new Error('Já existe um caixa aberto para este usuário.');
-            const { error } = await supabase.from('pdv_cash_registers').insert({
+            const { data: inserted, error } = await (supabase as any).from('pdv_cash_registers').insert({
                 user_id: user.id,
+                store_id: currentStore?.id ?? null,
+                operator_id: operatorId ?? null,
+                physical_register_id: physicalRegisterId ?? null,
                 opening_amount: openingAmount,
                 status: 'open',
                 opened_at: new Date().toISOString(),
-            });
+                device: deviceInfo(),
+            }).select('id').single();
             if (error) throw error;
+            await logAudit({ entity_type: 'pdv_cash_register', entity_id: inserted?.id, action: 'abertura', user_id: user.id, operator_id: operatorId, store_id: currentStore?.id, details: { opening_amount: openingAmount } });
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['pdv_cash_register'] });
@@ -138,21 +146,26 @@ export function usePdvCashRegister() {
 
     // Close register
     const closeRegister = useMutation({
-        mutationFn: async ({ closingAmount, notes }: { closingAmount: number; notes?: string }) => {
+        mutationFn: async ({ closingAmount, notes, checkedById }: { closingAmount: number; notes?: string; checkedById?: string | null }) => {
             if (!currentRegister) throw new Error('No open register');
             const opening = Number(currentRegister.opening_amount);
             const supply = (movements || []).filter(m => m.type === 'suprimento').reduce((s, m) => s + Number(m.amount), 0);
             const bleed = (movements || []).filter(m => m.type === 'sangria').reduce((s, m) => s + Number(m.amount), 0);
             // Physical cash expected = opening + cash pdv sales + cash delivery sales + supply - bleed
             const expected = opening + salesSummary.moneyTotal + deliverySummary.moneyTotal + supply - bleed;
-            const { error } = await supabase.from('pdv_cash_registers').update({
+            const difference = closingAmount - expected;
+            const { error } = await (supabase as any).from('pdv_cash_registers').update({
                 status: 'closed',
                 closed_at: new Date().toISOString(),
+                closed_by: user?.id ?? null,
                 closing_amount: closingAmount,
                 expected_amount: expected,
+                difference,
+                checked_by_id: checkedById ?? null,
                 notes,
             }).eq('id', currentRegister.id);
             if (error) throw error;
+            await logAudit({ entity_type: 'pdv_cash_register', entity_id: currentRegister.id, action: 'fechamento', user_id: user?.id, operator_id: (currentRegister as any).operator_id, store_id: currentStore?.id, details: { closing_amount: closingAmount, expected, difference } });
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['pdv_cash_register'] });
@@ -163,16 +176,19 @@ export function usePdvCashRegister() {
 
     // Add movement
     const addMovement = useMutation({
-        mutationFn: async ({ type, amount, reason }: { type: 'sangria' | 'suprimento'; amount: number; reason: string }) => {
+        mutationFn: async ({ type, amount, reason, operatorId }: { type: 'sangria' | 'suprimento'; amount: number; reason: string; operatorId?: string | null }) => {
             if (!currentRegister || !user) throw new Error('No open register');
-            const { error } = await supabase.from('pdv_cash_movements').insert({
+            const op = operatorId ?? (currentRegister as any).operator_id ?? null;
+            const { error } = await (supabase as any).from('pdv_cash_movements').insert({
                 cash_register_id: currentRegister.id,
                 user_id: user.id,
+                operator_id: op,
                 type,
                 amount,
                 reason,
             });
             if (error) throw error;
+            await logAudit({ entity_type: 'pdv_cash_register', entity_id: currentRegister.id, action: type, user_id: user.id, operator_id: op, store_id: currentStore?.id, reason, details: { amount } });
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['pdv_movements'] });

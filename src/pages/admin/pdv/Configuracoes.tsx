@@ -189,6 +189,16 @@ export default function Configuracoes() {
                                     />
                                 </div>
                                 <div className="flex items-center justify-between">
+                                    <div>
+                                        <Label>Exigir caixa aberto antes de vender</Label>
+                                        <p className="text-xs text-muted-foreground">Bloqueia finalizar venda sem um caixa aberto.</p>
+                                    </div>
+                                    <Switch
+                                        checked={(settings as any)?.require_open_cash_register || false}
+                                        onCheckedChange={(c) => update('require_open_cash_register', c)}
+                                    />
+                                </div>
+                                <div className="flex items-center justify-between">
                                     <Label>Integrar com Cartão de Ponto</Label>
                                     <Switch
                                         disabled

@@ -8,6 +8,7 @@ import { Search, ShoppingCart, CreditCard, Trash, Plus, Minus, Check, ChevronRig
 import { useProducts } from '@/hooks/useProducts';
 import { usePdvOrders } from '@/hooks/pdv/usePdvOrders';
 import { usePdvSettings } from '@/hooks/pdv/usePdvSettings';
+import { usePdvCashRegister } from '@/hooks/pdv/usePdvCashRegister';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStore } from '@/contexts/StoreContext';
 import { toast } from 'sonner';
@@ -45,6 +46,7 @@ export default function NovaVenda() {
     const { data: categories, isLoading: isLoadingCategories } = useCategories(true); // Active categories
     const { createSale } = usePdvOrders();
     const { settings } = usePdvSettings();
+    const { currentRegister } = usePdvCashRegister();
 
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
@@ -245,9 +247,16 @@ export default function NovaVenda() {
             return;
         }
 
+        // Config "Exigir caixa aberto antes de vender"
+        if ((settings as any)?.require_open_cash_register && !currentRegister) {
+            toast.error('É necessário abrir o caixa antes de finalizar a venda.');
+            return;
+        }
+
         const salePayload = {
             user_id: user.id,
             store_id: currentStore.id,
+            cash_register_id: currentRegister?.id ?? null,
             items: cart,
             subtotal: cartTotal,
             discount: 0,

@@ -87,6 +87,7 @@ import Ingredientes from "./pages/admin/ingredientes/Ingredientes";
 import NovaVenda from "./pages/admin/pdv/NovaVenda";
 import Mesas from "./pages/admin/pdv/Mesas";
 import Caixa from "./pages/admin/pdv/Caixa";
+import HistoricoTurnos from "./pages/admin/pdv/HistoricoTurnos";
 import Historico from "./pages/admin/pdv/Historico";
 import ExtratoFinanceiro from "./pages/admin/pdv/ExtratoFinanceiro";
 import Configuracoes from "./pages/admin/pdv/Configuracoes";
@@ -946,6 +947,16 @@ const App = () => {
                           <PrivateRoute requiredRole="staff">
                             <AdminLayout>
                               <Caixa />
+                            </AdminLayout>
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/pdv/caixa/historico"
+                        element={
+                          <PrivateRoute requiredRole="manager">
+                            <AdminLayout>
+                              <HistoricoTurnos />
                             </AdminLayout>
                           </PrivateRoute>
                         }

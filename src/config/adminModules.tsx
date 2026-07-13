@@ -58,6 +58,7 @@ const SEC_OPERACAO: MenuSection = {
     { title: 'Pedidos', url: '/admin/orders', icon: ShoppingBag },
     { title: 'KDS Cozinha', url: '/admin/kds', icon: Monitor },
     { title: 'Caixa', url: '/admin/pdv/caixa', icon: Wallet },
+    { title: 'Histórico de Turnos', url: '/admin/pdv/caixa/historico', icon: History, requireRole: 'manager' },
     { title: 'Entregas', url: '/admin/delivery', icon: Truck },
   ],
 };

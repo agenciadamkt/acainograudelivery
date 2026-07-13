@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { usePdvCashRegister } from '@/hooks/pdv/usePdvCashRegister';
+import OperatorSelect from '@/pages/admin/financial/components/OperatorSelect';
 
 // ── helpers ────────────────────────────────────────────────────────────────────
 function fmt(n: number) {
@@ -53,6 +54,7 @@ export default function Caixa() {
     } = usePdvCashRegister();
 
     const [openingAmount, setOpeningAmount]     = useState('');
+    const [operatorId, setOperatorId]           = useState('');
     const [closingCash, setClosingCash]         = useState('');
     const [movementAmount, setMovementAmount]   = useState('');
     const [movementReason, setMovementReason]   = useState('');
@@ -83,7 +85,10 @@ export default function Caixa() {
     const handleOpen = () => {
         const amount = parseFloat(openingAmount);
         if (isNaN(amount)) { toast.error('Valor inválido'); return; }
-        openRegister.mutate(amount);
+        if (!operatorId) { toast.error('Selecione o operador do caixa'); return; }
+        openRegister.mutate({ openingAmount: amount, operatorId }, {
+            onSuccess: () => { setOpeningAmount(''); },
+        });
     };
 
     const handleMovement = () => {
@@ -468,6 +473,10 @@ export default function Caixa() {
                         <CardDescription>Informe o fundo de troco para iniciar o turno.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
+                        <div className="space-y-2">
+                            <Label>Operador do Caixa</Label>
+                            <OperatorSelect value={operatorId} onChange={setOperatorId} placeholder="Selecionar operador..." />
+                        </div>
                         <div className="space-y-2">
                             <Label htmlFor="opening-amount">Fundo de Caixa (R$)</Label>
                             <div className="relative">
