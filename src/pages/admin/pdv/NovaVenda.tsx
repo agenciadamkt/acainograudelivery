@@ -1,5 +1,6 @@
 
 import { useState, useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -47,6 +48,7 @@ export default function NovaVenda() {
     const { createSale } = usePdvOrders();
     const { settings } = usePdvSettings();
     const { currentRegister } = usePdvCashRegister();
+    const navigate = useNavigate();
 
     // Política da loja: exige caixa aberto antes de vender
     const cashBlocked = !!(settings as any)?.require_open_cash_register && !currentRegister;
@@ -541,8 +543,15 @@ export default function NovaVenda() {
                             </div>
 
                             {cashBlocked && (
-                                <div className="mt-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                                    Caixa fechado. Abra o caixa para poder vender.
+                                <div className="mt-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-3 text-sm text-amber-800 space-y-2">
+                                    <p className="font-medium">Caixa fechado. É necessário abrir o caixa para realizar vendas.</p>
+                                    <Button
+                                        size="sm"
+                                        className="w-full bg-amber-600 hover:bg-amber-700 text-white"
+                                        onClick={() => navigate('/admin/pdv/caixa')}
+                                    >
+                                        Abrir Caixa
+                                    </Button>
                                 </div>
                             )}
                             <AlertDialog open={isPaymentOpen} onOpenChange={setIsPaymentOpen}>
