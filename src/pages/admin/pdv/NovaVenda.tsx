@@ -48,6 +48,9 @@ export default function NovaVenda() {
     const { settings } = usePdvSettings();
     const { currentRegister } = usePdvCashRegister();
 
+    // Política da loja: exige caixa aberto antes de vender
+    const cashBlocked = !!(settings as any)?.require_open_cash_register && !currentRegister;
+
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
     const [cart, setCart] = useState<any[]>([]);
@@ -537,12 +540,17 @@ export default function NovaVenda() {
                                 </div>
                             </div>
 
+                            {cashBlocked && (
+                                <div className="mt-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                                    Caixa fechado. Abra o caixa para poder vender.
+                                </div>
+                            )}
                             <AlertDialog open={isPaymentOpen} onOpenChange={setIsPaymentOpen}>
                                 <AlertDialogTrigger asChild>
                                     <Button
                                         size="lg"
                                         className="w-full h-14 text-lg font-bold shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-shadow gap-2 mt-2"
-                                        disabled={cart.length === 0}
+                                        disabled={cart.length === 0 || cashBlocked}
                                     >
                                         <Check className="h-6 w-6" />
                                         Receber Pagamento
@@ -595,7 +603,7 @@ export default function NovaVenda() {
                                                 handleFinalizeSale();
                                             }}
                                             className="bg-green-600 hover:bg-green-700 text-white"
-                                            disabled={createSale.isPending}
+                                            disabled={createSale.isPending || cashBlocked}
                                         >
                                             {createSale.isPending ? 'Processando...' : 'Confirmar Venda'}
                                         </AlertDialogAction>
