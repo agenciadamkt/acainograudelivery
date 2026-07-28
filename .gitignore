@@ -8,6 +8,7 @@ supabase/.env.local
 *firebase-adminsdk*.json
 
 # Builds e temporários
+Backup/
 dev-dist/
 dist-delivery/
 dist-frota/
