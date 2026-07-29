@@ -20,7 +20,7 @@ import {
     Zap,
     LogOut
 } from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -278,13 +278,13 @@ const OrderCatalog = () => {
             {/* Hub Navigation Bar */}
             <div className="sticky top-0 z-50 w-full bg-white/80 dark:bg-black/80 backdrop-blur-xl border-b border-gray-100 dark:border-white/10">
                 <div className="max-w-7xl mx-auto px-4 md:px-8 h-10 flex items-center">
-                    <a
-                        href="https://app.acainograu.com.br/admin/hub"
+                    <Link
+                        to="/admin/hub"
                         className="flex items-center gap-1.5 text-[11px] font-bold text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors uppercase tracking-widest"
                     >
                         <ChevronRight className="h-3 w-3 rotate-180" />
                         Voltar ao Hub
-                    </a>
+                    </Link>
                 </div>
             </div>
 
