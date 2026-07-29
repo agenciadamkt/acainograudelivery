@@ -117,7 +117,7 @@ const LocationState = () => {
                     </div>
                   </SelectTrigger>
                   <SelectContent className="rounded-[14px] border-gray-100 shadow-xl max-h-[300px]">
-                    {states.map((code) => (
+                    {states.filter((code) => code && code.trim()).map((code) => (
                       <SelectItem
                         key={code}
                         value={code}
