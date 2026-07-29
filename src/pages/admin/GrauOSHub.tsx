@@ -31,6 +31,7 @@ import {
     MessageSquare,
     Headphones,
     CalendarDays,
+    ShieldCheck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import logoCircular from '@/assets/logo-circular.png';
@@ -55,6 +56,7 @@ const HUB_GROUPS: Record<string, string[]> = {
         'cardapio.cats', 'cardapio.produtos', 'cardapio.toppings', 'cardapio.ingreds', 'cardapio.promo',
     ],
     estoque: ['est.central', 'est.movimentos', 'est.contagem', 'est.cmv', 'est.compras', 'est.hist-compras', 'est.rotinas', 'est.bonificacoes'],
+    checkgrau: ['est.rotinas'],
     universidade: ['sis.universidade'],
     performance: ['op.performance'],
     assistente: ['sis.assistente'],
@@ -85,6 +87,15 @@ const modules = [
         color: '#8b5cf6',
         hoverColor: '#7c3aed',
         icon: Package,
+    },
+    {
+        id: 'checkgrau',
+        title: 'CheckGrau',
+        subtitle: 'Padronização operacional',
+        path: '/admin/checkgrau',
+        color: '#7C3AED',
+        hoverColor: '#6D28D9',
+        icon: ShieldCheck,
     },
     {
         id: 'universidade',

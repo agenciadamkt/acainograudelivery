@@ -122,6 +122,7 @@ import CaixaPage from "./pages/admin/financial/CaixaPage";
 import RevenueExpenseReportPage from "./pages/admin/financial/RevenueExpenseReportPage";
 import DetailedExpensesReportPage from "./pages/admin/financial/DetailedExpensesReportPage";
 import AccountsReceivablePage from "./pages/admin/financial/AccountsReceivablePage";
+import ReceiptsPage from "./pages/admin/financial/ReceiptsPage";
 import OrderCatalog from "./pages/admin/orders/OrderCatalog";
 import FranchiseeProductsPage from "./pages/admin/orders/FranchiseeProductsPage";
 import OrderManagement from "./pages/admin/orders/OrderManagement";
@@ -163,6 +164,36 @@ import ChecklistReportsPage from "./pages/admin/stock/ChecklistReportsPage";
 import CountGroupsPage from "./pages/admin/stock/CountGroupsPage";
 import RecurringCountsPage from "./pages/admin/stock/RecurringCountsPage";
 import RecurringCountExecutionPage from "./pages/admin/stock/RecurringCountExecutionPage";
+import OpsSettingsPage from "./pages/admin/stock/operations/OpsSettingsPage";
+import RoutinesPage from "./pages/admin/stock/operations/RoutinesPage";
+import AgendaPage from "./pages/admin/stock/operations/AgendaPage";
+import TaskExecutionPage from "./pages/admin/stock/operations/TaskExecutionPage";
+import OperationsDashboardPage from "./pages/admin/stock/operations/OperationsDashboardPage";
+import RankingsPage from "./pages/admin/stock/operations/RankingsPage";
+import AlertsPage from "./pages/admin/stock/operations/AlertsPage";
+import NetworkPage from "./pages/admin/stock/operations/NetworkPage";
+import CheckGrauLayout from "./pages/admin/checkgrau/CheckGrauLayout";
+import CheckgrauStoresPage from "./pages/admin/checkgrau/StoresPage";
+import CollaboratorsPage from "./pages/admin/checkgrau/CollaboratorsPage";
+import CollaboratorsRankingPage from "./pages/admin/checkgrau/CollaboratorsRankingPage";
+import CollaboratorLayout, { CollaboratorRoot } from "./pages/colaborador/CollaboratorLayout";
+import CollaboratorLoginPage from "./pages/colaborador/LoginPage";
+import StoreSelectPage from "./pages/colaborador/StoreSelectPage";
+import CollaboratorHomePage from "./pages/colaborador/HomePage";
+import CollaboratorTaskDetailPage from "./pages/colaborador/TaskDetailPage";
+import CollaboratorTaskWizardPage from "./pages/colaborador/TaskWizardPage";
+import CollaboratorTaskSuccessPage from "./pages/colaborador/TaskSuccessPage";
+import CollaboratorHistoryPage from "./pages/colaborador/HistoryPage";
+import CollaboratorRankingPage from "./pages/colaborador/RankingPage";
+import CollaboratorNotificationsPage from "./pages/colaborador/NotificationsPage";
+import CollaboratorMyTasksPage from "./pages/colaborador/MyTasksPage";
+import CollaboratorMessagesPage from "./pages/colaborador/MessagesPage";
+import CheckgrauMessagesPage from "./pages/admin/checkgrau/MessagesPage";
+import CheckgrauEngajamentoPage from "./pages/admin/checkgrau/EngajamentoPage";
+import CheckgrauRelatoriosPage from "./pages/admin/checkgrau/RelatoriosPage";
+import CollaboratorTabbedLayout from "./pages/colaborador/TabbedLayout";
+import { SoonScreen } from "./pages/colaborador/_components/SoonScreen";
+import { Settings as CgCfgIcon, HelpCircle as CgHelpIcon } from "lucide-react";
 import StockHelpPage from "./pages/admin/stock/HelpPage";
 import BonificacoesPage from "./pages/admin/stock/BonificacoesPage";
 import StockBalancePage from "./pages/admin/stock/BalancePage";
@@ -205,8 +236,29 @@ const App = () => {
                       <CopilotGlobalWrapper />
                       <GlobalFranchiseeOrderAlert />
                       <Routes>
+                        {/* 📱 CheckGrau — App do Colaborador (WhatsApp+OTP, mobile) */}
+                        <Route path="/colaborador" element={<CollaboratorRoot />}>
+                          <Route path="login" element={<CollaboratorLoginPage />} />
+                          <Route element={<CollaboratorLayout />}>
+                            <Route element={<CollaboratorTabbedLayout />}>
+                              <Route index element={<CollaboratorHomePage />} />
+                              <Route path="tarefas" element={<CollaboratorMyTasksPage />} />
+                              <Route path="historico" element={<CollaboratorHistoryPage />} />
+                              <Route path="ranking" element={<CollaboratorRankingPage />} />
+                              <Route path="mensagens" element={<CollaboratorMessagesPage />} />
+                              <Route path="configuracoes" element={<SoonScreen title="Configurações" Icon={CgCfgIcon} subtitle="As configurações chegam em breve." />} />
+                              <Route path="ajuda" element={<SoonScreen title="Ajuda e suporte" Icon={CgHelpIcon} subtitle="A central de ajuda chega em breve." />} />
+                            </Route>
+                            <Route path="selecionar-loja" element={<StoreSelectPage />} />
+                            <Route path="tarefa/:scheduleId" element={<CollaboratorTaskDetailPage />} />
+                            <Route path="tarefa/:scheduleId/executar" element={<CollaboratorTaskWizardPage />} />
+                            <Route path="tarefa/:scheduleId/concluido" element={<CollaboratorTaskSuccessPage />} />
+                            <Route path="notificacoes" element={<CollaboratorNotificationsPage />} />
+                          </Route>
+                        </Route>
+
                         {/* 🌐 Domain Aware Routing Logic */}
-                        
+
                         {/* Redirecionamento inicial para o domínio APP */}
                         {isAppDomain && (
                           <Route path="/" element={<Navigate to="/admin/hub" replace />} />
@@ -355,6 +407,7 @@ const App = () => {
                         <Route path="despesas-detalhadas" element={<DetailedExpensesReportPage />} />
                         <Route path="caixa" element={<CaixaPage />} />
                         <Route path="receber" element={<AccountsReceivablePage />} />
+                        <Route path="recibos" element={<ReceiptsPage />} />
 
                         <Route path="configuracoes" element={<div className="p-8 text-center text-gray-400">Configurações — Em breve</div>} />
                       </Route>
@@ -689,36 +742,34 @@ const App = () => {
                           </PrivateRoute>
                         }
                       />
+                      {/* CheckGrau — sistema de gestão operacional (Operações 2.0) */}
                       <Route
-                        path="/admin/stock/count-groups"
-                        element={
-                          <PrivateRoute requiredRole="manager">
-                            <AdminLayout>
-                              <CountGroupsPage />
-                            </AdminLayout>
-                          </PrivateRoute>
-                        }
-                      />
-                      <Route
-                        path="/admin/stock/recurring-counts"
-                        element={
-                          <PrivateRoute requiredRole="manager">
-                            <AdminLayout>
-                              <RecurringCountsPage />
-                            </AdminLayout>
-                          </PrivateRoute>
-                        }
-                      />
-                      <Route
-                        path="/admin/stock/count-executions/:id"
+                        path="/admin/checkgrau"
                         element={
                           <PrivateRoute requiredRole="staff">
-                            <AdminLayout>
-                              <RecurringCountExecutionPage />
-                            </AdminLayout>
+                            <CheckGrauLayout />
                           </PrivateRoute>
                         }
-                      />
+                      >
+                        <Route index element={<PrivateRoute requiredRole="manager"><OperationsDashboardPage /></PrivateRoute>} />
+                        <Route path="rankings" element={<PrivateRoute requiredRole="manager"><RankingsPage /></PrivateRoute>} />
+                        <Route path="rede" element={<PrivateRoute requiredRole="manager"><NetworkPage /></PrivateRoute>} />
+                        <Route path="desempenho" element={<PrivateRoute requiredRole="manager"><CollaboratorsRankingPage /></PrivateRoute>} />
+                        <Route path="engajamento" element={<PrivateRoute requiredRole="manager"><CheckgrauEngajamentoPage /></PrivateRoute>} />
+                        <Route path="alertas" element={<PrivateRoute requiredRole="manager"><AlertsPage /></PrivateRoute>} />
+                        <Route path="mensagens" element={<PrivateRoute requiredRole="manager"><CheckgrauMessagesPage /></PrivateRoute>} />
+                        <Route path="relatorios" element={<PrivateRoute requiredRole="manager"><CheckgrauRelatoriosPage /></PrivateRoute>} />
+                        <Route path="agenda" element={<AgendaPage />} />
+                        <Route path="rotinas" element={<PrivateRoute requiredRole="manager"><RoutinesPage /></PrivateRoute>} />
+                        <Route path="checklists" element={<PrivateRoute requiredRole="manager"><ChecklistAdminPage /></PrivateRoute>} />
+                        <Route path="stores" element={<PrivateRoute requiredRole="manager"><CheckgrauStoresPage /></PrivateRoute>} />
+                        <Route path="collaborators" element={<PrivateRoute requiredRole="manager"><CollaboratorsPage /></PrivateRoute>} />
+                        <Route path="setores-turnos" element={<PrivateRoute requiredRole="manager"><OpsSettingsPage /></PrivateRoute>} />
+                        <Route path="tarefa/:scheduleId" element={<TaskExecutionPage />} />
+                        <Route path="grupos-contagem" element={<PrivateRoute requiredRole="manager"><CountGroupsPage /></PrivateRoute>} />
+                        <Route path="contagens-recorrentes" element={<PrivateRoute requiredRole="manager"><RecurringCountsPage /></PrivateRoute>} />
+                        <Route path="contagem/:id" element={<RecurringCountExecutionPage />} />
+                      </Route>
                       <Route
                         path="/admin/stock/bonificacoes"
                         element={

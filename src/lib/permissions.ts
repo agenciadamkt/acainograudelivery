@@ -28,6 +28,7 @@ export const CATEGORIAS = [
   { id: 'CARDAPIO',   label: 'Cardápio',                     emoji: '🍦' },
   { id: 'FINANCEIRO', label: 'Financeiro',                   emoji: '💰' },
   { id: 'ESTOQUE',    label: 'Estoque & Operações',          emoji: '📦' },
+  { id: 'CHECKGRAU',  label: 'CheckGrau — Gestão Operacional', emoji: '✅' },
   { id: 'CLIENTES',   label: 'Clientes & Marketing',         emoji: '👥' },
   { id: 'CAF',        label: 'CAF — Atendimento',            emoji: '🎯' },
   { id: 'FRANQUIA',   label: 'Franquia & Distribuição',      emoji: '🤝' },
@@ -65,6 +66,7 @@ export const MODULOS = [
   { codigo: 'fin.receber',      nome: 'Contas a Receber',      categoria: 'FINANCEIRO', descricao: 'Valores pendentes de recebimento' },
   { codigo: 'fin.cadastros',    nome: 'Cadastros Financeiros', categoria: 'FINANCEIRO', descricao: 'Plano de contas e centros de custo' },
   { codigo: 'fin.fiscal',       nome: 'Fiscal (NFC-e / NF-e)', categoria: 'FINANCEIRO', descricao: 'Emissão de notas fiscais (PlugNotas)' },
+  { codigo: 'fin.recibos',      nome: 'Recibos de Baixas',     categoria: 'FINANCEIRO', descricao: 'Importa baixas do Cefas e gera recibos de quitação' },
   // Estoque
   { codigo: 'est.central',      nome: 'Estoque Central',       categoria: 'ESTOQUE',    descricao: 'Cadastro e gestão de insumos' },
   { codigo: 'est.movimentos',   nome: 'Movimentações',         categoria: 'ESTOQUE',    descricao: 'Entradas e saídas de estoque' },
@@ -74,6 +76,22 @@ export const MODULOS = [
   { codigo: 'est.hist-compras', nome: 'Histórico de Compras',  categoria: 'ESTOQUE',    descricao: 'Análise de compras por período' },
   { codigo: 'est.rotinas',      nome: 'Rotinas Operacionais',  categoria: 'ESTOQUE',    descricao: 'Checklists de abertura e fechamento' },
   { codigo: 'est.bonificacoes', nome: 'Bonificações',          categoria: 'ESTOQUE',    descricao: 'Controle de bonificações de insumos' },
+
+  // CheckGrau — Gestão Operacional (Operações 2.0)
+  { codigo: 'cg.painel',        nome: 'Painel Operacional',    categoria: 'CHECKGRAU',  descricao: 'KPIs, conformidade e score da operação' },
+  { codigo: 'cg.rankings',      nome: 'Rankings',              categoria: 'CHECKGRAU',  descricao: 'Ranking de unidades por desempenho' },
+  { codigo: 'cg.desempenho',    nome: 'Desempenho',            categoria: 'CHECKGRAU',  descricao: 'Desempenho e score por colaborador' },
+  { codigo: 'cg.rede',          nome: 'Rede',                  categoria: 'CHECKGRAU',  descricao: 'Visão consolidada da rede' },
+  { codigo: 'cg.alertas',       nome: 'Alertas',               categoria: 'CHECKGRAU',  descricao: 'Alertas operacionais e no WhatsApp' },
+  { codigo: 'cg.mensagens',     nome: 'Mensagens',             categoria: 'CHECKGRAU',  descricao: 'Avisos do gestor para os colaboradores' },
+  { codigo: 'cg.lojas',         nome: 'Lojas',                 categoria: 'CHECKGRAU',  descricao: 'Cadastro de unidades do CheckGrau' },
+  { codigo: 'cg.colaboradores', nome: 'Colaboradores',         categoria: 'CHECKGRAU',  descricao: 'Cadastro de colaboradores e acessos' },
+  { codigo: 'cg.agenda',        nome: 'Agenda',                categoria: 'CHECKGRAU',  descricao: 'Agenda diária de tarefas por unidade' },
+  { codigo: 'cg.rotinas',       nome: 'Rotinas',               categoria: 'CHECKGRAU',  descricao: 'Rotinas que geram a agenda de tarefas' },
+  { codigo: 'cg.checklists',    nome: 'Checklists',            categoria: 'CHECKGRAU',  descricao: 'Modelos de checklist e perguntas' },
+  { codigo: 'cg.setores-turnos',nome: 'Setores & Turnos',      categoria: 'CHECKGRAU',  descricao: 'Setores e turnos operacionais' },
+  { codigo: 'cg.grupos-contagem', nome: 'Grupos de Contagem',  categoria: 'CHECKGRAU',  descricao: 'Grupos de insumos para contagem' },
+  { codigo: 'cg.contagens-recorrentes', nome: 'Contagens Recorrentes', categoria: 'CHECKGRAU', descricao: 'Inventários agendados e recorrentes' },
   // Clientes & Marketing
   { codigo: 'cli.crm',          nome: 'Clientes (CRM)',        categoria: 'CLIENTES',   descricao: 'Base de clientes e histórico' },
   { codigo: 'cli.nps',          nome: 'Avaliações NPS',        categoria: 'CLIENTES',   descricao: 'Satisfação e Net Promoter Score' },
