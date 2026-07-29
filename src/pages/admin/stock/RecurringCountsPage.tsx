@@ -246,7 +246,7 @@ export default function RecurringCountsPage() {
       if (error) throw error;
       return data;
     },
-    onSuccess: (data) => navigate(`/admin/stock/count-executions/${data.id}`),
+    onSuccess: (data) => navigate(`/admin/checkgrau/contagem/${data.id}`),
     onError: () => toast.error('Erro ao iniciar contagem.'),
   });
 
@@ -299,9 +299,9 @@ export default function RecurringCountsPage() {
   // ── Render ────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-700">
+    <div className="mx-auto max-w-5xl space-y-8 p-4 md:p-8 animate-in fade-in duration-700">
       <button
-        onClick={() => navigate('/admin/stock/dashboard')}
+        onClick={() => navigate('/admin/checkgrau')}
         className="group flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold text-primary/50 hover:text-primary hover:bg-primary/10 transition-all w-fit"
       >
         <ArrowLeft size={13} className="group-hover:-translate-x-0.5 transition-transform" />
@@ -620,7 +620,7 @@ export default function RecurringCountsPage() {
                 </Label>
                 <button
                   type="button"
-                  onClick={() => navigate('/admin/stock/count-groups')}
+                  onClick={() => navigate('/admin/checkgrau/grupos-contagem')}
                   className="text-[11px] text-primary font-bold hover:underline flex items-center gap-1"
                 >
                   <Plus size={11} /> Criar Grupo

@@ -110,7 +110,7 @@ export default function RecurringCountExecutionPage() {
     },
     onSuccess: () => {
       toast.success('Contagem finalizada com sucesso!');
-      navigate('/admin/stock/recurring-counts');
+      navigate('/admin/checkgrau/contagens-recorrentes');
     },
     onError: () => toast.error('Erro ao finalizar. Tente novamente.'),
   });
@@ -131,7 +131,7 @@ export default function RecurringCountExecutionPage() {
         <Button
           variant="outline"
           className="mt-4 rounded-2xl"
-          onClick={() => navigate('/admin/stock/recurring-counts')}
+          onClick={() => navigate('/admin/checkgrau/contagens-recorrentes')}
         >
           Voltar
         </Button>
@@ -149,7 +149,7 @@ export default function RecurringCountExecutionPage() {
         <p className="text-muted-foreground">Esta execução já foi concluída anteriormente.</p>
         <Button
           className="rounded-2xl bg-primary text-white"
-          onClick={() => navigate('/admin/stock/recurring-counts')}
+          onClick={() => navigate('/admin/checkgrau/contagens-recorrentes')}
         >
           Ver Contagens Recorrentes
         </Button>
@@ -160,9 +160,9 @@ export default function RecurringCountExecutionPage() {
   const rc = execution.inventory_recurring_counts;
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-700 max-w-2xl mx-auto pb-24">
+    <div className="space-y-8 animate-in fade-in duration-700 max-w-2xl mx-auto px-4 md:px-8 pt-4 md:pt-8 pb-24">
       <button
-        onClick={() => navigate('/admin/stock/recurring-counts')}
+        onClick={() => navigate('/admin/checkgrau/contagens-recorrentes')}
         className="group flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold text-primary/50 hover:text-primary hover:bg-primary/10 transition-all w-fit"
       >
         <ArrowLeft size={13} className="group-hover:-translate-x-0.5 transition-transform" />

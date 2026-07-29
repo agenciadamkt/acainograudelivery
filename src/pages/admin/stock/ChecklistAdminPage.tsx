@@ -21,7 +21,8 @@ import {
   Hash,
   ToggleLeft,
   Camera,
-  ArrowLeft
+  ArrowLeft,
+  Pencil
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,6 +44,8 @@ import {
   SelectValue 
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { ITEM_TYPES, itemTypeLabel } from '@/lib/operations/itemTypes';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -115,9 +118,26 @@ export default function ChecklistAdminPage() {
     }
   });
 
+  const updateMutation = useMutation({
+    mutationFn: async (payload: { id: string; name: string; frequency: string; description: string }) => {
+      const { id, ...fields } = payload;
+      const { error } = await supabase
+        .from('inventory_checklists')
+        .update(fields)
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['checklist_templates'] });
+      setEditingTemplate(null);
+      toast.success('Checklist atualizado!');
+    },
+    onError: (err: any) => toast.error('Erro ao atualizar: ' + err.message)
+  });
+
   return (
-    <div className="space-y-8 animate-in fade-in duration-700">
-      <button onClick={() => navigate('/admin/stock/dashboard')} className="group flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold text-primary/50 hover:text-primary hover:bg-primary/10 transition-all w-fit">
+    <div className="mx-auto max-w-5xl space-y-8 p-4 md:p-8 animate-in fade-in duration-700">
+      <button onClick={() => navigate('/admin/checkgrau')} className="group flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold text-primary/50 hover:text-primary hover:bg-primary/10 transition-all w-fit">
         <ArrowLeft size={13} className="group-hover:-translate-x-0.5 transition-transform" /><span>Estoque & Operações</span>
       </button>
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -214,16 +234,26 @@ export default function ChecklistAdminPage() {
                 layout
               >
                 <Card className="glass-card border-none overflow-hidden group hover:shadow-2xl transition-all duration-500">
-                  <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
+                  <div className="absolute top-0 right-0 p-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-primary hover:bg-primary/10"
+                      onClick={() => setEditingTemplate(template)}
+                      aria-label="Editar checklist"
+                    >
+                      <Pencil size={17} />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       className="text-red-500 hover:bg-red-50"
                       onClick={() => {
                         if (confirm('Deseja excluir este checklist e todas as suas perguntas?')) {
                           deleteMutation.mutate(template.id);
                         }
                       }}
+                      aria-label="Excluir checklist"
                     >
                       <Trash2 size={18} />
                     </Button>
@@ -277,6 +307,68 @@ export default function ChecklistAdminPage() {
           </AnimatePresence>
         </div>
       )}
+
+      {/* Editar checklist (nome / frequência / descrição) */}
+      <Dialog open={!!editingTemplate} onOpenChange={(open) => !open && setEditingTemplate(null)}>
+        <DialogContent className="glass-card border-none shadow-2xl sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black">Editar Checklist</DialogTitle>
+          </DialogHeader>
+          {editingTemplate && (
+            <>
+              <div className="space-y-6 pt-4">
+                <div className="space-y-2">
+                  <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Nome da Rotina</Label>
+                  <Input
+                    placeholder="Ex: Abertura de Loja"
+                    className="h-12 bg-muted/40 border-none focus-visible:ring-2 focus-visible:ring-primary/20"
+                    value={editingTemplate.name ?? ''}
+                    onChange={e => setEditingTemplate((t: any) => ({ ...t, name: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Frequência</Label>
+                  <Select
+                    value={editingTemplate.frequency ?? 'daily'}
+                    onValueChange={v => setEditingTemplate((t: any) => ({ ...t, frequency: v }))}
+                  >
+                    <SelectTrigger className="h-12 bg-muted/40 border-none">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="daily">Diário</SelectItem>
+                      <SelectItem value="weekly">Semanal</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Descrição (Opcional)</Label>
+                  <Input
+                    placeholder="Instruções breves para a equipe..."
+                    className="h-12 bg-muted/40 border-none"
+                    value={editingTemplate.description ?? ''}
+                    onChange={e => setEditingTemplate((t: any) => ({ ...t, description: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <DialogFooter className="pt-6">
+                <Button
+                  className="w-full h-12 bg-primary font-black text-white"
+                  onClick={() => updateMutation.mutate({
+                    id: editingTemplate.id,
+                    name: editingTemplate.name,
+                    frequency: editingTemplate.frequency,
+                    description: editingTemplate.description ?? '',
+                  })}
+                  disabled={!editingTemplate.name || updateMutation.isPending}
+                >
+                  Salvar Alterações
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -284,21 +376,33 @@ export default function ChecklistAdminPage() {
 function ChecklistEditor({ template, onRefresh }: { template: any, onRefresh: () => void }) {
   const [items, setItems] = useState<any[]>(template.items || []);
   const [isAdding, setIsAdding] = useState(false);
-  const [newItem, setNewItem] = useState({
-    name: '',
-    type: 'boolean',
-    is_required: true
-  });
+  const emptyItem = {
+    name: '', type: 'boolean', is_required: true,
+    require_photo: false, require_gps: false, require_comment: false, require_signature: false,
+    min_value: '' as string, max_value: '' as string, optionsText: '',
+  };
+  const [newItem, setNewItem] = useState({ ...emptyItem });
+
+  const typeInfo = ITEM_TYPES.find(t => t.value === newItem.type);
 
   const saveItemMutation = useMutation({
-    mutationFn: async (item: any) => {
+    mutationFn: async (item: typeof emptyItem) => {
+      const { optionsText, min_value, max_value, ...rest } = item;
+      const usesChoices = item.type === 'single_choice' || item.type === 'multi_choice';
+      const usesRange = item.type === 'temperature' || item.type === 'range';
+      const payload = {
+        ...rest,
+        checklist_id: template.id,
+        sort_order: items.length,
+        min_value: usesRange && min_value !== '' ? parseFloat(min_value) : null,
+        max_value: usesRange && max_value !== '' ? parseFloat(max_value) : null,
+        options: usesChoices
+          ? optionsText.split('\n').map(s => s.trim()).filter(Boolean)
+          : null,
+      };
       const { data, error } = await supabase
         .from('inventory_checklist_items')
-        .insert([{ 
-          ...item, 
-          checklist_id: template.id,
-          sort_order: items.length
-        }])
+        .insert([payload])
         .select()
         .single();
       if (error) throw error;
@@ -307,10 +411,11 @@ function ChecklistEditor({ template, onRefresh }: { template: any, onRefresh: ()
     onSuccess: (data) => {
       setItems(prev => [...prev, data]);
       setIsAdding(false);
-      setNewItem({ name: '', type: 'boolean', is_required: true });
+      setNewItem({ ...emptyItem });
       onRefresh();
       toast.success('Pergunta adicionada');
-    }
+    },
+    onError: (e: any) => toast.error(e?.message ?? 'Erro ao adicionar a pergunta.'),
   });
 
   const deleteItemMutation = useMutation({
@@ -352,9 +457,13 @@ function ChecklistEditor({ template, onRefresh }: { template: any, onRefresh: ()
                   {item.type === 'number' && <Hash size={10} className="mr-1" />}
                   {item.type === 'text' && <Type size={10} className="mr-1" />}
                   {item.type === 'photo' && <Camera size={10} className="mr-1" />}
-                  {item.type}
+                  {itemTypeLabel(item.type)}
                 </Badge>
                 {item.is_required && <Badge className="text-[9px] bg-red-100 text-red-600 border-none">Obrigatório</Badge>}
+                {item.require_photo && <Badge variant="outline" className="text-[9px] uppercase">Foto</Badge>}
+                {item.require_gps && <Badge variant="outline" className="text-[9px] uppercase">GPS</Badge>}
+                {item.require_comment && <Badge variant="outline" className="text-[9px] uppercase">Coment.</Badge>}
+                {item.require_signature && <Badge variant="outline" className="text-[9px] uppercase">Assin.</Badge>}
               </div>
             </div>
             <Button 
@@ -389,10 +498,9 @@ function ChecklistEditor({ template, onRefresh }: { template: any, onRefresh: ()
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="boolean">Sim/Não</SelectItem>
-                    <SelectItem value="number">Número</SelectItem>
-                    <SelectItem value="text">Texto</SelectItem>
-                    <SelectItem value="photo">Foto (Evidência)</SelectItem>
+                    {ITEM_TYPES.map(t => (
+                      <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -410,6 +518,45 @@ function ChecklistEditor({ template, onRefresh }: { template: any, onRefresh: ()
                     <SelectItem value="no">Não</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+            </div>
+
+            {/* Config por tipo (M2) */}
+            {(newItem.type === 'temperature' || newItem.type === 'range') && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase">{newItem.type === 'temperature' ? 'Mínimo (opcional)' : 'Mínimo'}</Label>
+                  <Input type="number" className="bg-white" value={newItem.min_value} onChange={e => setNewItem(n => ({ ...n, min_value: e.target.value }))} />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase">{newItem.type === 'temperature' ? 'Limite (máx)' : 'Máximo'}</Label>
+                  <Input type="number" className="bg-white" value={newItem.max_value} onChange={e => setNewItem(n => ({ ...n, max_value: e.target.value }))} />
+                </div>
+              </div>
+            )}
+            {(newItem.type === 'single_choice' || newItem.type === 'multi_choice') && (
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase">Opções (uma por linha)</Label>
+                <Textarea className="bg-white" rows={4} placeholder={'Ótimo\nBom\nRegular\nRuim'} value={newItem.optionsText} onChange={e => setNewItem(n => ({ ...n, optionsText: e.target.value }))} />
+              </div>
+            )}
+
+            {/* Requisitos de evidência (M2) */}
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase">Exigir na execução</Label>
+              <div className="flex flex-wrap gap-2">
+                {([
+                  ['require_photo', 'Foto'], ['require_gps', 'GPS'],
+                  ['require_comment', 'Comentário'], ['require_signature', 'Assinatura'],
+                ] as const).map(([key, label]) => (
+                  <button key={key} type="button"
+                    onClick={() => setNewItem(n => ({ ...n, [key]: !n[key] }))}
+                    className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition-colors ${
+                      newItem[key] ? 'border-transparent bg-primary text-white' : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                    }`}>
+                    {label}
+                  </button>
+                ))}
               </div>
             </div>
 

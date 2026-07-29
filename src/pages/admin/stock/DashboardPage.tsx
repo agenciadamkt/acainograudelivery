@@ -31,6 +31,7 @@ import {
   RotateCcw,
   Scale,
   Info,
+  Gauge,
   X
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -258,11 +259,12 @@ export default function StockDashboardPage() {
           { title: 'Lista de Compras',      icon: ShoppingCart,   path: '/admin/stock/purchases',            iconCls: 'text-green-500',  activeCls: 'hover:bg-green-50 hover:border-green-200 dark:hover:bg-green-500/10'  },
           { title: 'Histórico de Compras',  icon: History,        path: '/admin/stock/purchase-history',     iconCls: 'text-cyan-500',   activeCls: 'hover:bg-cyan-50 hover:border-cyan-200 dark:hover:bg-cyan-500/10'     },
           { title: 'Contagem (Inventário)', icon: ClipboardList,  path: '/admin/stock/counts',               iconCls: 'text-pink-500',   activeCls: 'hover:bg-pink-50 hover:border-pink-200 dark:hover:bg-pink-500/10'     },
-          { title: 'Grupos de Contagem',    icon: Layers,         path: '/admin/stock/count-groups',         iconCls: 'text-emerald-500',activeCls: 'hover:bg-emerald-50 hover:border-emerald-200 dark:hover:bg-emerald-500/10'},
+          { title: 'Grupos de Contagem',    icon: Layers,         path: '/admin/checkgrau/grupos-contagem',         iconCls: 'text-emerald-500',activeCls: 'hover:bg-emerald-50 hover:border-emerald-200 dark:hover:bg-emerald-500/10'},
+          { title: 'CheckGrau',             icon: Gauge,          path: '/admin/checkgrau',                  iconCls: 'text-purple-600', activeCls: 'hover:bg-purple-50 hover:border-purple-200 dark:hover:bg-purple-500/10'},
           { title: 'Rotinas Operacionais',  icon: ClipboardCheck, path: '/admin/stock/checklists/execution', iconCls: 'text-amber-500',  activeCls: 'hover:bg-amber-50 hover:border-amber-200 dark:hover:bg-amber-500/10'  },
           { title: 'Relatórios de Rotinas', icon: FileBarChart2,  path: '/admin/stock/checklists/reports',   iconCls: 'text-indigo-500', activeCls: 'hover:bg-indigo-50 hover:border-indigo-200 dark:hover:bg-indigo-500/10'},
           { title: 'Gestão de Rotinas',     icon: Settings2,      path: '/admin/stock/checklists/admin',     iconCls: 'text-rose-500',   activeCls: 'hover:bg-rose-50 hover:border-rose-200 dark:hover:bg-rose-500/10'     },
-          { title: 'Contagem Recorrente',    icon: RotateCcw,      path: '/admin/stock/recurring-counts',     iconCls: 'text-teal-500',   activeCls: 'hover:bg-teal-50 hover:border-teal-200 dark:hover:bg-teal-500/10'   },
+          { title: 'Contagem Recorrente',    icon: RotateCcw,      path: '/admin/checkgrau/contagens-recorrentes',     iconCls: 'text-teal-500',   activeCls: 'hover:bg-teal-50 hover:border-teal-200 dark:hover:bg-teal-500/10'   },
           { title: 'Bonificações',          icon: Gift,           path: '/admin/stock/bonificacoes',         iconCls: 'text-yellow-500', activeCls: 'hover:bg-yellow-50 hover:border-yellow-200 dark:hover:bg-yellow-500/10'},
           { title: 'Balanço de Estoque',     icon: Scale,          path: '/admin/stock/balance',              iconCls: 'text-sky-500',    activeCls: 'hover:bg-sky-50 hover:border-sky-200 dark:hover:bg-sky-500/10'       },
         ].map((item) => (
@@ -371,7 +373,7 @@ export default function StockDashboardPage() {
 
         <Card 
           className="glass-card border-none p-6 flex items-center justify-between group cursor-pointer hover:bg-white/40 dark:hover:bg-black/30 transition-all" 
-          onClick={() => navigate('/admin/stock/count-groups')}
+          onClick={() => navigate('/admin/checkgrau/grupos-contagem')}
         >
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">

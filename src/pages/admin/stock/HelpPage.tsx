@@ -111,7 +111,7 @@ const sections: Section[] = [
     icon: Layers,
     color: 'text-emerald-500',
     title: 'Grupos de Contagem',
-    route: '/admin/stock/count-groups',
+    route: '/admin/checkgrau/grupos-contagem',
     summary: 'Organização de insumos em grupos para inventários cíclicos — conte só o necessário em cada dia.',
     steps: [
       { text: 'Acesse Grupos de Contagem no menu lateral (visível apenas para gerentes).' },
