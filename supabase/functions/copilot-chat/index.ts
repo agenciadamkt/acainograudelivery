@@ -27,30 +27,39 @@ INSTRUÇÕES CRÍTICAS:
 13. Quando a mensagem trouxer um bloco [BASE DE CONHECIMENTO], ele é a fonte oficial de procedimentos/políticas da franquia — priorize-o para perguntas de "como faço" / "qual o procedimento". Se usar algo de lá, termine a resposta com uma linha "Fonte: <título do documento>". NUNCA invente um procedimento que não esteja nesse bloco nem nos dados das ferramentas. Se a pergunta não puder ser respondida nem pelas ferramentas nem pelo bloco de conhecimento, responda exatamente: "Não encontrei essa informação na documentação oficial da franquia."
 `;
 
+// Tools no formato OpenAI (chat/completions → type:"function").
 const tools = [
   {
-    functionDeclarations: [
-      {
-        name: "get_financial_kpis",
-        description: "Busca KPIs financeiros: saldo total, despesas pendentes, contas a receber. Use quando o assunto for saldo, caixa, finanças, despesas ou receitas.",
-        parameters: { type: "OBJECT", properties: {}, required: [] }
-      },
-      {
-        name: "get_sales_summary",
-        description: "Busca resumo de vendas/pedidos do dia. Use quando o assunto for vendas, faturamento, pedidos ou receita de hoje.",
-        parameters: { type: "OBJECT", properties: {}, required: [] }
-      },
-      {
-        name: "get_inventory_status",
-        description: "Busca status do estoque, produtos com baixo estoque, alertas. Use quando o assunto for estoque, ingredientes ou produtos críticos.",
-        parameters: { type: "OBJECT", properties: {}, required: [] }
-      },
-      {
-        name: "get_debtors",
-        description: "Busca clientes devedores e contas a receber pendentes. Use quando o assunto for inadimplência, clientes que devem ou cobranças.",
-        parameters: { type: "OBJECT", properties: {}, required: [] }
-      }
-    ]
+    type: "function",
+    function: {
+      name: "get_financial_kpis",
+      description: "Busca KPIs financeiros: saldo total, despesas pendentes, contas a receber. Use quando o assunto for saldo, caixa, finanças, despesas ou receitas.",
+      parameters: { type: "object", properties: {}, required: [] }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_sales_summary",
+      description: "Busca resumo de vendas/pedidos do dia. Use quando o assunto for vendas, faturamento, pedidos ou receita de hoje.",
+      parameters: { type: "object", properties: {}, required: [] }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_inventory_status",
+      description: "Busca status do estoque, produtos com baixo estoque, alertas. Use quando o assunto for estoque, ingredientes ou produtos críticos.",
+      parameters: { type: "object", properties: {}, required: [] }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_debtors",
+      description: "Busca clientes devedores e contas a receber pendentes. Use quando o assunto for inadimplência, clientes que devem ou cobranças.",
+      parameters: { type: "object", properties: {}, required: [] }
+    }
   }
 ];
 
@@ -312,8 +321,8 @@ serve(async (req) => {
       throw new Error("Invalid request format: 'messages' array is required.");
     }
 
-    const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
-    if (!geminiApiKey) throw new Error("GEMINI_API_KEY não configurada.");
+    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+    if (!openaiApiKey) throw new Error("OPENAI_API_KEY não configurada.");
 
     const lastUserMessage = [...messages].reverse().find((m: any) => m.role === 'user');
     const currentRoute: string | null = context?.current_route ?? null;
@@ -340,141 +349,94 @@ serve(async (req) => {
       });
     }
 
-    const geminiContents = messages.map((msg: any, index: number) => ({
-      role: msg.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: (index === messages.length - 1 && contextPrefix) ? msg.content + contextPrefix : msg.content }]
-    }));
-
-    // Modelos em ordem de preferência (cada um tem cota separada)
-    const MODELS = [
-      'gemini-2.0-flash',
-      'gemini-2.0-flash-lite',
-      // O fallback anterior ('gemini-2.5-flash-lite-preview-06-17') era um
-      // nome de preview expirado — sempre retornava 404, nunca funcionou
-      // como fallback de verdade. gemini-1.5-flash é um nome estável e de
-      // outra geração de modelo, com bucket de cota separado dos gemini-2.0-*.
-      'gemini-1.5-flash',
+    // Formato OpenAI: system + histórico. O contexto (tela/perfil/base de
+    // conhecimento) é anexado à última mensagem do usuário.
+    const chatMessages: any[] = [
+      { role: 'system', content: SYSTEM_PROMPT },
+      ...messages.map((msg: any, index: number) => ({
+        role: msg.role === 'assistant' ? 'assistant' : 'user',
+        content: (index === messages.length - 1 && contextPrefix) ? msg.content + contextPrefix : msg.content,
+      })),
     ];
 
-    const callGeminiWithModel = async (model: string, contents: any[], useTools: boolean): Promise<Response> => {
-      const body: any = {
-        system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
-        contents,
-        generationConfig: { temperature: 0.2, maxOutputTokens: 2048 }
-      };
+    const MODEL = 'gpt-4o-mini';
 
+    // Chama a OpenAI (chat/completions). Com useTools, expõe as ferramentas de
+    // dados; sem, força uma resposta textual final (2ª volta pós-ferramenta).
+    const callOpenAI = async (msgs: any[], useTools: boolean): Promise<any> => {
+      const body: any = {
+        model: MODEL,
+        temperature: 0.2,
+        max_tokens: 2048,
+        messages: msgs,
+      };
       if (useTools) {
         body.tools = tools;
-        body.tool_config = { function_calling_config: { mode: "AUTO" } };
+        body.tool_choice = 'auto';
       }
 
-      return fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body)
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${openaiApiKey}`,
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Erro OpenAI (${response.status}):`, errorText);
+        if (response.status === 429) {
+          throw new Error(
+            'Nosso cérebro está descansando! 🧠💤 Muitas consultas em pouco tempo (limite de uso). ' +
+            'Aguarde 1 minuto e tente novamente.'
+          );
         }
-      );
-    };
-
-    const callGemini = async (contents: any[], useTools = true): Promise<any> => {
-      // Guarda o motivo de falha de CADA modelo tentado (não só o último) —
-      // sem isso, um 404 (nome de modelo expirado) no último modelo da lista
-      // escondia silenciosamente o motivo real (ex: 429 de cota) dos modelos
-      // anteriores, dificultando o diagnóstico.
-      const attempts: string[] = [];
-      let lastError = '';
-
-      for (const model of MODELS) {
-        try {
-          console.log(`Tentando modelo: ${model}`);
-          const response = await callGeminiWithModel(model, contents, useTools);
-
-          if (response.status === 429) {
-            console.warn(`Rate limit para ${model}, tentando próximo modelo...`);
-            lastError = `Modelo ${model} com cota esgotada (429).`;
-            attempts.push(lastError);
-            continue; // tenta o próximo modelo
-          }
-
-          if (response.status === 404) {
-            console.warn(`Modelo ${model} não encontrado, tentando próximo...`);
-            lastError = `Modelo ${model} não encontrado (404) — nome de modelo pode estar desatualizado.`;
-            attempts.push(lastError);
-            continue;
-          }
-
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error(`Erro ${model}:`, errorText);
-            lastError = `Modelo ${model} falhou (${response.status}): ${errorText.slice(0, 300)}`;
-            attempts.push(lastError);
-            continue;
-          }
-
-          console.log(`Sucesso com modelo: ${model}`);
-          return response.json();
-        } catch (e: any) {
-          console.error(`Exceção com ${model}:`, e.message);
-          lastError = `Modelo ${model} lançou exceção: ${e.message}`;
-          attempts.push(lastError);
-          continue;
-        }
+        throw new Error(`Falha na IA (${response.status}): ${errorText.slice(0, 300)}`);
       }
-
-      // Todos os modelos falharam — mensagem amigável para o usuário final,
-      // mas com o detalhe de CADA tentativa (não só a última) pra facilitar
-      // o diagnóstico real da causa (cota vs. modelo inválido vs. chave).
-      throw new Error(
-        'Nosso cérebro está descansando! 🧠💤 Muitas consultas foram feitas em pouco tempo, ou há um problema de configuração. ' +
-        'Aguarde 1 minuto e tente novamente. Detalhes: [' + attempts.join(' | ') + ']'
-      );
+      return response.json();
     };
 
-    // ── Primeira chamada ──
-    let geminiData = await callGemini(geminiContents);
-    let candidate = geminiData.candidates?.[0]?.content;
-    let parts = candidate?.parts || [];
-
-    const functionCallPart = parts.find((p: any) => p.functionCall);
-
-    if (functionCallPart) {
-      const functionName = functionCallPart.functionCall.name;
-      console.log(`Tool chamada: ${functionName}`);
-
-      let toolResult: any = {};
-
+    const runTool = async (functionName: string): Promise<any> => {
       switch (functionName) {
         case 'get_financial_kpis':
-          toolResult = await executeGetFinancialKpis(supabaseClient);
-          break;
+          return await executeGetFinancialKpis(supabaseClient);
         case 'get_sales_summary':
-          toolResult = await executeGetSalesSummary(supabaseClient);
-          break;
+          return await executeGetSalesSummary(supabaseClient);
         case 'get_inventory_status':
-          toolResult = await executeGetInventoryStatus(supabaseClient);
-          break;
+          return await executeGetInventoryStatus(supabaseClient);
         case 'get_debtors':
-          toolResult = await executeGetDebtors(supabaseClient);
-          break;
+          return await executeGetDebtors(supabaseClient);
         default:
-          toolResult = { error: `Ferramenta desconhecida: ${functionName}` };
+          return { error: `Ferramenta desconhecida: ${functionName}` };
       }
+    };
 
-      const updatedContents = [
-        ...geminiContents,
-        { role: "model", parts: [{ functionCall: functionCallPart.functionCall }] },
-        { role: "user", parts: [{ functionResponse: { name: functionName, response: toolResult } }] }
-      ];
+    // ── Primeira chamada (com ferramentas) ──
+    let data = await callOpenAI(chatMessages, true);
+    let choice = data.choices?.[0]?.message;
+    const toolCalls = choice?.tool_calls;
 
-      geminiData = await callGemini(updatedContents, false);
-      candidate = geminiData.candidates?.[0]?.content;
-      parts = candidate?.parts || [];
+    if (Array.isArray(toolCalls) && toolCalls.length > 0) {
+      // Anexa a mensagem do assistente (com os tool_calls) e as respostas.
+      const followUp: any[] = [...chatMessages, choice];
+      for (const tc of toolCalls) {
+        const fnName = tc.function?.name;
+        console.log(`Tool chamada: ${fnName}`);
+        const toolResult = await runTool(fnName);
+        followUp.push({
+          role: 'tool',
+          tool_call_id: tc.id,
+          content: JSON.stringify(toolResult),
+        });
+      }
+      // Segunda volta: sem ferramentas, para forçar a resposta textual final.
+      data = await callOpenAI(followUp, false);
+      choice = data.choices?.[0]?.message;
     }
 
-    const textPart = parts.find((p: any) => p.text);
-    const finalText = textPart?.text || "Desculpe, não consegui processar essa informação.";
+    const finalText = choice?.content || "Desculpe, não consegui processar essa informação.";
     const sources = knowledgeRows.map((row: any) => row.title);
 
     if (lastUserMessage) {

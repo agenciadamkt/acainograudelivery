@@ -1,5 +1,10 @@
-// Minimal Resilient OCR Function
-// Using Deno.serve (Native) for maximum stability
+// OCR de comprovantes via OpenAI (GPT-4o-mini com visão).
+// Substitui o Gemini (limites de free tier instáveis). Mesmo contrato de saída:
+//   { success: true, data: { amount, date, payer_name, tid, bank, type } }
+//
+// Secret necessária: OPENAI_API_KEY
+// Deploy: supabase functions deploy ocr-receipt
+
 Deno.serve(async (req) => {
     const corsHeaders = {
         'Access-Control-Allow-Origin': '*',
@@ -11,113 +16,81 @@ Deno.serve(async (req) => {
         return new Response('ok', { headers: corsHeaders });
     }
 
-    try {
-        console.log(`[OCR] New Request: ${req.method} ${new Date().toISOString()}`);
+    const json = (b: unknown, s = 200) =>
+        new Response(JSON.stringify(b), { status: s, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
+    try {
         let body;
         try {
             body = await req.json();
-        } catch (e) {
+        } catch (_e) {
             throw new Error('Corpo da requisição JSON inválido.');
         }
 
         if (body.ping) {
-            return new Response(
-                JSON.stringify({ success: true, message: 'IA Online e Respondendo!' }),
-                { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
+            return json({ success: true, message: 'IA Online e Respondendo!' });
         }
 
-        const apiKey = Deno.env.get('GEMINI_API_KEY');
-        if (!apiKey) throw new Error('GEMINI_API_KEY não configurada.');
+        const apiKey = Deno.env.get('OPENAI_API_KEY');
+        if (!apiKey) throw new Error('OPENAI_API_KEY não configurada.');
 
         const { fileBase64, contentType } = body;
         if (!fileBase64) throw new Error('Dados da imagem não recebidos.');
 
-        // 5. Google Gemini API Call (Using ALIAS gemini-flash-latest)
-        const prompt = `Analise este comprovante e extraia os dados em JSON puro.
-        Retorne exatamente este formato:
-        {
-            "amount": número,
-            "date": "YYYY-MM-DD",
-            "payer_name": "string",
-            "tid": "string",
-            "bank": "string",
-            "type": "PIX" | "TED" | "TRANSFERENCIA"
-        }
-        Retorne apenas o objeto JSON, sem markdown ou explicações.`;
+        const mime = contentType || 'image/jpeg';
+        const dataUrl = `data:${mime};base64,${fileBase64}`;
 
-        const modelName = 'gemini-flash-latest';
-        const targetUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+        const prompt = `Você é um extrator de dados de comprovantes de pagamento/transferência bancária (PIX, TED, transferência).
+Analise a imagem e responda APENAS um objeto JSON com exatamente estas chaves:
+{
+  "amount": número (valor da transação, use ponto decimal, sem símbolo de moeda),
+  "date": "YYYY-MM-DD" (data da transação),
+  "payer_name": "nome de quem pagou/enviou",
+  "tid": "identificador da transação / TID / código de autenticação",
+  "bank": "banco ou instituição",
+  "type": "PIX" ou "TED" ou "TRANSFERENCIA"
+}
+Se algum campo não for encontrado, use string vazia (ou 0 para amount). Não invente dados.`;
 
-        console.log(`[OCR] Using Model: ${modelName}`);
-
-        const response = await fetch(targetUrl, {
+        const resp = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                contents: [{
-                    parts: [
-                        { text: prompt },
-                        {
-                            inlineData: {
-                                mimeType: contentType || "image/jpeg",
-                                data: fileBase64
-                            }
-                        }
-                    ]
+                model: 'gpt-4o-mini',
+                messages: [{
+                    role: 'user',
+                    content: [
+                        { type: 'text', text: prompt },
+                        { type: 'image_url', image_url: { url: dataUrl, detail: 'high' } },
+                    ],
                 }],
-                generationConfig: {
-                    temperature: 0.1,
-                    maxOutputTokens: 1024
-                }
-            })
+                response_format: { type: 'json_object' },
+                temperature: 0.1,
+                max_tokens: 500,
+            }),
         });
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error(`[OCR] Google API Error (${response.status}):`, errorText);
-            return new Response(
-                JSON.stringify({
-                    success: false,
-                    error: `Google API Error ${response.status}`,
-                    details: errorText
-                }),
-                { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
+        if (!resp.ok) {
+            const errText = await resp.text();
+            console.error(`[OCR] OpenAI erro (${resp.status}):`, errText);
+            return json({ success: false, error: `OpenAI Error ${resp.status}`, details: errText }, resp.status);
         }
 
-        const result = await response.json();
-        const responseText = result.candidates?.[0]?.content?.parts?.[0]?.text;
-
-        if (!responseText) {
-            throw new Error('A IA não retornou dados. Tente uma imagem mais nítida.');
-        }
-
-        // Clean up JSON response (in case AI adds markdown block)
-        let cleanJson = responseText.trim();
-        if (cleanJson.startsWith('```')) {
-            cleanJson = cleanJson.replace(/```json|```/g, '').trim();
-        }
+        const result = await resp.json();
+        const responseText = result.choices?.[0]?.message?.content;
+        if (!responseText) throw new Error('A IA não retornou dados. Tente uma imagem mais nítida.');
 
         let extractedData;
         try {
-            extractedData = JSON.parse(cleanJson);
-        } catch (e) {
-            console.error('[OCR] JSON Parse Error:', cleanJson);
+            extractedData = JSON.parse(responseText);
+        } catch (_e) {
+            console.error('[OCR] JSON Parse Error:', responseText);
             throw new Error('Falha ao processar os dados extraídos pela IA.');
         }
 
-        return new Response(
-            JSON.stringify({ success: true, data: extractedData }),
-            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-
+        return json({ success: true, data: extractedData });
     } catch (error: any) {
         console.error('[OCR] Error:', error.message);
-        return new Response(
-            JSON.stringify({ success: false, error: error.message }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        return json({ success: false, error: error.message }, 500);
     }
 });
