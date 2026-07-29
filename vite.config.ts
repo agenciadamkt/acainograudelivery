@@ -47,7 +47,7 @@ export default defineConfig(({ mode }) => ({
       },
       workbox: {
         importScripts: ['/sw-custom.js'], // Import custom logic
-        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
+        maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         skipWaiting: true, // FORCE immediate activation - critical for updates
