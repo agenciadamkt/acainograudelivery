@@ -62,6 +62,7 @@ export function BatchOCRDialog({ open, onOpenChange, onSuccess }: BatchOCRDialog
     const [isProcessing, setIsProcessing] = useState(false);
     const [globalAccountId, setGlobalAccountId] = useState('');
     const [globalDCId, setGlobalDCId] = useState('');
+    const [globalType, setGlobalType] = useState('write_off'); // Baixa de Título (padrão) | Venda | Outros
     const fileInputRef = useRef<HTMLInputElement>(null);
     const queryClient = useQueryClient();
 
@@ -145,10 +146,14 @@ export function BatchOCRDialog({ open, onOpenChange, onSuccess }: BatchOCRDialog
                 }
             }
 
-            if (status === 429 && attempt < 3) {
-                const retryDelay = 15000;
+            // Re-tenta em erros de capacidade do Google: 429 (limite) e 503 (sobrecarga).
+            const retriable = status === 429 || status === 503;
+            if (retriable && attempt < 3) {
+                // 429 precisa de espera maior; 503 costuma sumir rápido → backoff crescente (8s, 16s).
+                const retryDelay = status === 429 ? 15000 : attempt * 8000;
+                const motivo = status === 429 ? 'Limite do Google atingido' : 'Google sobrecarregado (503)';
                 setItems(prev => prev.map(i =>
-                    i.id === item.id ? { ...i, status: 'error', error: `Limite do Google atingido. Aguardando 15s para tentar novamente... (Tentativa ${attempt}/3)` } : i
+                    i.id === item.id ? { ...i, status: 'error', error: `${motivo}. Aguardando ${retryDelay / 1000}s para tentar novamente... (Tentativa ${attempt}/3)` } : i
                 ));
                 await new Promise(resolve => setTimeout(resolve, retryDelay));
                 return processItemWithRetry(item, attempt + 1);
@@ -311,7 +316,7 @@ export function BatchOCRDialog({ open, onOpenChange, onSuccess }: BatchOCRDialog
                     created_by_email: user.email,
                     description: `PAGADOR: ${d.payer_name}\nBANCO: ${d.bank}\nTID: ${d.tid}`.trim(),
                     evidence_url: d.evidence_url,
-                    transaction_type: 'write_off', // Default for receipts
+                    transaction_type: globalType, // Baixa de Título | Venda | Outros (selecionado no topo)
                     status: 'pending'
                 };
             });
@@ -440,14 +445,26 @@ export function BatchOCRDialog({ open, onOpenChange, onSuccess }: BatchOCRDialog
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-purple-50/50 dark:bg-purple-900/5 p-4 rounded-xl border border-purple-100 dark:border-purple-500/10 mb-4">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-purple-50/50 dark:bg-purple-900/5 p-4 rounded-xl border border-purple-100 dark:border-purple-500/10 mb-4">
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider">Tipo (Para todos)</label>
+                                    <select
+                                        value={globalType}
+                                        onChange={(e) => setGlobalType(e.target.value)}
+                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                    >
+                                        <option value="write_off">Baixa de Título</option>
+                                        <option value="sale">Venda</option>
+                                        <option value="other">Outros</option>
+                                    </select>
+                                </div>
                                 <div className="space-y-1">
                                     <label className="text-[10px] font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider">Conta Financeira (Para todos)</label>
                                     <AccountSelect value={globalAccountId} onChange={setGlobalAccountId} />
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-[10px] font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider">Centro de Distribuição (Para todos)</label>
-                                    <DistributionCenterSelect value={globalDCId} onChange={setGlobalDCId} />
+                                    <DistributionCenterSelect value={globalDCId} onChange={setGlobalDCId} autoDefault />
                                 </div>
                             </div>
 

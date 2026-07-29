@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useStore } from '@/contexts/StoreContext';
 import {
     Command,
     CommandEmpty,
@@ -27,13 +28,41 @@ interface DistributionCenterSelectProps {
     onChange: (value: string) => void;
     placeholder?: string;
     disabled?: boolean;
+    /** Quando vazio, já vem setado com o CD da loja selecionada no topo (forms). */
+    autoDefault?: boolean;
+    /** Segue a loja do topo: ao trocar de loja, o CD acompanha (filtros). Manual continua permitido. */
+    followStore?: boolean;
 }
 
-export default function DistributionCenterSelect({ value, onChange, placeholder = 'Selecionar CD...', disabled = false }: DistributionCenterSelectProps) {
+export default function DistributionCenterSelect({ value, onChange, placeholder = 'Selecionar CD...', disabled = false, autoDefault = false, followStore = false }: DistributionCenterSelectProps) {
     const [open, setOpen] = useState(false);
     const [search, setSearch] = useState('');
     const queryClient = useQueryClient();
     const { data: franchiseeId } = useFranchiseeId();
+    const { currentStore } = useStore();
+
+    // Pré-seleciona o CD da loja do topo (só quando pedido e o campo está vazio).
+    const autoedRef = useRef(false);
+    useEffect(() => {
+        if (!autoDefault || autoedRef.current) return;
+        if (!value && currentStore?.distribution_center_id) {
+            autoedRef.current = true;
+            onChange(currentStore.distribution_center_id);
+        }
+    }, [autoDefault, value, currentStore?.distribution_center_id, onChange]);
+
+    // Filtros: acompanha a loja do topo — reajusta o CD sempre que a loja muda
+    // (entre trocas, a seleção manual é preservada).
+    const lastStoreRef = useRef<string | null>(null);
+    useEffect(() => {
+        if (!followStore) return;
+        const sid = currentStore?.id ?? null;
+        if (sid !== lastStoreRef.current) {
+            lastStoreRef.current = sid;
+            onChange(currentStore?.distribution_center_id ?? '');
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [followStore, currentStore?.id]);
 
     const { data: centers = [], isLoading } = useQuery({
         queryKey: ['distribution_centers'],

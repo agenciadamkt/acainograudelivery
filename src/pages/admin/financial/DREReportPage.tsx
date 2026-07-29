@@ -294,6 +294,7 @@ export default function DREReportPage() {
                 <div>
                     <label className="text-xs text-gray-500 dark:text-white/30 mb-1 block">Centro de Distribuição</label>
                     <DistributionCenterSelect
+                        followStore
                         value={selectedCD}
                         onChange={setSelectedCD}
                         placeholder="Todos os CDs"

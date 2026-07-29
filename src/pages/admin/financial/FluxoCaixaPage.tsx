@@ -69,6 +69,7 @@ import { ptBR } from 'date-fns/locale';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { addPdfBranding } from './utils/pdfBranding';
+import { addCarimbosNoFinal } from './utils/pdfCarimbos';
 
 export default function FluxoCaixaPage() {
     const [searchTerm, setSearchTerm] = useState('');
@@ -326,6 +327,9 @@ export default function FluxoCaixaPage() {
         doc.setFontSize(11);
         doc.setFont('helvetica', 'bold');
         doc.text(`TOTAL GERAL (${grandCount} registros): R$ ${grandTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 14, currentY);
+
+        // Carimbos no final — documento retrato → horizontais
+        await addCarimbosNoFinal(doc, currentY, { rotate: true });
 
         doc.save('fluxo-caixa-detalhado.pdf');
     };
@@ -876,6 +880,7 @@ export default function FluxoCaixaPage() {
                             <div>
                                 <span className="text-xs text-gray-500 mb-1 block">Centro de Distribuição</span>
                                 <DistributionCenterSelect
+                                    followStore
                                     value={selectedCD}
                                     onChange={setSelectedCD}
                                     placeholder="Todos os CDs"

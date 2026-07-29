@@ -209,7 +209,7 @@ export default function DetailedExpensesReportPage() {
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div className="md:col-span-1">
                         <label className="text-[10px] uppercase font-bold text-gray-400 mb-1 block tracking-wider">CD</label>
-                        <DistributionCenterSelect value={filterCD} onChange={setFilterCD} placeholder="Todos os CDs" />
+                        <DistributionCenterSelect followStore value={filterCD} onChange={setFilterCD} placeholder="Todos os CDs" />
                     </div>
                     <div>
                         <label className="text-[10px] uppercase font-bold text-gray-400 mb-1 block tracking-wider">Início</label>

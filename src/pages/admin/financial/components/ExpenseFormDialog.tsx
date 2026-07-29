@@ -230,6 +230,7 @@ export default function ExpenseFormDialog({ open, onOpenChange, record, onSucces
                                     <FormControl>
                                         <DistributionCenterSelect
                                             value={field.value}
+                                            autoDefault
                                             onChange={(val) => {
                                                 field.onChange(val);
                                                 // Reset cost center and chart when CD changes

@@ -14,6 +14,7 @@ import DistributionCenterSelect from './components/DistributionCenterSelect';
 import ExpenseFormDialog from './components/ExpenseFormDialog';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { addCarimbosNoFinal } from './utils/pdfCarimbos';
 import { addPdfBranding } from './utils/pdfBranding';
 import { useFranchiseeId } from '@/hooks/useFranchiseeId';
 import {
@@ -347,6 +348,9 @@ export default function ExpensesPage() {
         doc.setFont('helvetica', 'bold');
         doc.text(`TOTAL GERAL (${grandCount} lançamentos): ${formatBRL(grandTotal)}`, 14, currentY);
 
+        // Carimbos no final — documento retrato → horizontais
+        await addCarimbosNoFinal(doc, currentY, { rotate: true });
+
         doc.save(`despesas_detalhado_${dateStart}_${dateEnd}.pdf`);
     };
 
@@ -445,7 +449,7 @@ export default function ExpensesPage() {
                 {/* Filters */}
                 <div className="w-full">
                     <label className="text-xs text-gray-500 dark:text-white/30 mb-1 block">CD</label>
-                    <DistributionCenterSelect value={filterCD} onChange={setFilterCD} placeholder="Todos os CDs" />
+                    <DistributionCenterSelect followStore value={filterCD} onChange={setFilterCD} placeholder="Todos os CDs" />
                 </div>
                 <div>
                     <label className="text-xs text-gray-500 dark:text-white/30 mb-1 block">Tipo</label>

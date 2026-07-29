@@ -52,7 +52,7 @@ export default function CashFlowFilters({
                     {/* Distribution Center */}
                     <div className="space-y-2">
                         <Label className="text-xs text-gray-500 dark:text-white/40">CD (Centro de Distribuição)</Label>
-                        <DistributionCenterSelect value={filterCD} onChange={setFilterCD} placeholder="Todos os CDs" />
+                        <DistributionCenterSelect followStore value={filterCD} onChange={setFilterCD} placeholder="Todos os CDs" />
                     </div>
 
                     {/* Period Selection */}

@@ -24,6 +24,7 @@ import {
     BarChart3,
     CalendarRange,
     Banknote,
+    ReceiptText,
 } from 'lucide-react';
 import logoCircular from '@/assets/logo-circular.png';
 
@@ -35,6 +36,7 @@ const navItems = [
     { label: 'Fluxo Semanal', path: '/admin/financeiro/fluxo-semanal', icon: CalendarRange },
     { label: 'PixPag', path: '/admin/financeiro/lancamentos', icon: Receipt },
     { label: 'Contas a Receber', path: '/admin/financeiro/receber', icon: Banknote },
+    { label: 'Recibos', path: '/admin/financeiro/recibos', icon: ReceiptText },
     { label: 'Despesas', path: '/admin/financeiro/despesas', icon: Wallet },
     { label: 'DRE', path: '/admin/financeiro/dre', icon: BarChart3 },
     { label: 'Relatórios', path: '/admin/financeiro/relatorios', icon: FileBarChart },

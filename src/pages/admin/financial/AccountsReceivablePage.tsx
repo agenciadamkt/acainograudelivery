@@ -160,7 +160,7 @@ export default function AccountsReceivablePage() {
 
                 <div className="w-full">
                     <label className="text-xs text-gray-500 dark:text-white/30 mb-1 block">CD</label>
-                    <DistributionCenterSelect value={filterCD} onChange={setFilterCD} placeholder="Todos os CDs" />
+                    <DistributionCenterSelect followStore value={filterCD} onChange={setFilterCD} placeholder="Todos os CDs" />
                 </div>
                 <div>
                     <label className="text-xs text-gray-500 dark:text-white/30 mb-1 block">Status</label>

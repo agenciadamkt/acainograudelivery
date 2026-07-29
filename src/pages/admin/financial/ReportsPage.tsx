@@ -321,7 +321,7 @@ export default function ReportsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                     <label className="text-xs text-gray-500 dark:text-white/30 mb-1 block">Centro de Distribuição</label>
-                    <DistributionCenterSelect value={selectedCD} onChange={setSelectedCD} placeholder="Todos os CDs" />
+                    <DistributionCenterSelect followStore value={selectedCD} onChange={setSelectedCD} placeholder="Todos os CDs" />
                 </div>
                 <div>
                     <label className="text-xs text-gray-500 dark:text-white/30 mb-1 block">De</label>

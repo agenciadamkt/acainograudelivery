@@ -160,6 +160,7 @@ export default function AccountsReceivableFormDialog({ open, onOpenChange, recor
                                     <FormControl>
                                         <DistributionCenterSelect
                                             value={field.value || ''}
+                                            autoDefault
                                             onChange={field.onChange}
                                         />
                                     </FormControl>

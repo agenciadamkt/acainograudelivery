@@ -422,6 +422,7 @@ export default function FinancialDashboard() {
 
                     <div className="w-52">
                         <DistributionCenterSelect
+                            followStore
                             value={selectedCD}
                             onChange={setSelectedCD}
                             placeholder="Todos os CDs"

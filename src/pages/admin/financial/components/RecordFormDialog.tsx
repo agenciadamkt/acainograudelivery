@@ -363,6 +363,7 @@ export function RecordFormDialog({ open, onOpenChange, record, onSuccess, readOn
                                     <FormControl>
                                         <DistributionCenterSelect
                                             value={field.value}
+                                            autoDefault={!readOnly}
                                             onChange={field.onChange}
                                             disabled={readOnly}
                                         />

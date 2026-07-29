@@ -387,6 +387,7 @@ function FkCrudSection({
                         <div className="mb-2">
                             <label className="text-[11px] text-gray-400 dark:text-white/30 mb-1 block">Filtrar por CD</label>
                             <DistributionCenterSelect
+                                followStore
                                 value={filterCD}
                                 onChange={(v) => { setFilterCD(v); setFilterParent(''); }}
                                 placeholder="Todos os CDs"

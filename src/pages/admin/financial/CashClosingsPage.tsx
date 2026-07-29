@@ -284,6 +284,85 @@ export default function CashClosingsPage() {
             rightY += 5;
         });
 
+        // ── Carimbos (Financeiro + Conferido) no final — na horizontal, sem fundo ──
+        {
+            // Carrega o PNG, recorta só o conteúdo (tira a moldura clara e o branco em volta),
+            // gira 90° p/ ficar horizontal e mantém o fundo transparente (limpo).
+            const loadCarimbo = (url: string): Promise<{ data: string; w: number; h: number } | null> =>
+                new Promise((resolve) => {
+                    const img = new Image();
+                    img.crossOrigin = 'anonymous';
+                    img.onload = () => {
+                        try {
+                            const nw = img.naturalWidth || 600;
+                            const nh = img.naturalHeight || 600;
+                            const base = document.createElement('canvas');
+                            base.width = nw; base.height = nh;
+                            const bx = base.getContext('2d');
+                            if (!bx) { resolve(null); return; }
+                            bx.drawImage(img, 0, 0);
+
+                            // Detecta o "bounding box" do conteúdo (verde do logo + traços/textos escuros),
+                            // ignorando a moldura cinza-clara e o fundo branco/transparente.
+                            const px = bx.getImageData(0, 0, nw, nh).data;
+                            let minX = nw, minY = nh, maxX = -1, maxY = -1;
+                            for (let y = 0; y < nh; y++) {
+                                for (let x = 0; x < nw; x++) {
+                                    const i = (y * nw + x) * 4;
+                                    const r = px[i], g = px[i + 1], b = px[i + 2], a = px[i + 3];
+                                    if (a < 40) continue;
+                                    const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+                                    const isGreen = g > 90 && g > r + 25 && g > b + 25;
+                                    const isDark = lum < 165;
+                                    if (isGreen || isDark) {
+                                        if (x < minX) minX = x; if (x > maxX) maxX = x;
+                                        if (y < minY) minY = y; if (y > maxY) maxY = y;
+                                    }
+                                }
+                            }
+
+                            let cropX = 0, cropY = 0, cropW = nw, cropH = nh;
+                            if (maxX >= minX && maxY >= minY) {
+                                const pad = Math.round(Math.min(nw, nh) * 0.03);
+                                cropX = Math.max(0, minX - pad);
+                                cropY = Math.max(0, minY - pad);
+                                cropW = Math.min(nw - cropX, maxX - minX + pad * 2);
+                                cropH = Math.min(nh - cropY, maxY - minY + pad * 2);
+                            }
+
+                            // Recorta e gira 90° horário (texto na horizontal)
+                            const out = document.createElement('canvas');
+                            out.width = cropH; out.height = cropW; // rotacionado
+                            const ox = out.getContext('2d');
+                            if (ox) {
+                                ox.translate(out.width, 0);
+                                ox.rotate(Math.PI / 2);
+                                ox.drawImage(base, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+                            }
+                            resolve({ data: out.toDataURL('image/png'), w: out.width, h: out.height });
+                        } catch { resolve(null); }
+                    };
+                    img.onerror = () => resolve(null);
+                    img.src = url;
+                });
+
+            const stamps = await Promise.all(['/carimbo-financeiro.png', '/carimbo-conferido.png'].map(loadCarimbo));
+            const STAMP_H = 15; // mm (altura do carimbo já na horizontal; largura acompanha proporcional)
+            const GAP = 10;
+            const sized = stamps.filter(Boolean).map((s: any) => ({ ...s, dw: (s.w / s.h) * STAMP_H }));
+            if (sized.length > 0) {
+                const totalW = sized.reduce((sum, s) => sum + s.dw, 0) + GAP * (sized.length - 1);
+                // Fixa no rodapé (base da página); se o conteúdo chegar até lá, abre nova página.
+                let stampY = PH - 12 - STAMP_H;
+                if (stampY < currentY + 6) { doc.addPage(); stampY = PH - 12 - STAMP_H; }
+                let sx = PW - 14 - totalW; // alinhado à direita
+                for (const s of sized) {
+                    doc.addImage(s.data, 'PNG', sx, stampY, s.dw, STAMP_H, undefined, 'FAST');
+                    sx += s.dw + GAP;
+                }
+            }
+        }
+
         // Rodapé
         currentY += 4;
         doc.setFontSize(7);
@@ -334,6 +413,7 @@ export default function CashClosingsPage() {
                         <div>
                             <label className="text-xs font-medium text-gray-500 dark:text-white/40 mb-1.5 block">Centro de Distribuição</label>
                             <DistributionCenterSelect
+                                followStore
                                 value={filterCD}
                                 onChange={setFilterCD}
                                 placeholder="Todos os CDs"

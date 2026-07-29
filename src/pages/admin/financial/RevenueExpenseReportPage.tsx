@@ -264,7 +264,7 @@ export default function RevenueExpenseReportPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                     <div>
                         <label className="text-xs font-medium text-gray-500 mb-1 block uppercase">CD</label>
-                        <DistributionCenterSelect value={filterCD} onChange={setFilterCD} placeholder="Todos os CDs" />
+                        <DistributionCenterSelect followStore value={filterCD} onChange={setFilterCD} placeholder="Todos os CDs" />
                     </div>
                     <div>
                         <label className="text-xs font-medium text-gray-500 mb-1 block uppercase">Início</label>

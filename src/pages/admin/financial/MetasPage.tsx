@@ -482,7 +482,7 @@ export default function MetasPage() {
                             </div>
                             <div>
                                 <label className="text-xs font-medium text-gray-600 dark:text-white/40 mb-1 block">Centro de Distribuição</label>
-                                <DistributionCenterSelect value={selectedCD} onChange={setSelectedCD} placeholder="Todos os CDs" />
+                                <DistributionCenterSelect followStore value={selectedCD} onChange={setSelectedCD} placeholder="Todos os CDs" />
                             </div>
                         </div>
 

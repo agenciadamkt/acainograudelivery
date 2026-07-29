@@ -353,6 +353,7 @@ export default function CashClosingFormDialog({ open, onOpenChange, editData, re
                                         <FormControl>
                                             <DistributionCenterSelect
                                                 value={field.value}
+                                                autoDefault={!readOnly}
                                                 onChange={field.onChange}
                                                 disabled={readOnly}
                                             />
