@@ -80,16 +80,16 @@ export class FocusNfeService {
     return this.request('POST', `/v2/${p}?ref=${encodeURIComponent(ref)}`, payload);
   }
 
-  // ── Consulta por ref ────────────────────────────────────────────────────────
+  // ── Consulta por ref (query param, conforme doc) ────────────────────────────
   consultar(tipo: FiscalTipo, ref: string) {
     const p = PATHS[tipo];
-    return this.request('GET', `/v2/${p}/${encodeURIComponent(ref)}`);
+    return this.request('GET', `/v2/${p}?ref=${encodeURIComponent(ref)}`);
   }
 
-  // ── Cancelamento por ref ────────────────────────────────────────────────────
+  // ── Cancelamento por ref (query param) ──────────────────────────────────────
   cancelar(tipo: FiscalTipo, ref: string, justificativa: string) {
     const p = PATHS[tipo];
-    return this.request('DELETE', `/v2/${p}/${encodeURIComponent(ref)}`, { justificativa });
+    return this.request('DELETE', `/v2/${p}?ref=${encodeURIComponent(ref)}`, { justificativa });
   }
 
   // ── Empresa (cadastro + certificado no mesmo endpoint) ──────────────────────

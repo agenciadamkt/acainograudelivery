@@ -17,7 +17,7 @@ export interface EmitInput {
   items: EmitItem[];
 }
 interface Base { ok: boolean; raw: any; status: number; endpoint: string; method: string; durationMs: number; error?: string; }
-export interface EmitResult extends Base { providerRef: string | null; docStatus: string; motivo?: string | null; sent?: any; }
+export interface EmitResult extends Base { providerRef: string | null; docStatus: string; motivo?: string | null; sent?: any; chave?: string | null; protocolo?: string | null; numero?: number | null; xmlUrl?: string | null; pdfUrl?: string | null; }
 export interface StatusResult extends Base { docStatus: string | null; chave?: string | null; protocolo?: string | null; numero?: number | null; xmlUrl?: string | null; pdfUrl?: string | null; motivo?: string | null; }
 export interface BinResult { ok: boolean; bytes: Uint8Array; contentType: string; status: number; endpoint: string; durationMs: number; error?: string; }
 
@@ -113,11 +113,26 @@ class FocusProvider implements FiscalProvider {
     if (i.destinatarioNome) payload.nome_destinatario = i.destinatarioNome;
 
     const res = await this.svc.emitir(i.tipo, i.ref, payload);
-    // Focus: 200/202 => aceito (processando). 422 => erro de validação.
+    // Focus: 200/201/202 => aceito. NFC-e é SÍNCRONA (a resposta já traz o status final);
+    // NF-e é assíncrona (fica processando). Rejeição da SEFAZ pode vir com 2xx + status de erro.
     const accepted = res.status === 200 || res.status === 201 || res.status === 202;
-    const st = normalizeFocus(res.data?.status);
-    return { ok: accepted, raw: res.data, sent: payload, status: res.status, endpoint: res.endpoint, method: res.method, durationMs: res.durationMs, error: res.error,
-      providerRef: i.ref, docStatus: accepted ? (st || 'PROCESSANDO') : 'ERRO', motivo: accepted ? null : (res.data?.mensagem || res.data?.erros?.[0]?.mensagem || res.error || JSON.stringify(res.data)) };
+    const d: any = res.data || {};
+    const st = normalizeFocus(d.status);
+    if (!accepted) {
+      return { ok: false, raw: res.data, sent: payload, status: res.status, endpoint: res.endpoint, method: res.method, durationMs: res.durationMs, error: res.error,
+        providerRef: i.ref, docStatus: 'ERRO', motivo: d.mensagem || d.erros?.[0]?.mensagem || res.error || JSON.stringify(res.data) };
+    }
+    // st pode ser AUTORIZADO (NFC-e síncrona), REJEITADO, ou PROCESSANDO (NF-e async / sem status)
+    const docStatus = st || 'PROCESSANDO';
+    const terminalAut = docStatus === 'AUTORIZADO';
+    return { ok: true, raw: res.data, sent: payload, status: res.status, endpoint: res.endpoint, method: res.method, durationMs: res.durationMs, error: res.error,
+      providerRef: i.ref, docStatus,
+      motivo: (docStatus === 'REJEITADO' || docStatus === 'ERRO') ? (d.mensagem_sefaz || d.mensagem || null) : null,
+      chave: terminalAut ? (d.chave_nfe || d.chave || null) : null,
+      protocolo: terminalAut ? (d.protocolo || d.numero_protocolo || null) : null,
+      numero: terminalAut && d.numero ? Number(d.numero) : null,
+      xmlUrl: terminalAut ? (d.caminho_xml_nota_fiscal || null) : null,
+      pdfUrl: terminalAut ? (d.caminho_danfe || null) : null };
   }
 
   async consultar(tipo: FiscalTipo, ref: string): Promise<StatusResult> {

@@ -121,13 +121,26 @@ serve(async (req) => {
       return json({ ok: false, documentId: doc.id, status: 'ERRO', motivo: result.motivo });
     }
 
-    await db.from('fiscal_documents').update({
-      status: 'PROCESSANDO', plugnotas_id: result.providerRef, payload_enviado: result.sent, payload_recebido: result.raw,
-      emitido_em: new Date().toISOString(), updated_at: new Date().toISOString(),
-    }).eq('id', doc.id);
-    await addEvent(db, doc.id, 'EMITIDO', `Enviado ao ${provider.name} (nº ${numero}/${serie.serie})`, { providerRef: result.providerRef });
+    // Status pode ser terminal já na emissão (NFC-e síncrona) ou PROCESSANDO (NF-e async / PlugNotas).
+    const finalStatus = result.docStatus;
+    const now = new Date().toISOString();
+    const patch: Record<string, unknown> = {
+      status: finalStatus, plugnotas_id: result.providerRef,
+      payload_enviado: result.sent, payload_recebido: result.raw, emitido_em: now, updated_at: now,
+    };
+    if (finalStatus === 'AUTORIZADO') {
+      patch.chave = result.chave ?? null;
+      patch.protocolo = result.protocolo ?? null;
+      if (result.numero != null) patch.numero = result.numero;
+      patch.xml_url = result.xmlUrl ?? null;
+      patch.pdf_url = result.pdfUrl ?? null;
+    } else if (finalStatus === 'REJEITADO' || finalStatus === 'ERRO') {
+      patch.motivo_rejeicao = result.motivo ?? null;
+    }
+    await db.from('fiscal_documents').update(patch).eq('id', doc.id);
+    await addEvent(db, doc.id, finalStatus === 'PROCESSANDO' ? 'EMITIDO' : finalStatus, `${provider.name} — nº ${numero}/${serie.serie} (${finalStatus})`, { providerRef: result.providerRef });
 
-    return json({ ok: true, documentId: doc.id, status: 'PROCESSANDO', plugnotas_id: result.providerRef });
+    return json({ ok: true, documentId: doc.id, status: finalStatus, plugnotas_id: result.providerRef });
   } catch (e) {
     return jsonError((e as Error).message, 500);
   }

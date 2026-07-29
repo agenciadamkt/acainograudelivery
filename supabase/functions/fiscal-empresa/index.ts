@@ -39,13 +39,14 @@ function buildEmpresaPayload(store: any) {
   };
 }
 
-// Payload de empresa da Focus NFe. (Schema afinado contra a doc no sandbox.)
+// Payload de empresa da Focus NFe. Obrigatórios (doc): razao_social, cnpj, inscricao_estadual, uf.
 function buildFocusEmpresa(store: any) {
   return {
-    nome: store.razao_social || store.name,
+    razao_social: store.razao_social || store.name,
     nome_fantasia: store.name,
-    inscricao_estadual: store.inscricao_estadual || undefined,
     cnpj: (store.cnpj || '').replace(/\D/g, ''),
+    inscricao_estadual: store.inscricao_estadual || undefined,
+    uf: store.state || undefined,
     regime_tributario: store.regime_tributario ? String(store.regime_tributario) : undefined,
     email: store.email || undefined,
     telefone: (store.phone || '').replace(/\D/g, '') || undefined,
@@ -53,7 +54,6 @@ function buildFocusEmpresa(store: any) {
     bairro: store.neighborhood || undefined,
     cep: (store.zip_code || '').replace(/\D/g, '') || undefined,
     municipio: store.city || undefined,
-    uf: store.state || undefined,
     codigo_municipio: store.codigo_municipio_ibge || undefined,
     habilita_nfce: true,
     habilita_nfe: true,
@@ -101,6 +101,7 @@ serve(async (req) => {
       const { data: store } = await db.from('stores').select('*').eq('id', storeId).single();
       if (!store) return jsonError('Loja não encontrada', 404);
       if (!store.cnpj) return jsonError('A loja precisa ter CNPJ preenchido (Dados da Loja).', 400);
+      if (isFocus && (!store.inscricao_estadual || !store.state)) return jsonError('Focus NFe exige Inscrição Estadual e UF da loja (Dados da Loja).', 400);
       const cnpj = (store.cnpj || '').replace(/\D/g, '');
 
       let res: any; let payload: any; let providerCompanyId: string;
