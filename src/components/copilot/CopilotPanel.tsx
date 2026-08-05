@@ -332,6 +332,14 @@ export default function CopilotPanel() {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const { isListening, transcript, startListening, stopListening } = useSpeechRecognition();
 
+    // Permite abrir o painel de fora (item "Pergunte à IA" na sidebar) sem
+    // acoplar os componentes: se ninguém despachar o evento, nada acontece.
+    useEffect(() => {
+        const abrir = () => setIsOpen(true);
+        window.addEventListener('grauos:copilot:open', abrir);
+        return () => window.removeEventListener('grauos:copilot:open', abrir);
+    }, []);
+
     // Retoma o histórico da sessão atual (mesma aba) ao abrir o painel pela
     // primeira vez — antes disso, F5 apagava a conversa mesmo ela já estando
     // salva em copilot_conversations.

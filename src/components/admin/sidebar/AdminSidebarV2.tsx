@@ -6,6 +6,7 @@ import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from '@/comp
 import { cn } from '@/lib/utils';
 import { useSidebarBadges } from '@/hooks/useSidebarBadges';
 import { useWorkspaceTabs } from '@/contexts/WorkspaceTabsContext';
+import { MODULE_MENUS, setActiveModule, type ModuleId } from '@/config/adminModules';
 import logoCircular from '@/assets/logo-circular.png';
 import logoGrauOS from '@/assets/logo-grauos.png';
 
@@ -39,7 +40,35 @@ export function AdminSidebarV2() {
   const badgeMap = useMemo<Record<string, BadgeConfig>>(() => ({
     '/admin/orders': { count: badgeData?.pending ?? 0, color: 'bg-red-500' },
     '/admin/kds': { count: badgeData?.kitchen ?? 0, color: 'bg-amber-500' },
+    '/admin/delivery': { count: badgeData?.delivery ?? 0, color: 'bg-blue-500' },
+    '/admin/feedback': { count: badgeData?.nps ?? 0, color: 'bg-violet-500' },
+    '/admin/orders/history': { count: badgeData?.supplyOrders ?? 0, color: 'bg-emerald-600' },
   }), [badgeData]);
+
+  // Alt+1..9 troca de módulo, na ordem de MODULE_MENUS. Não colide com os
+  // atalhos das abas (Ctrl+Tab, Ctrl+Shift+Tab, Ctrl+W, Alt+W, Ctrl+K).
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (!e.altKey || e.ctrlKey || e.metaKey) return;
+
+      // Não sequestrar o teclado enquanto o usuário digita.
+      const alvo = e.target as HTMLElement | null;
+      if (alvo?.closest('input, textarea, [contenteditable="true"]')) return;
+
+      const n = Number(e.key);
+      if (!Number.isInteger(n) || n < 1 || n > 9) return;
+
+      const modulos = Object.keys(MODULE_MENUS) as ModuleId[];
+      const alvoModulo = modulos[n - 1];
+      if (!alvoModulo) return;
+
+      e.preventDefault();
+      setActiveModule(alvoModulo);
+      navigate('/admin/hub');
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [navigate]);
 
   // Registra a tela atual em Recentes.
   const { pushRecent } = prefs;
