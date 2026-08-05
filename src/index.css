@@ -295,3 +295,34 @@ body:has([data-state="open"][role="alertdialog"]) {
 .frota-compact-tooltip::before {
   display: none !important;
 }
+/* Scrollbar da sidebar: some em repouso, aparece ao passar o mouse. */
+.sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.sidebar-scroll:hover {
+  scrollbar-color: hsl(var(--sidebar-border)) transparent;
+}
+.sidebar-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  border-radius: 3px;
+}
+.sidebar-scroll:hover::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--sidebar-border));
+}
+
+/* Acessibilidade: quem pediu menos movimento no sistema não recebe nenhum. */
+@media (prefers-reduced-motion: reduce) {
+  [data-sidebar] *,
+  [data-sidebar] {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

@@ -1,7 +1,9 @@
-import { ReactNode, useState, useRef, useEffect, createContext, useContext } from 'react';
+import { ReactNode, useState, useRef, useEffect, useCallback, createContext, useContext } from 'react';
 import { useLocation } from 'react-router-dom';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AdminSidebar } from './AdminSidebar';
+import { AdminSidebarV2 } from './sidebar/AdminSidebarV2';
+import { STORAGE, readBool, writeBool, hasKey } from './sidebar/prefsStorage';
 import { StoreSelector } from './StoreSelector';
 import { Button } from '@/components/ui/button';
 import { LogOut } from 'lucide-react';
@@ -60,6 +62,30 @@ function AdminLayoutContent({ children }: AdminLayoutProps) {
   const updateStore = useUpdateStore();
   const { isOpen, toggleManual } = useManual();
   const location = useLocation();
+
+  // ?sidebar=v2 liga a sidebar nova, ?sidebar=v1 volta à antiga; a escolha
+  // fica salva. Padrão: V1, até a V2 ser aprovada em produção.
+  const [usarV2] = useState(() => {
+    const escolha = new URLSearchParams(window.location.search).get('sidebar');
+    if (escolha === 'v2' || escolha === 'v1') {
+      writeBool(STORAGE.versionFlag, escolha === 'v2');
+    }
+    return readBool(STORAGE.versionFlag, false);
+  });
+
+  // O SidebarProvider é a fonte de verdade do estado recolhido — é ele que
+  // também decide o Sheet no mobile. Aqui ele é semeado do LocalStorage e
+  // persistido a cada mudança. Sem preferência salva, tablet (<1024px)
+  // começa recolhido; preferência explícita sempre vence o viewport.
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    if (hasKey(STORAGE.collapsed)) return !readBool(STORAGE.collapsed, false);
+    return window.innerWidth >= 1024;
+  });
+
+  const onSidebarOpenChange = useCallback((open: boolean) => {
+    setSidebarOpen(open);
+    writeBool(STORAGE.collapsed, !open);
+  }, []);
 
   // Ativar Web Push Notifications globalmente
   usePushNotifications(currentStore?.id);
@@ -315,9 +341,9 @@ function AdminLayoutContent({ children }: AdminLayoutProps) {
   }
 
   return (
-    <SidebarProvider>
+    <SidebarProvider open={sidebarOpen} onOpenChange={onSidebarOpenChange}>
       <div className="min-h-screen flex w-full">
-        <AdminSidebar />
+        {usarV2 ? <AdminSidebarV2 /> : <AdminSidebar />}
 
         <div className="flex-1 flex flex-col">
           <header className="h-14 border-b flex items-center justify-between px-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
