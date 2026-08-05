@@ -1,20 +1,16 @@
-/**
- * Operações 2.0 — Agenda do dia (M1).
- * Lista as tarefas (schedules) da unidade numa data, agrupadas por status, e
- * permite gerar a agenda a partir das rotinas. Clicar numa tarefa abre a execução.
- */
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { RefreshCw, AlertTriangle, ChevronRight, CalendarDays, CalendarRange } from 'lucide-react';
+import { RefreshCw, AlertTriangle, ChevronRight, CalendarDays, CalendarRange, Lock } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/contexts/PermissionContext';
 import { useAgenda, useGenerateAgenda, useGenerateAgendaMonth, type ScheduleTask } from '@/hooks/operations/useAgenda';
 import { STATUS_META, type TaskStatus } from '@/lib/operations/sla';
+import { toast } from 'sonner';
 
 const TONE_CLS: Record<string, string> = {
   neutral: 'bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-white/60',
@@ -77,18 +73,51 @@ function todayISO(): string {
 export default function AgendaPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { nivel } = usePermissions();
+  const nivelAgenda = nivel('cg.agenda');
+
   const [date, setDate] = useState(todayISO());
   const [onlyMine, setOnlyMine] = useState(false);
+
+  // Inicializa o filtro onlyMine de acordo com o nível do usuário
+  useEffect(() => {
+    if (nivelAgenda === 1) {
+      setOnlyMine(true);
+    }
+  }, [nivelAgenda]);
+
   const { data, isLoading } = useAgenda(date);
   const generate = useGenerateAgenda();
   const generateMonth = useGenerateAgendaMonth();
 
-  const tasks = (data ?? []).filter((t) => !onlyMine || t.responsible_user_id === user?.id);
+  if (nivelAgenda === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 py-24 text-muted-foreground">
+        <Lock className="h-10 w-10 opacity-30" />
+        <p className="text-sm font-medium">Sem permissão para acessar a Agenda operacional.</p>
+      </div>
+    );
+  }
+
+  const showOnlyMine = nivelAgenda === 1 || onlyMine;
+  const tasks = (data ?? []).filter((t) => !showOnlyMine || t.responsible_user_id === user?.id);
+
   const pendentes = tasks.filter((t) => t.liveStatus === 'PENDING' || t.liveStatus === 'IN_PROGRESS');
   const atrasadas = tasks.filter((t) => t.liveStatus === 'MISSED');
   const concluidas = tasks.filter((t) => t.liveStatus === 'COMPLETED' || t.liveStatus === 'LATE');
   const canceladas = tasks.filter((t) => t.liveStatus === 'CANCELLED');
-  const open = (id: string) => navigate(`/admin/checkgrau/tarefa/${id}`);
+
+  const open = (id: string) => {
+    const task = tasks.find(t => t.id === id);
+    if (!task) return;
+    
+    // Nível 1 e 2 só podem editar/executar as suas próprias agendas
+    if (nivelAgenda <= 2 && task.responsible_user_id !== user?.id) {
+      toast.error('Você não tem permissão para editar ou executar agendas de outros responsáveis.');
+      return;
+    }
+    navigate(`/admin/checkgrau/tarefa/${id}`);
+  };
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 p-4 md:p-8">
@@ -98,22 +127,29 @@ export default function AgendaPage() {
           <p className="text-sm text-gray-500 dark:text-white/40">Tarefas do dia geradas pelas rotinas.</p>
         </div>
         <div className="flex items-center gap-3">
-          <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-white/60">
-            <Switch checked={onlyMine} onCheckedChange={setOnlyMine} /> Só as minhas
-          </label>
+          {nivelAgenda > 1 && (
+            <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-white/60">
+              <Switch checked={onlyMine} onCheckedChange={setOnlyMine} /> Só as minhas
+            </label>
+          )}
           <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-[150px]" />
-          <Button
-            variant="outline" size="sm" className="gap-1.5"
-            onClick={() => generate.mutate(date)} disabled={generate.isPending || generateMonth.isPending}
-          >
-            <RefreshCw className={`h-4 w-4 ${generate.isPending ? 'animate-spin' : ''}`} /> Gerar dia
-          </Button>
-          <Button
-            size="sm" className="gap-1.5 bg-purple-600 hover:bg-purple-700"
-            onClick={() => generateMonth.mutate(date)} disabled={generate.isPending || generateMonth.isPending}
-          >
-            <CalendarRange className={`h-4 w-4 ${generateMonth.isPending ? 'animate-pulse' : ''}`} /> Gerar mês
-          </Button>
+          
+          {nivelAgenda >= 3 && (
+            <>
+              <Button
+                variant="outline" size="sm" className="gap-1.5"
+                onClick={() => generate.mutate(date)} disabled={generate.isPending || generateMonth.isPending}
+              >
+                <RefreshCw className={`h-4 w-4 ${generate.isPending ? 'animate-spin' : ''}`} /> Gerar dia
+              </Button>
+              <Button
+                size="sm" className="gap-1.5 bg-purple-600 hover:bg-purple-700"
+                onClick={() => generateMonth.mutate(date)} disabled={generate.isPending || generateMonth.isPending}
+              >
+                <CalendarRange className={`h-4 w-4 ${generateMonth.isPending ? 'animate-pulse' : ''}`} /> Gerar mês
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -123,7 +159,7 @@ export default function AgendaPage() {
         <Card className="border-gray-200 dark:border-white/[0.06] dark:bg-[#16161D]">
           <CardContent className="py-12 text-center text-sm text-gray-400">
             <CalendarDays className="mx-auto mb-2 h-8 w-8 opacity-40" />
-            Sem tarefas nesta data. Clique em <b>Gerar agenda</b> para materializar as rotinas do dia.
+            Sem tarefas nesta data. {nivelAgenda >= 3 && <span>Clique em <b>Gerar agenda</b> para materializar as rotinas do dia.</span>}
           </CardContent>
         </Card>
       ) : (

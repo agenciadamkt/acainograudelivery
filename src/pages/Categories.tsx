@@ -35,7 +35,23 @@ export default function Categories() {
         );
     }
 
-    if (!store) return null;
+    // Com a loja na raiz da URL, /qualquer-coisa/categories cai aqui — precisa
+    // do mesmo "Loja não encontrada" do StoreMenu em vez de uma tela em branco.
+    if (!store) {
+        return (
+            <div className="min-h-screen bg-background flex items-center justify-center p-6">
+                <div className="text-center">
+                    <h1 className="text-2xl font-bold mb-4">Loja não encontrada</h1>
+                    <p className="text-muted-foreground mb-6">
+                        A loja que você está procurando não existe ou está inativa.
+                    </p>
+                    <Button onClick={() => navigate('/')}>
+                        Voltar para início
+                    </Button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-background pb-8">
@@ -67,7 +83,7 @@ export default function Categories() {
                     {categories?.filter(cat => cat.store_id === store.id).map((category) => (
                         <button
                             key={category.id}
-                            onClick={() => navigate(`/delivery/${slug}?category=${category.id}`)}
+                            onClick={() => navigate(`/${slug}?category=${category.id}`)}
                             className="flex flex-col items-center gap-3 group"
                         >
                             <div className="w-24 h-24 relative flex items-center justify-center">

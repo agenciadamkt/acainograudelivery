@@ -51,7 +51,7 @@ export default function OrderConfirmation() {
   }, [order]);
 
   const getCorrectRoute = () => {
-    return storeSlug ? `/delivery/${storeSlug}` : '/menu';
+    return storeSlug ? `/${storeSlug}` : '/menu';
   };
 
   if (isLoading) {

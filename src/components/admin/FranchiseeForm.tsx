@@ -16,11 +16,27 @@ import { useUpdateStore, type Store } from '@/hooks/useStores';
 import { useUpdateFranchiseeUser } from '@/hooks/useUpdateFranchiseeUser';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { isReservedSlug } from '@/lib/reservedSlugs';
 
 const storeSchema = z.object({
   // Loja
   storeName: z.string().trim().min(3, 'Nome da loja deve ter no mínimo 3 caracteres'),
-  slug: z.string().trim().min(3, 'Slug deve ter no mínimo 3 caracteres'),
+  // O slug vira o caminho público da loja na raiz do domínio de delivery
+  // (delivery.acainograu.com.br/gurupi), então precisa ser seguro numa URL e
+  // não pode colidir com as rotas fixas do app.
+  slug: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .min(3, 'Slug deve ter no mínimo 3 caracteres')
+    .regex(
+      /^[a-z0-9]+(-[a-z0-9]+)*$/,
+      'Use apenas letras minúsculas, números e hífen (ex: acai-gurupi)'
+    )
+    .refine(
+      (value) => !isReservedSlug(value),
+      'Este slug é reservado pelo sistema. Escolha outro (ex: acai-gurupi).'
+    ),
   zipcode: z.string().trim().min(8, 'CEP inválido'),
   street: z.string().trim().min(3, 'Rua é obrigatória'),
   addressNumber: z.string().trim().min(1, 'Número é obrigatório'),

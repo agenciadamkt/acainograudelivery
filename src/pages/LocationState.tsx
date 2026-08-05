@@ -35,7 +35,7 @@ const LocationState = () => {
     // We check for slug to ensure it's a valid loaded store
     if (currentStore?.slug) {
       console.log("Redirecting to saved store:", currentStore.name);
-      navigate(`/delivery/${currentStore.slug}`);
+      navigate(`/${currentStore.slug}`);
     }
   }, [currentStore, navigate]);
 

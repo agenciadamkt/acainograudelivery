@@ -255,7 +255,7 @@ const LocationCity = () => {
                             // Salvar cidade e estado, mesmo sem CEP completo
                             localStorage.setItem("selectedCity", city);
                             localStorage.setItem("selectedState", state);
-                            navigate(`/delivery/${store.slug}`);
+                            navigate(`/${store.slug}`);
                           }}
                         >
                           <div className="flex items-center gap-3">

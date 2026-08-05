@@ -39,22 +39,38 @@ export default function CategoriesPage() {
   const [editingCategory, setEditingCategory] = useState<Category | undefined>();
   const [deletingCategory, setDeletingCategory] = useState<Category | undefined>();
 
+  // As mutations já avisam o usuário pelo toast em onError. Sem o catch, a
+  // rejeição do mutateAsync escapa pelo handleSubmit do react-hook-form e vira
+  // um "unhandledrejection" global — mantemos o diálogo aberto para o usuário
+  // corrigir e tentar de novo.
   const handleCreate = async (data: any) => {
-    await createCategory.mutateAsync(data);
-    setIsDialogOpen(false);
+    try {
+      await createCategory.mutateAsync(data);
+      setIsDialogOpen(false);
+    } catch {
+      /* erro já reportado via toast */
+    }
   };
 
   const handleUpdate = async (data: any) => {
     if (editingCategory) {
-      await updateCategory.mutateAsync({ id: editingCategory.id, ...data });
-      setEditingCategory(undefined);
-      setIsDialogOpen(false);
+      try {
+        await updateCategory.mutateAsync({ id: editingCategory.id, ...data });
+        setEditingCategory(undefined);
+        setIsDialogOpen(false);
+      } catch {
+        /* erro já reportado via toast */
+      }
     }
   };
 
   const handleDelete = async () => {
     if (deletingCategory) {
-      await deleteCategory.mutateAsync(deletingCategory.id);
+      try {
+        await deleteCategory.mutateAsync(deletingCategory.id);
+      } catch {
+        /* erro já reportado via toast */
+      }
       setDeletingCategory(undefined);
     }
   };

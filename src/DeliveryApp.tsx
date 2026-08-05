@@ -74,8 +74,6 @@ export default function DeliveryApp() {
                     <Route path="/store-result" element={<StoreResult />} />
                     <Route path="/stores" element={<Stores />} />
                     <Route path="/menu" element={<Menu />} />
-                    <Route path="/delivery/:slug" element={<StoreMenu />} />
-                    <Route path="/delivery/:slug/categories" element={<Categories />} />
                     <Route path="/product/:id" element={<ProductDetail />} />
                     <Route path="/cart" element={<Cart />} />
                     <Route path="/install" element={<Install />} />
@@ -94,6 +92,14 @@ export default function DeliveryApp() {
 
                     {/* Rastreamento — rota pública (vem de e-mail/WhatsApp) */}
                     <Route path="/tracking/:orderId" element={<OrderTracking />} />
+
+                    {/* Loja do franqueado na raiz: /gurupi. Fica por último por
+                        clareza — o React Router prioriza as rotas estáticas
+                        acima independentemente da ordem. Slugs que colidiriam
+                        com elas são bloqueados no cadastro (ver lib/reservedSlugs).
+                        Slug inexistente cai no "Loja não encontrada" do StoreMenu. */}
+                    <Route path="/:slug" element={<StoreMenu />} />
+                    <Route path="/:slug/categories" element={<Categories />} />
                   </Routes>
                 </CartProvider>
               </StoreProvider>

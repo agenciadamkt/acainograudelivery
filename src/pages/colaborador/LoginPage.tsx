@@ -94,7 +94,7 @@ export default function CollaboratorLoginPage() {
             <ShieldCheck className="h-8 w-8" />
           </div>
           <h1 className="mt-4 text-2xl font-bold text-gray-900 dark:text-white">
-            Check<span className="text-purple-600">Grau</span>
+            CheckNo<span className="text-purple-600">Grau</span>
           </h1>
           <p className="mt-1 text-sm text-gray-500 dark:text-white/50">Acesso do colaborador</p>
         </div>

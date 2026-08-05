@@ -51,7 +51,7 @@ export default function CheckGrauLayout() {
 
   const currentTitle = navItems.find(
     (item) => (item.end ? location.pathname === item.path : location.pathname.startsWith(item.path)),
-  )?.label || 'CheckGrau';
+  )?.label || 'CheckNoGrau';
 
   const handleLogout = async () => { await signOut(); navigate('/admin/login'); };
 
@@ -63,7 +63,7 @@ export default function CheckGrauLayout() {
         <ShieldCheck className="h-4.5 w-4.5" />
       </div>
       <span className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">
-        Check<span className="text-[#7C3AED]">Grau</span>
+        CheckNo<span className="text-[#7C3AED]">Grau</span>
       </span>
     </div>
   );
@@ -178,7 +178,7 @@ export default function CheckGrauLayout() {
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 text-sm font-bold text-white shadow-sm">{userInitial}</div>
               <div className="text-right">
                 <p className="text-sm font-medium leading-tight text-gray-900 dark:text-white">{userName}</p>
-                <p className="text-[11px] text-gray-400 dark:text-white/30">CheckGrau</p>
+                <p className="text-[11px] text-gray-400 dark:text-white/30">CheckNoGrau</p>
               </div>
             </div>
           </header>

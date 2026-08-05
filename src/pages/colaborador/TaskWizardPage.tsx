@@ -1,16 +1,10 @@
-/**
- * CheckGrau App — Execução passo-a-passo (Bloco 2, modelo aprovado telas 3 e 4).
- * Uma pergunta por tela, barra de progresso e navegação Anterior/Próximo. Grava
- * respostas + evidências e finaliza levando à tela de conclusão.
- */
-
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, ChevronLeft, ChevronRight, CheckCircle2, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { useTask, useCompleteTask, type ChecklistItem, type ItemAnswer } from '@/hooks/operations/useTaskExecution';
+import { useTask, useCompleteTask, useSaveAnswer, type ChecklistItem, type ItemAnswer } from '@/hooks/operations/useTaskExecution';
 import { useCollaborator } from '@/contexts/CollaboratorContext';
 import { enqueueCompletion } from '@/lib/offline/completionQueue';
 import { WizardItemField } from './_components/WizardItemField';
@@ -39,19 +33,86 @@ export default function TaskWizardPage() {
   const navigate = useNavigate();
   const { data: task, isLoading } = useTask(scheduleId);
   const completeTask = useCompleteTask();
+  const saveAnswer = useSaveAnswer();
   const { collaborator, selectedStore, stores } = useCollaborator();
 
   const [index, setIndex] = useState(0);
   const [dir, setDir] = useState(1);
   const [answers, setAnswers] = useState<Record<string, ItemAnswer>>({});
   const [notes] = useState('');
-  const setAnswer = (id: string, a: ItemAnswer) => setAnswers((p) => ({ ...p, [id]: { ...p[id], ...a } }));
+  const [syncState, setSyncState] = useState<'saved' | 'saving' | 'error'>('saved');
+  const [lastSyncTime, setLastSyncTime] = useState<string>('');
+  const [indexSet, setIndexSet] = useState(false);
 
   const items = task?.items ?? [];
   const total = items.length;
   const current = items[index];
   const percent = total > 0 ? Math.floor(((index + 1) / total) * 100) : 0;
   const isLast = index >= total - 1;
+
+  // Efeito para carregar as respostas existentes do banco + draft do localStorage
+  useEffect(() => {
+    if (task?.execution?.id) {
+      const dbAnswers = task.execution.answers || {};
+      const localDraftStr = localStorage.getItem(`cg_draft_${task.execution.id}`);
+      const localDraft = localDraftStr ? JSON.parse(localDraftStr) : {};
+      
+      const mergedAnswers = { ...dbAnswers, ...localDraft };
+      setAnswers(mergedAnswers);
+    }
+  }, [task?.execution?.id, task?.execution?.answers]);
+
+  // Efeito para ir direto para a primeira incompleta ao carregar
+  useEffect(() => {
+    if (task && !isLoading && !indexSet && items.length > 0) {
+      const dbAnswers = task.execution?.answers || {};
+      const localDraftStr = localStorage.getItem(`cg_draft_${task.execution.id}`);
+      const localDraft = localDraftStr ? JSON.parse(localDraftStr) : {};
+      const mergedAnswers = { ...dbAnswers, ...localDraft };
+
+      const firstInc = items.findIndex((it) => !isComplete(it, mergedAnswers[it.id]));
+      if (firstInc !== -1) {
+        setIndex(firstInc);
+      }
+      setIndexSet(true);
+    }
+  }, [task, isLoading, indexSet, items]);
+
+  const handleAnswerChange = async (itemId: string, partial: ItemAnswer) => {
+    const item = items.find((it) => it.id === itemId);
+    if (!item || !task?.execution?.id) return;
+
+    const currentAnswer = answers[itemId] ?? {};
+    const updatedAnswer = { ...currentAnswer, ...partial };
+    
+    // Atualiza local state
+    const nextAnswers = { ...answers, [itemId]: updatedAnswer };
+    setAnswers(nextAnswers);
+
+    // Salva no localStorage como backup imediato
+    localStorage.setItem(`cg_draft_${task.execution.id}`, JSON.stringify(nextAnswers));
+
+    // Auto save no Supabase se estiver online
+    if (navigator.onLine) {
+      setSyncState('saving');
+      try {
+        await saveAnswer.mutateAsync({
+          executionId: task.execution.id,
+          itemId,
+          answer: updatedAnswer,
+          itemType: item.type,
+          itemConfig: { min_value: item.min_value, max_value: item.max_value },
+        });
+        setSyncState('saved');
+        setLastSyncTime(new Date().toLocaleTimeString('pt-BR'));
+      } catch (err) {
+        console.error('Auto save error:', err);
+        setSyncState('error');
+      }
+    } else {
+      setSyncState('saved'); // Offline: consideramos "salvo" no localStorage local
+    }
+  };
 
   const firstIncomplete = useMemo(
     () => items.findIndex((it) => !isComplete(it, answers[it.id])),
@@ -136,6 +197,28 @@ export default function TaskWizardPage() {
             <span>Pergunta {Math.min(index + 1, total)} de {total}</span>
             <span>{percent}%</span>
           </div>
+
+          <div className="mt-2 flex items-center gap-1.5 text-[11px]">
+            {syncState === 'saving' && (
+              <span className="flex items-center gap-1 text-amber-500 font-semibold animate-pulse">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-ping" />
+                Salvando...
+              </span>
+            )}
+            {syncState === 'saved' && (
+              <span className="flex items-center gap-1 text-green-600 font-semibold">
+                <span className="h-1.5 w-1.5 rounded-full bg-green-600" />
+                Alterações salvas {lastSyncTime && `(Sincronizado: ${lastSyncTime})`}
+              </span>
+            )}
+            {syncState === 'error' && (
+              <span className="flex items-center gap-1 text-red-500 font-semibold">
+                <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                Erro ao salvar rascunho.
+              </span>
+            )}
+          </div>
+
           <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-white/10">
             <motion.div className="h-full rounded-full bg-[#7C3AED]" animate={{ width: `${percent}%` }} transition={{ type: 'spring', stiffness: 120, damping: 20 }} />
           </div>
@@ -164,7 +247,7 @@ export default function TaskWizardPage() {
                   answer={answers[current.id] ?? {}}
                   executionId={task.execution!.id}
                   index={index + 1}
-                  onChange={(p) => setAnswer(current.id, p)}
+                  onChange={(p) => handleAnswerChange(current.id, p)}
                 />
               </motion.div>
             </AnimatePresence>

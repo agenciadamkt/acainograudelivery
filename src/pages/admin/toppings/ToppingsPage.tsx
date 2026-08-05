@@ -65,42 +65,66 @@ export default function ToppingsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
   const handleCreateTopping = async (data: any) => {
-    await createTopping.mutateAsync(data);
-    setIsToppingDialogOpen(false);
+    try {
+      await createTopping.mutateAsync(data);
+      setIsToppingDialogOpen(false);
+    } catch (err) {
+      console.error('Error creating topping:', err);
+    }
   };
 
   const handleUpdateTopping = async (data: any) => {
     if (editingTopping) {
-      await updateTopping.mutateAsync({ id: editingTopping.id, ...data });
-      setEditingTopping(undefined);
-      setIsToppingDialogOpen(false);
+      try {
+        await updateTopping.mutateAsync({ id: editingTopping.id, ...data });
+        setEditingTopping(undefined);
+        setIsToppingDialogOpen(false);
+      } catch (err) {
+        console.error('Error updating topping:', err);
+      }
     }
   };
 
   const handleDeleteTopping = async () => {
     if (deletingTopping) {
-      await deleteTopping.mutateAsync(deletingTopping.id);
-      setDeletingTopping(undefined);
+      try {
+        await deleteTopping.mutateAsync(deletingTopping.id);
+        setDeletingTopping(undefined);
+      } catch (err) {
+        console.error('Error deleting topping:', err);
+      }
     }
   };
 
   const handleCreateCategory = async (data: any) => {
-    await createCategory.mutateAsync(data);
-    setIsCategoryDialogOpen(false);
+    try {
+      await createCategory.mutateAsync(data);
+      setIsCategoryDialogOpen(false);
+    } catch (err) {
+      console.error('Error creating topping category:', err);
+    }
   };
 
   const handleUpdateCategory = async (data: any) => {
     if (editingCategory) {
-      await updateCategory.mutateAsync({ id: editingCategory.id, ...data });
-      setEditingCategory(undefined);
-      setIsCategoryDialogOpen(false);
+      try {
+        await updateCategory.mutateAsync({ id: editingCategory.id, ...data });
+        setEditingCategory(undefined);
+        setIsCategoryDialogOpen(false);
+      } catch (err) {
+        console.error('Error updating topping category:', err);
+      }
     }
   };
 
   const handleDeleteCategory = async () => {
     if (deletingCategory) {
-      await deleteCategory.mutateAsync(deletingCategory.id);
-      setDeletingCategory(undefined);
+      try {
+        await deleteCategory.mutateAsync(deletingCategory.id);
+        setDeletingCategory(undefined);
+      } catch (err) {
+        console.error('Error deleting topping category:', err);
+      }
     }
   };
 

@@ -16,6 +16,7 @@ export const PAYMENT_METHOD_OPTIONS = [
   'QR Code PIX',
   'Cartão de Crédito',
   'Cartão de Débito',
+  'Boleto',
   'TED',
   'Depósito',
   'Dinheiro',
@@ -34,6 +35,8 @@ const CEFAS_PAYMENT_MAP: Record<string, PaymentMethod> = {
   PIX: 'PIX',
   'CARTAO DE CREDITO': 'Cartão de Crédito',
   'CARTAO DE DEBITO': 'Cartão de Débito',
+  BOLETO: 'Boleto',
+  'BOLETO BANCARIO': 'Boleto',
   TED: 'TED',
   DEPOSITO: 'Depósito',
 };

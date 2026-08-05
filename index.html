@@ -39,21 +39,54 @@
 
 <body>
   <div id="root"></div>
-<div id="error-log" style="position:fixed;top:0;left:0;width:100%;height:100%;background:red;color:white;z-index:9999;padding:20px;overflow:auto;display:none;"></div>
+<div id="error-log" style="position:fixed;bottom:0;left:0;right:0;max-height:40vh;background:#7f1d1d;color:white;z-index:9999;padding:12px 40px 12px 16px;overflow:auto;display:none;font:12px/1.5 monospace;white-space:pre-wrap;"></div>
 <script>
-window.addEventListener('error', function(e) {
-  if (e.message && (e.message.includes('ResizeObserver') || e.message.includes('Resize observer'))) {
-    return;
+// Painel de diagnóstico: só aparece em desenvolvimento. Em produção os erros
+// vão apenas para o console — um overlay em tela cheia cobria a página inteira
+// e travava a interface do usuário (ex.: falha ao salvar em /admin/menu/categories).
+(function () {
+  var isDev = ['localhost', '127.0.0.1', '[::1]'].indexOf(location.hostname) !== -1;
+
+  // e.reason costuma ser um objeto (erro do supabase-js); sem isto vira "[object Object]".
+  function describe(reason) {
+    if (reason instanceof Error) return reason.message;
+    if (reason && typeof reason === 'object') {
+      try { return JSON.stringify(reason, Object.getOwnPropertyNames(reason)); }
+      catch (err) { return String(reason); }
+    }
+    return String(reason);
   }
-  var el = document.getElementById('error-log');
-  el.style.display = 'block';
-  el.innerHTML += '<p>' + e.message + '<br>' + e.filename + ':' + e.lineno + '</p>';
-});
-window.addEventListener('unhandledrejection', function(e) {
-  var el = document.getElementById('error-log');
-  el.style.display = 'block';
-  el.innerHTML += '<p>Promise Rejection: ' + e.reason + '</p>';
-});
+
+  function show(text) {
+    if (!isDev) return;
+    var el = document.getElementById('error-log');
+    if (!el) return;
+    if (el.style.display !== 'block') {
+      el.style.display = 'block';
+      var close = document.createElement('button');
+      close.textContent = '×';
+      close.setAttribute('style', 'position:absolute;top:6px;right:10px;background:none;border:0;color:white;font-size:22px;line-height:1;cursor:pointer;');
+      close.onclick = function () { el.style.display = 'none'; el.textContent = ''; };
+      el.appendChild(close);
+    }
+    var p = document.createElement('div');
+    p.textContent = text;
+    el.appendChild(p);
+  }
+
+  window.addEventListener('error', function (e) {
+    if (e.message && (e.message.includes('ResizeObserver') || e.message.includes('Resize observer'))) {
+      return;
+    }
+    console.error('[app] erro:', e.message, e.filename + ':' + e.lineno);
+    show(e.message + '\n' + e.filename + ':' + e.lineno);
+  });
+
+  window.addEventListener('unhandledrejection', function (e) {
+    console.error('[app] promise rejeitada:', e.reason);
+    show('Promise Rejection: ' + describe(e.reason));
+  });
+})();
 </script>
   <script type="module" src="/src/main.tsx"></script>
 </body>

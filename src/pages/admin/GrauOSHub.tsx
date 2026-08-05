@@ -90,7 +90,7 @@ const modules = [
     },
     {
         id: 'checkgrau',
-        title: 'CheckGrau',
+        title: 'CheckNoGrau',
         subtitle: 'Padronização operacional',
         path: '/admin/checkgrau',
         color: '#7C3AED',

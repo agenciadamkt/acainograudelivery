@@ -59,6 +59,13 @@ export function useCategories(activeOnly = false, storeId?: string, options?: { 
   });
 }
 
+// Quando a RLS bloqueia a escrita, o Postgres não devolve erro: simplesmente
+// afeta 0 linhas. Com `.single()` isso virava um PGRST116 ("JSON object
+// requested...") ilegível, e no delete passava como sucesso silencioso.
+const NO_PERMISSION =
+  'Você não tem permissão para alterar categorias desta loja. ' +
+  'Verifique se seu usuário está vinculado à loja selecionada.';
+
 export function useCreateCategory() {
   const queryClient = useQueryClient();
   const { currentStore } = useStore();
@@ -68,11 +75,11 @@ export function useCreateCategory() {
       const { data, error } = await supabase
         .from('categories')
         .insert({ ...category, store_id: currentStore?.id })
-        .select()
-        .single();
+        .select();
 
       if (error) throw error;
-      return data;
+      if (!data?.length) throw new Error(NO_PERMISSION);
+      return data[0];
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
@@ -97,11 +104,11 @@ export function useUpdateCategory() {
         .from('categories')
         .update(updates)
         .eq('id', id)
-        .select()
-        .single();
+        .select();
 
       if (error) throw error;
-      return data;
+      if (!data?.length) throw new Error(NO_PERMISSION);
+      return data[0];
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
@@ -122,12 +129,14 @@ export function useDeleteCategory() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('categories')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .select();
 
       if (error) throw error;
+      if (!data?.length) throw new Error(NO_PERMISSION);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });

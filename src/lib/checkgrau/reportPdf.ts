@@ -85,7 +85,7 @@ export async function generateReportPdf(input: ReportPdfInput): Promise<void> {
     doc.setTextColor(...INK);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(16);
-    doc.text('CheckGrau', tx, y + 6);
+    doc.text('CheckNoGrau', tx, y + 6);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.5);
     doc.setTextColor(...MUTED);
@@ -356,12 +356,12 @@ export async function generateReportPdf(input: ReportPdfInput): Promise<void> {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7);
     doc.setTextColor(...MUTED);
-    doc.text('Gerado automaticamente pelo CheckGrau', M, pageH - 7.5);
+    doc.text('Gerado automaticamente pelo CheckNoGrau', M, pageH - 7.5);
     doc.text(format(new Date(), 'dd/MM/yyyy HH:mm'), pageW / 2, pageH - 7.5, { align: 'center' });
     doc.text(`Página ${i} de ${pages}`, pageW - M, pageH - 7.5, { align: 'right' });
   }
 
-  doc.save(`CheckGrau_Relatorio_${input.periodFrom}_a_${input.periodTo}.pdf`);
+  doc.save(`CheckNoGrau_Relatorio_${input.periodFrom}_a_${input.periodTo}.pdf`);
 }
 
 function hasAnyIntelligent(ir: IntelligentReport): boolean {

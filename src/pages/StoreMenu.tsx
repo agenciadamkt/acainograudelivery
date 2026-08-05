@@ -308,7 +308,7 @@ const StoreMenu = () => {
             {/* 'Ver Todas' Button - Visual only or action */}
             <button
               className="shrink-0 flex flex-col items-center gap-2 opacity-70 hover:opacity-100"
-              onClick={() => navigate(`/delivery/${slug}/categories`)}
+              onClick={() => navigate(`/${slug}/categories`)}
             >
               <div className="w-20 h-20 rounded-full flex items-center justify-center bg-gray-50 border border-gray-100">
                 <div className="flex gap-1">

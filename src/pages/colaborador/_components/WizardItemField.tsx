@@ -4,13 +4,14 @@
  * evidência (upload/GPS) e a validação de faixa/temperatura.
  */
 
-import { useRef, useState } from 'react';
-import { Star, Camera, Image as ImageIcon, MapPin, Loader2, Check, X } from 'lucide-react';
+import { useState } from 'react';
+import { Star, MapPin, Loader2, Check, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import type { ChecklistItem, ItemAnswer } from '@/hooks/operations/useTaskExecution';
 import { validateItemValue, ruleText } from '@/lib/operations/itemTypes';
-import { captureGps, uploadEvidencePhoto } from '@/lib/operations/evidence';
+import { captureGps } from '@/lib/operations/evidence';
+import { PhotoGalleryUploader } from './PhotoGalleryUploader';
 
 const PURPLE = '#7C3AED';
 
@@ -23,9 +24,6 @@ interface Props {
 }
 
 export function WizardItemField({ item, answer, executionId, index, onChange }: Props) {
-  const camRef = useRef<HTMLInputElement>(null);
-  const galRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
   const [gpsLoading, setGpsLoading] = useState(false);
 
   const cfg = { min_value: item.min_value, max_value: item.max_value };
@@ -34,32 +32,6 @@ export function WizardItemField({ item, answer, executionId, index, onChange }: 
   const options = item.options ?? [];
   const multi = Array.isArray(answer.value_json) ? (answer.value_json as string[]) : [];
   const showPhoto = item.type === 'photo' || item.require_photo;
-
-  const handlePhoto = async (file: File | undefined) => {
-    if (!file) return;
-    setUploading(true);
-    try {
-      if (!navigator.onLine) {
-        // offline: guarda como data URL e sobe no sync
-        const dataUrl: string = await new Promise((resolve, reject) => {
-          const r = new FileReader();
-          r.onload = () => resolve(r.result as string);
-          r.onerror = () => reject(r.error);
-          r.readAsDataURL(file);
-        });
-        onChange({ photo_url: dataUrl });
-        toast.success('Foto salva (offline).');
-      } else {
-        const url = await uploadEvidencePhoto(file, executionId);
-        onChange({ photo_url: url });
-        toast.success('Foto anexada.');
-      }
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Falha ao anexar a foto.');
-    } finally {
-      setUploading(false);
-    }
-  };
 
   const handleGps = async () => {
     setGpsLoading(true);
@@ -179,32 +151,17 @@ export function WizardItemField({ item, answer, executionId, index, onChange }: 
 
         {/* Foto (tipo foto OU exige foto) */}
         {showPhoto && (
-          <div className="space-y-3">
-            <input ref={camRef} type="file" accept="image/*" capture="environment" className="hidden"
-              onChange={(e) => { handlePhoto(e.target.files?.[0]); e.target.value = ''; }} />
-            <input ref={galRef} type="file" accept="image/*" className="hidden"
-              onChange={(e) => { handlePhoto(e.target.files?.[0]); e.target.value = ''; }} />
-
-            {answer.photo_url ? (
-              <img src={answer.photo_url} alt="Evidência" className="max-h-64 w-full rounded-2xl border border-gray-200 object-cover dark:border-white/10" />
-            ) : (
-              <div className="flex h-40 w-full items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 text-gray-300 dark:border-white/10">
-                <Camera className="h-10 w-10" />
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-3">
-              <button type="button" onClick={() => camRef.current?.click()} disabled={uploading}
-                className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:text-white/80 dark:hover:bg-white/5">
-                {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" style={{ color: PURPLE }} />}
-                {answer.photo_url ? 'Trocar' : 'Tirar foto'}
-              </button>
-              <button type="button" onClick={() => galRef.current?.click()} disabled={uploading}
-                className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:text-white/80 dark:hover:bg-white/5">
-                <ImageIcon className="h-4 w-4" style={{ color: PURPLE }} /> Selecionar
-              </button>
-            </div>
-          </div>
+          <PhotoGalleryUploader
+            photos={answer.photos ?? (answer.photo_url ? [answer.photo_url] : [])}
+            executionId={executionId}
+            onChange={(photos) =>
+              onChange({
+                photos,
+                // Mantém photo_url apontando para a primeira foto (retrocompatibilidade)
+                photo_url: photos[0] ?? null,
+              })
+            }
+          />
         )}
 
         {/* GPS */}

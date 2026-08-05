@@ -577,7 +577,7 @@ export const categories: Category[] = [
   },
   {
     id: 'checkgrau',
-    label: 'CheckGrau — Gestão Operacional',
+    label: 'CheckNoGrau — Gestão Operacional',
     icon: ShieldCheck,
     color: 'text-purple-600',
     bgColor: 'bg-purple-500/10',
@@ -590,7 +590,7 @@ export const categories: Category[] = [
         route: '/admin/checkgrau',
         summary: 'Visão consolidada da operação: conformidade, pontualidade e score por período, setor, turno e responsável.',
         steps: [
-          { text: 'Acesse CheckGrau → Painel no menu lateral.' },
+          { text: 'Acesse CheckNoGrau → Painel no menu lateral.' },
           { text: 'Use o filtro "Lojas" para acompanhar uma ou várias unidades ao mesmo tempo (gerentes multi-loja).' },
           { text: 'Ajuste o período (De/Até) e os filtros de setor, turno e responsável.' },
           { text: 'Acompanhe os KPIs, o score operacional e os rankings por setor e por responsável.' },
@@ -602,9 +602,9 @@ export const categories: Category[] = [
         icon: Store,
         title: 'Lojas',
         route: '/admin/checkgrau/stores',
-        summary: 'Cadastro das unidades atendidas pelo CheckGrau.',
+        summary: 'Cadastro das unidades atendidas pelo CheckNoGrau.',
         steps: [
-          { text: 'Acesse CheckGrau → Lojas.' },
+          { text: 'Acesse CheckNoGrau → Lojas.' },
           { text: 'Clique em "Nova loja" e informe nome, código, endereço e telefone.' },
           { text: 'Defina o status da loja (ativa/inativa).' },
           { text: 'As lojas cadastradas ficam disponíveis para vincular colaboradores, rotinas e agenda.' },
@@ -617,7 +617,7 @@ export const categories: Category[] = [
         route: '/admin/checkgrau/setores-turnos',
         summary: 'Organiza a operação por área (setor) e horário (turno).',
         steps: [
-          { text: 'Acesse CheckGrau → Setores & Turnos.' },
+          { text: 'Acesse CheckNoGrau → Setores & Turnos.' },
           { text: 'Cadastre os setores da operação (ex.: Cozinha, Salão, Estoque).' },
           { text: 'Cadastre os turnos (ex.: Manhã, Tarde, Noite).' },
           { text: 'Setores e turnos são usados nas rotinas e nos relatórios para segmentar as tarefas.', tip: 'Configure setores e turnos antes de criar as rotinas.' },
@@ -630,7 +630,7 @@ export const categories: Category[] = [
         route: '/admin/checkgrau/collaborators',
         summary: 'Cadastro da equipe, score, engajamento e detalhe individual. O acesso ao app é pelo WhatsApp.',
         steps: [
-          { text: 'Acesse CheckGrau → Colaboradores.' },
+          { text: 'Acesse CheckNoGrau → Colaboradores.' },
           { text: 'Clique em "Novo colaborador" e informe nome, WhatsApp, cargo e as lojas que ele atende.' },
           { text: 'Na lista, veja o Score (pontos), o Engajamento (pontualidade) e o último acesso de cada um.' },
           { text: 'Clique num colaborador para abrir o detalhe: visão geral, histórico de pontualidade, checklists executados e notas.' },
@@ -645,7 +645,7 @@ export const categories: Category[] = [
         route: '/admin/checkgrau/checklists',
         summary: 'Modelos de checklist e suas perguntas (itens).',
         steps: [
-          { text: 'Acesse CheckGrau → Checklists.' },
+          { text: 'Acesse CheckNoGrau → Checklists.' },
           { text: 'Clique em "Novo Checklist", dê um nome e defina a frequência.' },
           { text: 'Abra "Configurar" e adicione as perguntas, escolhendo o tipo de cada uma (Sim/Não, número, texto, data, foto, avaliação, etc.).' },
           { text: 'Marque as exigências por item: foto, GPS, comentário ou assinatura obrigatórios.' },
@@ -659,7 +659,7 @@ export const categories: Category[] = [
         route: '/admin/checkgrau/rotinas',
         summary: 'Define quando cada checklist deve ser feito, por quem e com qual prazo — alimenta a agenda.',
         steps: [
-          { text: 'Acesse CheckGrau → Rotinas.' },
+          { text: 'Acesse CheckNoGrau → Rotinas.' },
           { text: 'Crie uma rotina escolhendo o checklist, a loja, o setor e o turno.' },
           { text: 'Defina a recorrência (diária, semanal nos dias marcados ou mensal) e o horário.' },
           { text: 'Informe a tolerância de atraso (SLA) e o responsável (colaborador).' },
@@ -673,7 +673,7 @@ export const categories: Category[] = [
         route: '/admin/checkgrau/agenda',
         summary: 'As tarefas do dia geradas pelas rotinas, agrupadas por status.',
         steps: [
-          { text: 'Acesse CheckGrau → Agenda e escolha a data.' },
+          { text: 'Acesse CheckNoGrau → Agenda e escolha a data.' },
           { text: 'Clique em "Gerar dia" para materializar as tarefas daquela data, ou "Gerar mês" para o mês inteiro.' },
           { text: 'Acompanhe as tarefas em A fazer, Atrasadas, Concluídas e Canceladas.' },
           { text: 'Clique numa tarefa concluída para ver as respostas e as fotos enviadas pelo colaborador.', tip: '"Gerar mês" é idempotente — pode clicar quantas vezes quiser sem duplicar.' },
@@ -700,7 +700,7 @@ export const categories: Category[] = [
         route: '/admin/checkgrau/mensagens',
         summary: 'Envia avisos do gestor para um colaborador ou para a loja toda.',
         steps: [
-          { text: 'Acesse CheckGrau → Mensagens.' },
+          { text: 'Acesse CheckNoGrau → Mensagens.' },
           { text: 'Escolha a loja e o destinatário (um colaborador ou "Toda a loja").' },
           { text: 'Escreva o título (opcional) e a mensagem, e clique em Enviar.' },
           { text: 'O colaborador recebe um alerta no app (som + aviso) e lê em Mensagens.', tip: 'O histórico mostra tudo o que já foi enviado por loja.' },
@@ -713,7 +713,7 @@ export const categories: Category[] = [
         route: '/admin/checkgrau/alertas',
         summary: 'Configura alertas operacionais e por WhatsApp para desvios.',
         steps: [
-          { text: 'Acesse CheckGrau → Alertas.' },
+          { text: 'Acesse CheckNoGrau → Alertas.' },
           { text: 'Defina o número de WhatsApp que recebe os alertas da unidade.' },
           { text: 'Configure os gatilhos (ex.: tarefa crítica não executada, item fora do padrão).' },
           { text: 'Os alertas ajudam a agir rápido quando algo sai do combinado.' },
@@ -726,7 +726,7 @@ export const categories: Category[] = [
         route: '/admin/checkgrau/rankings',
         summary: 'Classificação das unidades por desempenho operacional.',
         steps: [
-          { text: 'Acesse CheckGrau → Rankings.' },
+          { text: 'Acesse CheckNoGrau → Rankings.' },
           { text: 'Veja as lojas ordenadas por score (conformidade + pontualidade).' },
           { text: 'Use para reconhecer as melhores unidades e identificar quem precisa de apoio.' },
         ],
@@ -738,7 +738,7 @@ export const categories: Category[] = [
         route: '/admin/checkgrau/desempenho',
         summary: 'Desempenho e pontuação por colaborador.',
         steps: [
-          { text: 'Acesse CheckGrau → Desempenho.' },
+          { text: 'Acesse CheckNoGrau → Desempenho.' },
           { text: 'Acompanhe o ranking de colaboradores por pontos e conformidade.' },
           { text: 'Use para reconhecer os destaques e acompanhar a evolução da equipe.' },
         ],
@@ -750,7 +750,7 @@ export const categories: Category[] = [
         route: '/admin/checkgrau/engajamento',
         summary: 'Mede a adesão da equipe ao app: funil da jornada, heatmap e colaboradores em risco.',
         steps: [
-          { text: 'Acesse CheckGrau → Engajamento.' },
+          { text: 'Acesse CheckNoGrau → Engajamento.' },
           { text: 'Filtre por lojas e período (30/90 dias).' },
           { text: 'Veja os KPIs de adoção (taxa de ativação e ativos nos últimos 7 dias).' },
           { text: 'Acompanhe o funil (cadastrados → acessaram → executaram → ativos) e o heatmap de execuções por dia da semana.' },
@@ -764,7 +764,7 @@ export const categories: Category[] = [
         route: '/admin/checkgrau/rede',
         summary: 'Visão consolidada de todas as unidades da rede.',
         steps: [
-          { text: 'Acesse CheckGrau → Rede.' },
+          { text: 'Acesse CheckNoGrau → Rede.' },
           { text: 'Compare o desempenho das unidades num único lugar.' },
           { text: 'Use para acompanhar a operação da rede de forma macro.' },
         ],
@@ -776,7 +776,7 @@ export const categories: Category[] = [
         route: '/admin/checkgrau/grupos-contagem',
         summary: 'Agrupa insumos para as contagens de inventário.',
         steps: [
-          { text: 'Acesse CheckGrau → Grupos de Contagem.' },
+          { text: 'Acesse CheckNoGrau → Grupos de Contagem.' },
           { text: 'Crie grupos e adicione os insumos que serão contados juntos.' },
           { text: 'Os grupos são usados nas contagens recorrentes.' },
         ],
@@ -788,7 +788,7 @@ export const categories: Category[] = [
         route: '/admin/checkgrau/contagens-recorrentes',
         summary: 'Agenda inventários que se repetem automaticamente.',
         steps: [
-          { text: 'Acesse CheckGrau → Contagens Recorrentes.' },
+          { text: 'Acesse CheckNoGrau → Contagens Recorrentes.' },
           { text: 'Crie uma contagem escolhendo o grupo de insumos e a frequência.' },
           { text: 'A cada ciclo, a contagem aparece para ser executada e registrada.' },
         ],

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { isReservedSlug } from '@/lib/reservedSlugs';
 
 export interface CartTopping {
   id: string;
@@ -144,21 +145,20 @@ export function CartProvider({ children }: { children: ReactNode }) {
   };
 
   const getStoreAwareRoute = () => {
-    const currentPath = window.location.pathname;
+    // A loja mora no primeiro segmento da URL (/gurupi). Como não há mais o
+    // prefixo /delivery/ pra identificar, o que distingue um caminho de loja
+    // de uma rota fixa do app é justamente não ser um slug reservado.
+    const [firstSegment] = window.location.pathname.split('/').filter(Boolean);
 
-    // Se está em uma loja específica, salvar e retornar
-    if (currentPath.startsWith('/delivery/')) {
-      const storeSlug = currentPath.split('/')[2]; // Pega 'gurupi' de '/delivery/gurupi'
-      if (storeSlug) {
-        localStorage.setItem(LAST_STORE_KEY, storeSlug);
-      }
-      return currentPath.split('/product/')[0].split('/cart')[0].split('/checkout')[0];
+    if (firstSegment && !isReservedSlug(firstSegment)) {
+      localStorage.setItem(LAST_STORE_KEY, firstSegment);
+      return `/${firstSegment}`;
     }
 
-    // Se não está em /delivery/, tentar recuperar última loja visitada
+    // Fora de uma loja (ex: /cart, /checkout), volta pra última visitada
     const lastStore = localStorage.getItem(LAST_STORE_KEY);
     if (lastStore) {
-      return `/delivery/${lastStore}`;
+      return `/${lastStore}`;
     }
 
     // Fallback para menu geral

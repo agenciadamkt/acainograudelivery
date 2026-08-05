@@ -28,7 +28,7 @@ export const CATEGORIAS = [
   { id: 'CARDAPIO',   label: 'Cardápio',                     emoji: '🍦' },
   { id: 'FINANCEIRO', label: 'Financeiro',                   emoji: '💰' },
   { id: 'ESTOQUE',    label: 'Estoque & Operações',          emoji: '📦' },
-  { id: 'CHECKGRAU',  label: 'CheckGrau — Gestão Operacional', emoji: '✅' },
+  { id: 'CHECKGRAU',  label: 'CheckNoGrau — Gestão Operacional', emoji: '✅' },
   { id: 'CLIENTES',   label: 'Clientes & Marketing',         emoji: '👥' },
   { id: 'CAF',        label: 'CAF — Atendimento',            emoji: '🎯' },
   { id: 'FRANQUIA',   label: 'Franquia & Distribuição',      emoji: '🤝' },
@@ -77,14 +77,14 @@ export const MODULOS = [
   { codigo: 'est.rotinas',      nome: 'Rotinas Operacionais',  categoria: 'ESTOQUE',    descricao: 'Checklists de abertura e fechamento' },
   { codigo: 'est.bonificacoes', nome: 'Bonificações',          categoria: 'ESTOQUE',    descricao: 'Controle de bonificações de insumos' },
 
-  // CheckGrau — Gestão Operacional (Operações 2.0)
+  // CheckNoGrau — Gestão Operacional (Operações 2.0)
   { codigo: 'cg.painel',        nome: 'Painel Operacional',    categoria: 'CHECKGRAU',  descricao: 'KPIs, conformidade e score da operação' },
   { codigo: 'cg.rankings',      nome: 'Rankings',              categoria: 'CHECKGRAU',  descricao: 'Ranking de unidades por desempenho' },
   { codigo: 'cg.desempenho',    nome: 'Desempenho',            categoria: 'CHECKGRAU',  descricao: 'Desempenho e score por colaborador' },
   { codigo: 'cg.rede',          nome: 'Rede',                  categoria: 'CHECKGRAU',  descricao: 'Visão consolidada da rede' },
   { codigo: 'cg.alertas',       nome: 'Alertas',               categoria: 'CHECKGRAU',  descricao: 'Alertas operacionais e no WhatsApp' },
   { codigo: 'cg.mensagens',     nome: 'Mensagens',             categoria: 'CHECKGRAU',  descricao: 'Avisos do gestor para os colaboradores' },
-  { codigo: 'cg.lojas',         nome: 'Lojas',                 categoria: 'CHECKGRAU',  descricao: 'Cadastro de unidades do CheckGrau' },
+  { codigo: 'cg.lojas',         nome: 'Lojas',                 categoria: 'CHECKGRAU',  descricao: 'Cadastro de unidades do CheckNoGrau' },
   { codigo: 'cg.colaboradores', nome: 'Colaboradores',         categoria: 'CHECKGRAU',  descricao: 'Cadastro de colaboradores e acessos' },
   { codigo: 'cg.agenda',        nome: 'Agenda',                categoria: 'CHECKGRAU',  descricao: 'Agenda diária de tarefas por unidade' },
   { codigo: 'cg.rotinas',       nome: 'Rotinas',               categoria: 'CHECKGRAU',  descricao: 'Rotinas que geram a agenda de tarefas' },

@@ -167,8 +167,8 @@ export default function TaskSuccessPage() {
           <Sparkles className="h-5 w-5" />
           <span className="font-bold">
             {queued
-              ? `+${computePoints()} pontos CheckGrau (ao sincronizar)`
-              : award.isPending && points == null ? 'Calculando pontos…' : `+${points ?? computePoints()} pontos CheckGrau`}
+              ? `+${computePoints()} pontos CheckNoGrau (ao sincronizar)`
+              : award.isPending && points == null ? 'Calculando pontos…' : `+${points ?? computePoints()} pontos CheckNoGrau`}
           </span>
         </motion.div>
 

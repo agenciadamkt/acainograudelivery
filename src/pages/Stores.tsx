@@ -85,7 +85,7 @@ const Stores = () => {
             stores.map((store) => (
               <Card
                 key={store.id}
-                onClick={() => navigate(`/delivery/${store.slug}`)}
+                onClick={() => navigate(`/${store.slug}`)}
                 className="bg-card rounded-2xl p-4 shadow-card cursor-pointer hover:shadow-elevated transition-shadow"
               >
                 <div className="flex gap-4">

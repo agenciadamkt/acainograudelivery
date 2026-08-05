@@ -25,6 +25,7 @@ import {
 import { useStores, useDeleteStore, useUpdateStore, type Store } from '@/hooks/useStores';
 import { CheckCircle, XCircle, Clock, Store as StoreIcon, Users, Copy, ExternalLink, Pencil, Trash2, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
+import { storefrontUrl } from '@/lib/storefront';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -152,12 +153,12 @@ const FranchiseesPage = () => {
       render: (item: any) => (
         <div className="flex items-center gap-2">
           <a
-            href={`/delivery/${item.slug}`}
+            href={storefrontUrl(item.slug)}
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs bg-muted px-2 py-1 rounded hover:bg-muted/80 transition-colors inline-flex items-center gap-1"
           >
-            /delivery/{item.slug}
+            /{item.slug}
             <ExternalLink className="w-3 h-3" />
           </a>
           <Button
@@ -165,8 +166,7 @@ const FranchiseesPage = () => {
             variant="ghost"
             className="h-7 w-7 p-0"
             onClick={() => {
-              const fullUrl = `${window.location.origin}/delivery/${item.slug}`;
-              navigator.clipboard.writeText(fullUrl);
+              navigator.clipboard.writeText(storefrontUrl(item.slug));
               toast.success('URL copiada para área de transferência!');
             }}
           >

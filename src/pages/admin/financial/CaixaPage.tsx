@@ -16,7 +16,11 @@ import {
     Filter,
     ArrowUpRight,
     Loader2,
-    Printer
+    Printer,
+    Pencil,
+    Trash2,
+    AlertTriangle,
+    CalendarDays
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -35,16 +39,31 @@ import { useFranchiseeId } from '@/hooks/useFranchiseeId';
 const formatBRL = (val: number) =>
     val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
+type TransferFormData = {
+    from: string;
+    to: string;
+    amount: number;
+    description: string;
+    transfer_date: string;
+};
+
+const emptyForm: TransferFormData = {
+    from: '',
+    to: '',
+    amount: 0,
+    description: '',
+    transfer_date: format(new Date(), 'yyyy-MM-dd'),
+};
+
 export default function CaixaPage() {
     const queryClient = useQueryClient();
     const { data: franchiseeId } = useFranchiseeId();
+
+    /* ── Modal states ── */
     const [isTransferOpen, setIsTransferOpen] = useState(false);
-    const [transferData, setTransferData] = useState({
-        from: '',
-        to: '',
-        amount: 0,
-        description: ''
-    });
+    const [editingTransfer, setEditingTransfer] = useState<any | null>(null);
+    const [deletingTransfer, setDeletingTransfer] = useState<any | null>(null);
+    const [transferData, setTransferData] = useState<TransferFormData>(emptyForm);
 
     const now = new Date();
     const [dateFrom, setDateFrom] = useState(format(startOfMonth(now), 'yyyy-MM-dd'));
@@ -87,9 +106,9 @@ export default function CaixaPage() {
         }
     });
 
-    /* ── Transfer Mutation ── */
+    /* ── Transfer Create Mutation ── */
     const transferMutation = useMutation({
-        mutationFn: async (values: typeof transferData) => {
+        mutationFn: async (values: TransferFormData) => {
             if (!values.from || !values.to || values.amount <= 0) {
                 throw new Error('Preencha todos os campos corretamente');
             }
@@ -106,6 +125,7 @@ export default function CaixaPage() {
                     to_account_id: values.to,
                     amount: values.amount,
                     description: values.description,
+                    transfer_date: values.transfer_date,
                     created_by: user?.id
                 });
 
@@ -116,12 +136,85 @@ export default function CaixaPage() {
             queryClient.invalidateQueries({ queryKey: ['financial_transfers_statement'] });
             toast.success('Transferência realizada com sucesso!');
             setIsTransferOpen(false);
-            setTransferData({ from: '', to: '', amount: 0, description: '' });
+            setTransferData(emptyForm);
         },
         onError: (error: any) => {
             toast.error(error.message || 'Erro ao realizar transferência');
         }
     });
+
+    /* ── Transfer Update Mutation ── */
+    const updateMutation = useMutation({
+        mutationFn: async (values: TransferFormData & { id: string }) => {
+            if (!values.from || !values.to || values.amount <= 0) {
+                throw new Error('Preencha todos os campos corretamente');
+            }
+            if (values.from === values.to) {
+                throw new Error('Contas de origem e destino devem ser diferentes');
+            }
+
+            const { error } = await supabase
+                .from('financial_transfers' as any)
+                .update({
+                    from_account_id: values.from,
+                    to_account_id: values.to,
+                    amount: values.amount,
+                    description: values.description,
+                    transfer_date: values.transfer_date,
+                })
+                .eq('id', values.id);
+
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['financial_accounts'] });
+            queryClient.invalidateQueries({ queryKey: ['financial_transfers_statement'] });
+            toast.success('Transferência atualizada com sucesso!');
+            setEditingTransfer(null);
+            setTransferData(emptyForm);
+        },
+        onError: (error: any) => {
+            toast.error(error.message || 'Erro ao atualizar transferência');
+        }
+    });
+
+    /* ── Transfer Delete Mutation ── */
+    const deleteMutation = useMutation({
+        mutationFn: async (id: string) => {
+            const { error } = await supabase
+                .from('financial_transfers' as any)
+                .delete()
+                .eq('id', id);
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['financial_accounts'] });
+            queryClient.invalidateQueries({ queryKey: ['financial_transfers_statement'] });
+            toast.success('Transferência excluída com sucesso!');
+            setDeletingTransfer(null);
+        },
+        onError: (error: any) => {
+            toast.error(error.message || 'Erro ao excluir transferência');
+        }
+    });
+
+    const openNewTransfer = () => {
+        setTransferData(emptyForm);
+        setIsTransferOpen(true);
+    };
+
+    const openEditTransfer = (t: any) => {
+        setTransferData({
+            from: t.from_account_id,
+            to: t.to_account_id,
+            amount: Number(t.amount),
+            description: t.description || '',
+            transfer_date: t.transfer_date
+                ? format(new Date(t.transfer_date + 'T12:00:00'), 'yyyy-MM-dd')
+                : format(new Date(t.created_at), 'yyyy-MM-dd'),
+        });
+        setEditingTransfer(t);
+    };
 
     const getAccountIcon = (type: string) => {
         switch (type) {
@@ -147,7 +240,9 @@ export default function CaixaPage() {
             doc.text(`Período: ${format(new Date(dateFrom + 'T12:00:00'), 'dd/MM/yyyy')} a ${format(new Date(dateTo + 'T12:00:00'), 'dd/MM/yyyy')}`, 14, startY + 12);
 
             const tableBody = transfers.map(t => [
-                format(new Date(t.created_at), 'dd/MM/yyyy'),
+                t.transfer_date
+                    ? format(new Date(t.transfer_date + 'T12:00:00'), 'dd/MM/yyyy')
+                    : format(new Date(t.created_at), 'dd/MM/yyyy'),
                 t.origin?.name || '-',
                 t.destination?.name || '-',
                 t.description || 'Transferência interna',
@@ -156,7 +251,7 @@ export default function CaixaPage() {
 
             autoTable(doc, {
                 startY: startY + 18,
-                head: [['Data', 'Origem', 'Destino', 'Descrição', 'Valor']],
+                head: [['Data Depósito', 'Origem', 'Destino', 'Descrição', 'Valor']],
                 body: tableBody,
                 theme: 'striped',
                 headStyles: { fillColor: brandColor },
@@ -167,7 +262,7 @@ export default function CaixaPage() {
             const finalY = (doc as any).lastAutoTable?.finalY + 10;
             const total = transfers.reduce((acc, t) => acc + Number(t.amount), 0);
             
-            doc.setFillColor(141, 66, 221); // brand color
+            doc.setFillColor(141, 66, 221);
             doc.rect(14, finalY, 182, 10, 'F');
             doc.setTextColor(255, 255, 255);
             doc.setFontSize(10);
@@ -182,6 +277,26 @@ export default function CaixaPage() {
             toast.error('Erro ao gerar PDF');
         }
     };
+
+    /* ── Transfer Modal (shared for create & edit) ── */
+    const isEditMode = !!editingTransfer;
+    const isModalOpen = isTransferOpen || isEditMode;
+
+    const handleModalClose = () => {
+        setIsTransferOpen(false);
+        setEditingTransfer(null);
+        setTransferData(emptyForm);
+    };
+
+    const handleModalSubmit = () => {
+        if (isEditMode) {
+            updateMutation.mutate({ ...transferData, id: editingTransfer.id });
+        } else {
+            transferMutation.mutate(transferData);
+        }
+    };
+
+    const isPending = transferMutation.isPending || updateMutation.isPending;
 
     return (
         <div className="p-4 lg:p-8 space-y-8 bg-gray-50/50 dark:bg-transparent min-h-screen">
@@ -205,7 +320,7 @@ export default function CaixaPage() {
                         Imprimir Extrato
                     </Button>
                     <Button
-                        onClick={() => setIsTransferOpen(true)}
+                        onClick={openNewTransfer}
                         className="bg-purple-600 hover:bg-purple-700 text-white font-semibold shadow-lg shadow-purple-600/20 rounded-xl"
                     >
                         <ArrowLeftRight className="h-4 w-4 mr-2" />
@@ -282,20 +397,33 @@ export default function CaixaPage() {
                             <table className="w-full text-sm">
                                 <thead>
                                     <tr className="text-left border-b border-gray-100 dark:border-white/[0.05]">
-                                        <th className="px-6 py-4 font-semibold text-gray-400 dark:text-white/20 uppercase tracking-widest text-[10px]">Data</th>
+                                        <th className="px-6 py-4 font-semibold text-gray-400 dark:text-white/20 uppercase tracking-widest text-[10px]">Data Depósito</th>
                                         <th className="px-6 py-4 font-semibold text-gray-400 dark:text-white/20 uppercase tracking-widest text-[10px]">Origem / Destino</th>
                                         <th className="px-6 py-4 font-semibold text-gray-400 dark:text-white/20 uppercase tracking-widest text-[10px]">Descrição</th>
                                         <th className="px-6 py-4 font-semibold text-gray-400 dark:text-white/20 uppercase tracking-widest text-[10px] text-right">Valor</th>
+                                        <th className="px-6 py-4 font-semibold text-gray-400 dark:text-white/20 uppercase tracking-widest text-[10px] text-center">Ações</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-50 dark:divide-white/[0.02]">
-                                    {transfers?.map((t) => (
+                                    {loadingTransfers ? (
+                                        <tr>
+                                            <td colSpan={5} className="px-6 py-12 text-center">
+                                                <Loader2 className="h-6 w-6 animate-spin text-purple-600 mx-auto" />
+                                            </td>
+                                        </tr>
+                                    ) : transfers?.map((t) => (
                                         <tr key={t.id} className="group hover:bg-gray-50/50 dark:hover:bg-white/[0.01] transition-colors">
                                             <td className="px-6 py-4">
-                                                <span className="text-gray-900 dark:text-white font-medium">
-                                                    {format(new Date(t.created_at), 'dd MMM', { locale: ptBR })}
+                                                <span className="text-gray-900 dark:text-white font-medium flex items-center gap-1.5">
+                                                    <CalendarDays className="h-3.5 w-3.5 text-purple-400 shrink-0" />
+                                                    {t.transfer_date
+                                                        ? format(new Date(t.transfer_date + 'T12:00:00'), 'dd MMM', { locale: ptBR })
+                                                        : format(new Date(t.created_at), 'dd MMM', { locale: ptBR })
+                                                    }
                                                 </span>
-                                                <p className="text-[10px] text-gray-400">{format(new Date(t.created_at), 'HH:mm')}</p>
+                                                <p className="text-[10px] text-gray-400 ml-5">
+                                                    {format(new Date(t.created_at), "HH:mm 'criado'")}
+                                                </p>
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-2 text-xs">
@@ -312,11 +440,29 @@ export default function CaixaPage() {
                                                     {formatBRL(Number(t.amount))}
                                                 </span>
                                             </td>
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <button
+                                                        onClick={() => openEditTransfer(t)}
+                                                        className="p-1.5 rounded-lg text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors"
+                                                        title="Editar"
+                                                    >
+                                                        <Pencil className="h-3.5 w-3.5" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setDeletingTransfer(t)}
+                                                        className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                                                        title="Excluir"
+                                                    >
+                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                    </button>
+                                                </div>
+                                            </td>
                                         </tr>
                                     ))}
                                     {transfers?.length === 0 && (
                                         <tr>
-                                            <td colSpan={4} className="px-6 py-12 text-center text-gray-400 italic">
+                                            <td colSpan={5} className="px-6 py-12 text-center text-gray-400 italic">
                                                 Nenhuma transferência registrada recentemente.
                                             </td>
                                         </tr>
@@ -376,16 +522,16 @@ export default function CaixaPage() {
                 </div>
             </div>
 
-            {/* Transfer Modal Overlay */}
+            {/* ── Transfer Modal (Create / Edit) ── */}
             <AnimatePresence>
-                {isTransferOpen && (
+                {isModalOpen && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-                            onClick={() => setIsTransferOpen(false)}
+                            onClick={handleModalClose}
                         />
                         <motion.div
                             initial={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -396,13 +542,29 @@ export default function CaixaPage() {
                             <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-purple-500 to-indigo-600" />
 
                             <div className="flex items-center justify-between mb-6">
-                                <h3 className="text-xl font-bold text-gray-900 dark:text-white">Nova Transferência</h3>
-                                <button onClick={() => setIsTransferOpen(false)} className="p-1 hover:bg-gray-100 dark:hover:bg-white/5 rounded-full text-gray-400 transition-colors">
+                                <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                                    {isEditMode ? 'Editar Transferência' : 'Nova Transferência'}
+                                </h3>
+                                <button onClick={handleModalClose} className="p-1 hover:bg-gray-100 dark:hover:bg-white/5 rounded-full text-gray-400 transition-colors">
                                     <Plus className="h-5 w-5 rotate-45" />
                                 </button>
                             </div>
 
                             <div className="space-y-4">
+                                {/* Data do Depósito */}
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                                        <CalendarDays className="h-3.5 w-3.5" />
+                                        Data do Depósito
+                                    </label>
+                                    <Input
+                                        type="date"
+                                        value={transferData.transfer_date}
+                                        onChange={(e) => setTransferData(p => ({ ...p, transfer_date: e.target.value }))}
+                                        className="bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10 rounded-xl"
+                                    />
+                                </div>
+
                                 <div className="space-y-2">
                                     <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Origem</label>
                                     <AccountSelect
@@ -442,12 +604,73 @@ export default function CaixaPage() {
                                 </div>
 
                                 <Button
-                                    onClick={() => transferMutation.mutate(transferData)}
-                                    disabled={transferMutation.isPending}
+                                    onClick={handleModalSubmit}
+                                    disabled={isPending}
                                     className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold h-12 rounded-xl mt-4 shadow-lg shadow-purple-600/20"
                                 >
-                                    {transferMutation.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Confirmar Transferência'}
+                                    {isPending
+                                        ? <Loader2 className="h-5 w-5 animate-spin" />
+                                        : isEditMode ? 'Salvar Alterações' : 'Confirmar Transferência'
+                                    }
                                 </Button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* ── Delete Confirmation Modal ── */}
+            <AnimatePresence>
+                {deletingTransfer && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+                            onClick={() => setDeletingTransfer(null)}
+                        />
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                            className="relative w-full max-w-sm bg-white dark:bg-[#1A1A24] rounded-2xl shadow-2xl border border-gray-200 dark:border-white/10 p-6"
+                        >
+                            <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-red-500 to-rose-600 rounded-t-2xl" />
+
+                            <div className="flex flex-col items-center text-center gap-4 pt-2">
+                                <div className="p-3 bg-red-50 dark:bg-red-500/10 rounded-full">
+                                    <AlertTriangle className="h-7 w-7 text-red-500" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">Excluir Transferência</h3>
+                                    <p className="text-sm text-gray-500 dark:text-white/40 mt-1">
+                                        Tem certeza que deseja excluir esta transferência de{' '}
+                                        <span className="font-bold text-gray-800 dark:text-white">{formatBRL(Number(deletingTransfer.amount))}</span>?
+                                        <br />
+                                        <span className="text-red-400 text-xs">Esta ação reverterá os saldos das contas.</span>
+                                    </p>
+                                </div>
+
+                                <div className="flex gap-3 w-full mt-2">
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => setDeletingTransfer(null)}
+                                        className="flex-1 rounded-xl border-gray-200 dark:border-white/10"
+                                    >
+                                        Cancelar
+                                    </Button>
+                                    <Button
+                                        onClick={() => deleteMutation.mutate(deletingTransfer.id)}
+                                        disabled={deleteMutation.isPending}
+                                        className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl"
+                                    >
+                                        {deleteMutation.isPending
+                                            ? <Loader2 className="h-4 w-4 animate-spin" />
+                                            : 'Excluir'
+                                        }
+                                    </Button>
+                                </div>
                             </div>
                         </motion.div>
                     </div>
@@ -459,5 +682,5 @@ export default function CaixaPage() {
 
 // Simple icon component fix (ArrowRightUp not existing in Lucide, using similar)
 function ArrowRightUp(props: any) {
-    return <ArrowUpRight {...props} />
+    return <ArrowUpRight {...props} />;
 }

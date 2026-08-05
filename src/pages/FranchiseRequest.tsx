@@ -181,7 +181,7 @@ const FranchiseRequest = () => {
               <Label htmlFor="preferred_slug">URL da Loja *</Label>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">
-                  pedegrau.lovable.app/delivery/
+                  delivery.acainograu.com.br/
                 </span>
                 <Input
                   id="preferred_slug"
