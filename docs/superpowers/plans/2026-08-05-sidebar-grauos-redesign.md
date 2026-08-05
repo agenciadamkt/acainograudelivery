@@ -22,6 +22,16 @@
 - Comandos: `npm run test` (novo), `npx tsc --noEmit`, `npm run build`.
 - Commits em português, seguindo o padrão do repositório (`feat:`, `fix:`, `docs:`, `chore:`).
 - Trabalhar na branch atual `feat/modulo-fiscal`. **Não** fazer merge para `main` — isso dispara deploy em produção via GitHub Actions.
+- **Área intocável (trabalho do Fábio, commit `94dd577`).** Não alterar, refatorar
+  nem "melhorar" nenhum destes: `src/components/admin/CommandLauncher.tsx`,
+  `WorkspaceTabs.tsx`, `WorkspaceTab.tsx`, `AdminWorkspaceLayout.tsx`,
+  `src/contexts/WorkspaceTabsContext.tsx`, `src/contexts/TelemetryContext.tsx`,
+  `src/utils/searchRegistry.ts`, `src/utils/workspaceRegistry/`. Consumir a API
+  pública deles é permitido; editá-los, não. O `AdminLayout.tsx` só pode receber
+  acréscimos — tudo que já existe nele deve ser preservado.
+- **`Ctrl/Cmd+K` pertence ao `CommandLauncher`.** Nenhum componente da sidebar
+  registra esse atalho. Atalhos já ocupados: `Ctrl+Tab`, `Ctrl+Shift+Tab`,
+  `Ctrl+W`, `Alt+W`, `Ctrl+K`. `Alt+1..9` está livre (verificado).
 
 ---
 
@@ -1446,13 +1456,42 @@ Sem query nova: usePermissions() já devolve profile com nome, foto e perfil."
 
 ---
 
-## Task 10: Busca Ctrl+K
+## Task 10: Ligar a busca ao CommandLauncher existente
 
-**Files:**
-- Create: `src/components/admin/sidebar/SidebarSearch.tsx`
+> **CANCELADA como estava escrita.** Durante a execução do plano, o Fábio
+> implementou em paralelo um `CommandLauncher` (`src/components/admin/CommandLauncher.tsx`,
+> commit `94dd577`) que já é uma paleta de comandos sobre `cmdk` + `SearchRegistry`
+> e **já registra `Ctrl/Cmd+K`**. Construir um `SidebarSearch` próprio criaria um
+> segundo handler na mesma tecla e dois diálogos concorrentes.
+>
+> **Não criar `SidebarSearch.tsx`.** O botão de busca da sidebar apenas abre a
+> paleta que já existe. Restrição: **não alterar** `CommandLauncher`,
+> `WorkspaceTabs`, `WorkspaceTabsContext`, `TelemetryContext`,
+> `AdminWorkspaceLayout`, `searchRegistry` nem `workspaceRegistry/` — são do
+> Fábio e ficam como estão.
+
+**Files:** nenhum arquivo novo. A ligação acontece na Task 11.
 
 **Interfaces:**
-- Consumes: `VisibleItem` (Task 3), `ui/command.tsx` (cmdk, já instalado e usado em 5 telas)
+- Consumes: `useWorkspaceTabs()` de `@/contexts/WorkspaceTabsContext`, que expõe
+  `setCommandLauncherOpen(open: boolean)` e `isCommandLauncherOpen: boolean`
+- Produces: nada
+
+- [ ] **Step 1: Confirmar a API do contexto**
+
+Run: `grep -n "setCommandLauncherOpen\|openTab" src/contexts/WorkspaceTabsContext.tsx`
+Expected: ambos exportados no value do provider.
+
+- [ ] **Step 2: Nenhum código nesta task**
+
+A Task 11 usa `setCommandLauncherOpen(true)` no botão de busca e **não** registra
+`Ctrl+K`. Seguir para a Task 11.
+
+<details>
+<summary>Implementação original (descartada — mantida só como registro)</summary>
+
+**Interfaces originais:**
+- Consumes: `VisibleItem` (Task 3), `ui/command.tsx`
 - Produces: `<SidebarSearch open onOpenChange items />`
 
 - [ ] **Step 1: Implementar o componente**
@@ -1521,9 +1560,25 @@ Resultados agrupados por seção e filtro que casa também com o nome do
 grupo — buscar 'estoque' passa a achar os itens daquele bloco."
 ```
 
+</details>
+
 ---
 
 ## Task 11: Shell AdminSidebarV2 e flag de versão
+
+> **AMENDADA** após o commit `94dd577` (abas + CommandLauncher do Fábio):
+> 1. **Não** registrar `Ctrl+K` — o `CommandLauncher` já registra. Remover o
+>    `useEffect` de Ctrl+K do código abaixo.
+> 2. **Não** importar nem renderizar `SidebarSearch` (não existe mais).
+>    O botão de busca chama `setCommandLauncherOpen(true)` de `useWorkspaceTabs()`.
+> 3. Os itens de menu continuam `NavLink` comuns: o `WorkspaceTabsContext` abre a
+>    aba sozinho via `useEffect` em `location.pathname`. **Não** chamar `openTab`.
+> 4. O `AdminLayout.tsx` mudou (novo `AdminLayoutContext`, early-return `isNested`,
+>    `<WorkspaceTabs />`). Ler o arquivo atual antes de editar e **preservar tudo
+>    isso**; apenas acrescentar a flag e tornar o `SidebarProvider` controlado.
+> 5. **Não alterar** `CommandLauncher`, `WorkspaceTabs*`, `WorkspaceTabsContext`,
+>    `TelemetryContext`, `AdminWorkspaceLayout`, `searchRegistry`,
+>    `workspaceRegistry/`.
 
 **Files:**
 - Create: `src/components/admin/sidebar/AdminSidebarV2.tsx`
@@ -1560,13 +1615,12 @@ import { SidebarFavorites } from './SidebarFavorites';
 import { SidebarRecent } from './SidebarRecent';
 import { SidebarQuickActions } from './SidebarQuickActions';
 import { SidebarUserMenu } from './SidebarUserMenu';
-import { SidebarSearch } from './SidebarSearch';
+import { useWorkspaceTabs } from '@/contexts/WorkspaceTabsContext';
 import type { VisibleItem } from './navFilter';
 
 export function AdminSidebarV2() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [searchOpen, setSearchOpen] = useState(false);
 
   const { sections, allVisibleItems } = useSidebarNav(location.pathname);
   const prefs = useSidebarPrefs();
@@ -1582,17 +1636,9 @@ export function AdminSidebarV2() {
     '/admin/kds':    { count: badgeData?.kitchen ?? 0, color: 'bg-amber-500' },
   }), [badgeData]);
 
-  // Ctrl/Cmd+K abre a busca.
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        setSearchOpen(v => !v);
-      }
-    };
-    document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
-  }, []);
+  // Ctrl+K NAO e registrado aqui: o CommandLauncher do Fabio ja registra
+  // esse atalho. A sidebar so abre a paleta que ja existe.
+  const { setCommandLauncherOpen } = useWorkspaceTabs();
 
   // Registra a tela atual em Recentes.
   const { pushRecent } = prefs;
@@ -1686,7 +1732,7 @@ export function AdminSidebarV2() {
               <TooltipTrigger asChild>
                 <button
                   type="button"
-                  onClick={() => setSearchOpen(true)}
+                  onClick={() => setCommandLauncherOpen(true)}
                   aria-label="Buscar no menu"
                   className="mx-auto rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
                 >
@@ -1698,7 +1744,7 @@ export function AdminSidebarV2() {
           ) : (
             <button
               type="button"
-              onClick={() => setSearchOpen(true)}
+              onClick={() => setCommandLauncherOpen(true)}
               className="flex w-full items-center gap-2 rounded-lg border border-sidebar-border px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
             >
               <Search className="h-3.5 w-3.5 shrink-0" />
@@ -1758,8 +1804,6 @@ export function AdminSidebarV2() {
         <SidebarUserMenu collapsed={collapsed} />
         </SidebarFooter>
       </Sidebar>
-
-      <SidebarSearch open={searchOpen} onOpenChange={setSearchOpen} items={allVisibleItems} />
     </TooltipProvider>
   );
 }
