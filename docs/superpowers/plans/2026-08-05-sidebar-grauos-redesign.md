@@ -458,7 +458,6 @@ que garante que o redesign não altere permissões nem esconda itens."
 - [ ] **Step 1: Implementar o hook**
 
 ```ts
-import { useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/contexts/PermissionContext';
 import { MODULE_MENUS, getActiveModule, type ModuleId, type MenuSection } from '@/config/adminModules';
@@ -481,15 +480,16 @@ export function useSidebarNav(pathname: string): SidebarNav {
   const isMasterAdmin = user?.email === 'agenciadamkt@gmail.com' || hasRole('franchisee_master');
   const activeModule = getActiveModule(pathname);
 
-  return useMemo(() => {
-    const ctx: NavContext = { isMasterAdmin, hasRole, can };
-    const sections = filterSections(MODULE_MENUS[activeModule] ?? [], ctx);
-    return { activeModule, sections, allVisibleItems: flattenItems(sections) };
-    // `hasRole` e `can` são recriados a cada render dos contextos; incluí-los
-    // aqui anularia o memo. O que realmente muda o resultado é o módulo e o
-    // usuário, então a dependência é essa.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeModule, isMasterAdmin, user?.id]);
+  // SEM useMemo, de propósito. `hasRole` e `can` leem estado que carrega de
+  // forma assíncrona (a role chega por fetch em AuthContext; as permissões
+  // começam em {} em PermissionContext). Memoizar por [activeModule,
+  // isMasterAdmin, user?.id] devolvia resultado obsoleto: os itens com
+  // requireRole/requiredPermission sumiam do menu depois do login e só
+  // voltavam ao trocar de módulo. Filtrar a cada render é o que a
+  // AdminSidebar atual faz, e custa nada — são ~45 itens.
+  const ctx: NavContext = { isMasterAdmin, hasRole, can };
+  const sections = filterSections(MODULE_MENUS[activeModule] ?? [], ctx);
+  return { activeModule, sections, allVisibleItems: flattenItems(sections) };
 }
 ```
 
