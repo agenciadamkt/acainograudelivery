@@ -2,7 +2,7 @@
 
 **Data:** 2026-08-05
 **Status:** aprovado para planejamento
-**Escopo:** camada de interface da navegação do admin
+**Escopo:** camada de interface da navegação do admin (V1 + bloco V1.1 de produtividade)
 
 ---
 
@@ -193,6 +193,34 @@ A chave é ativada por `?sidebar=v2` na URL, que grava no LocalStorage. `?sideba
 
 Depois da aprovação em produção: remover `AdminSidebar.tsx`, renomear a V2 para `AdminSidebar.tsx` e apagar a flag. Essa limpeza é parte do trabalho, não um "depois" indefinido.
 
+## 10.1 Bloco V1.1 — produtividade
+
+Adicionado após review. São itens que entram no mesmo trabalho **porque a dependência já está instalada** — `cmdk`, `framer-motion`, `@radix-ui/react-context-menu`, `@radix-ui/react-tooltip` e `@radix-ui/react-dropdown-menu` já constam no `package.json`, e os primitivos `ui/command.tsx`, `ui/context-menu.tsx`, `ui/tooltip.tsx` e `ui/dropdown-menu.tsx` já existem.
+
+O review que originou este bloco apontou como ausentes quatro coisas que **já existem** e não devem ser reconstruídas: badges (`useSidebarBadges.ts`, com refetch de 30s), navegação por workspace (`getActiveModule`), IA (`CopilotPanel` montado globalmente em `App.tsx:31` e o módulo `/admin/assistente`) e design tokens (seção 5.1 desta spec).
+
+| Item | Implementação | Novo componente |
+|---|---|---|
+| **Recentes** | Últimas 5 telas visitadas, gravadas em `grauos_sidebar_recent` a cada navegação. Só LocalStorage, sem query. | `SidebarRecent.tsx` |
+| **Quick Actions** | Botão `+` no topo com Novo Pedido, Nova Mesa, Novo Produto, Nova Compra, Novo Usuário. Verificado: as 5 rotas existem. Cada ação respeita a mesma permissão do item de menu correspondente. | `SidebarQuickActions.tsx` |
+| **Menu de contexto** | Botão direito no item: abrir em nova aba, favoritar/desfavoritar, copiar link. | dentro de `SidebarNavItem` |
+| **Atalhos de módulo** | `Alt+1..9` troca de módulo, na ordem exibida no Hub. Desativado quando o foco está em `input`/`textarea`. | dentro de `useSidebarPrefs` |
+| **Badges estendidos** | Amplia `useSidebarBadges` para Caixa, Entregas, NPS e Pedidos de Insumos, no mesmo padrão de query já existente. | `useSidebarBadges.ts` (edição) |
+| **Entrada da IA** | Item "✨ Pergunte à IA" abre o `CopilotPanel` já existente. | ver ressalva abaixo |
+| **Animações** | `framer-motion` nos acordeões e na troca expandido/recolhido, com spring suave, sempre sob `prefers-reduced-motion`. | transversal |
+| **Tokens granulares** | Acrescenta `--sidebar-elevated`, `--sidebar-divider`, `--sidebar-icon`, `--sidebar-badge`, `--sidebar-category` aos 6 da seção 5.1. | `index.css` + `tailwind.config.ts` |
+
+**Ressalva sobre a entrada da IA.** O `CopilotPanel` guarda `isOpen` em estado local e não expõe forma de ser aberto de fora. Ligar o item da sidebar exige um `CustomEvent` (`grauos:copilot:open`) despachado pela sidebar e escutado pelo painel. **Isso edita um arquivo fora da pasta da sidebar** — é a única exceção ao isolamento descrito na seção 4, e é uma mudança aditiva de poucas linhas.
+
+**Ressalva sobre os badges.** Estender os badges adiciona *queries de leitura* sobre tabelas que já existem, no mesmo padrão do hook atual. Não altera API nem schema, mas aumenta o número de consultas periódicas — devem ir na mesma query agregada, não em quatro `useQuery` separados.
+
+### Fora do escopo, movido para a V2 "Central de Comando"
+
+Com spec e brainstorm próprios, porque mexem em dados e têm perguntas de produto em aberto:
+
+- **Command Palette com busca de entidades** (pedido, produto, cliente, mesa). A UI é barata com `cmdk`; o caro é a busca — queries por entidade, debounce, e a decisão entre filtrar no client ou `ilike` no servidor.
+- **Mission Sidebar** ("23 pedidos, 5 entregas, meta 74%"). Exige queries novas e uma **definição de meta que não existe no banco**. Perguntas abertas: meta de quê, definida por quem, em qual período. Contradiz a restrição "não alterar APIs, banco de dados" do brief original, então precisa de decisão explícita antes de virar trabalho.
+
 ## 11. Verificação
 
 Sem suíte de testes de UI no projeto hoje, a verificação é manual e roteirizada:
@@ -206,6 +234,15 @@ Sem suíte de testes de UI no projeto hoje, a verificação é manual e roteiriz
 7. Conferir claro e escuro.
 8. Conferir mobile (Sheet) e tablet.
 
+Para o bloco V1.1:
+
+9. Recentes registra e limita a 5; sobrevive ao reload.
+10. Cada Quick Action some para quem não tem a permissão do item correspondente.
+11. `Alt+1..9` troca de módulo e **não** dispara com foco num campo de texto.
+12. Badges novos batem com a contagem real da tela correspondente.
+13. "Pergunte à IA" abre o `CopilotPanel` sem quebrar o comportamento atual dele.
+14. Com `prefers-reduced-motion: reduce` ativo no SO, nenhuma animação roda.
+
 ## 12. Riscos
 
 | Risco | Mitigação |
@@ -215,3 +252,6 @@ Sem suíte de testes de UI no projeto hoje, a verificação é manual e roteiriz
 | Tokens novos afetarem outra área | Verificado: só 3 arquivos do admin importam `ui/sidebar`; os tokens `--sidebar-*` não são usados em nenhum outro lugar |
 | Mudar largura quebrar o `AdminLayout` | O layout usa a variável CSS, não valores fixos |
 | Código duplicado enquanto a flag existe | Remoção da V1 é item explícito do plano |
+| V1.1 inchar e atrasar a entrega da V1 | A V1 é entregável sozinha. Se o prazo apertar, o bloco 10.1 é cortado inteiro sem afetar as seções 1–10 |
+| Badges novos multiplicarem consultas | Uma única query agregada, no padrão do hook atual, e não quatro `useQuery` |
+| Evento da IA acoplar sidebar e Copilot | `CustomEvent` é aditivo; se o listener não existir, o item apenas não faz nada, sem quebrar |
