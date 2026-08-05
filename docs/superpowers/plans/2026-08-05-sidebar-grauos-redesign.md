@@ -16,7 +16,7 @@
 - Identidade visual preservada: `--primary: 262 50% 47%`, fonte Inter (já importada em `src/index.css:1`).
 - Larguras: expandida `17.5rem` (280px), recolhida `4.5rem` (72px), mobile `18rem` (inalterada).
 - Toda transição em **180ms** máximo, sempre sob `@media (prefers-reduced-motion: reduce)`.
-- Persistência só via `useSidebarPrefs`. Nenhum outro arquivo escreve em LocalStorage.
+- Persistência: as chaves de LocalStorage são declaradas **só** em `prefsStorage.ts`, e nenhum componente chama `localStorage` diretamente. Preferências de conteúdo (grupos abertos, favoritos, recentes) passam pelo `useSidebarPrefs`. O estado recolhido e a flag de versão são do `AdminLayout` — porque quem manda no recolhido é o `SidebarProvider`, que também decide o Sheet do mobile — e usam os helpers `readBool`/`writeBool` do mesmo módulo.
 - Chaves existentes preservadas: `grauos_sidebar_open`, `grauos_favorites`, `grauos_active_module`.
 - Máximo de 6 favoritos (`MAX_FAVORITES = 6`), como hoje.
 - Comandos: `npm run test` (novo), `npx tsc --noEmit`, `npm run build`.
@@ -608,11 +608,13 @@ Expected: FAIL — `Failed to resolve import "./prefsStorage"`.
 - [ ] **Step 3: Implementar `prefsStorage.ts`**
 
 ```ts
+// Todas as chaves de LocalStorage da sidebar são declaradas aqui, e só aqui.
 export const STORAGE = {
   open: 'grauos_sidebar_open',
   favorites: 'grauos_favorites',
   collapsed: 'grauos_sidebar_collapsed',
   recent: 'grauos_sidebar_recent',
+  versionFlag: 'grauos_sidebar_v2',
 } as const;
 
 export const MAX_FAVORITES = 6;
@@ -635,6 +637,15 @@ export function writeArray(key: string, value: string[]): void {
     localStorage.setItem(key, JSON.stringify(value));
   } catch {
     /* quota cheia ou storage bloqueado — preferência não é crítica */
+  }
+}
+
+/** Distingue "sem preferência salva" de "salvo como false". */
+export function hasKey(key: string): boolean {
+  try {
+    return localStorage.getItem(key) !== null;
+  } catch {
+    return false;
   }
 }
 
@@ -1788,7 +1799,7 @@ Imports novos:
 
 ```tsx
 import { AdminSidebarV2 } from './sidebar/AdminSidebarV2';
-import { STORAGE, readBool, writeBool } from './sidebar/prefsStorage';
+import { STORAGE, readBool, writeBool, hasKey } from './sidebar/prefsStorage';
 ```
 
 Dentro do componente, antes do `return`:
@@ -1799,9 +1810,9 @@ Dentro do componente, antes do `return`:
     try {
       const escolha = new URLSearchParams(window.location.search).get('sidebar');
       if (escolha === 'v2' || escolha === 'v1') {
-        localStorage.setItem('grauos_sidebar_v2', String(escolha === 'v2'));
+        writeBool(STORAGE.versionFlag, escolha === 'v2');
       }
-      return localStorage.getItem('grauos_sidebar_v2') === 'true';
+      return readBool(STORAGE.versionFlag, false);
     } catch {
       return false;
     }
@@ -1813,10 +1824,7 @@ Dentro do componente, antes do `return`:
   // Sem preferência salva, tablet (<1024px) começa recolhido. Preferência
   // explícita do usuário sempre vence a heurística de viewport.
   const [sidebarOpen, setSidebarOpen] = useState(() => {
-    const temPreferencia = (() => {
-      try { return localStorage.getItem(STORAGE.collapsed) !== null; } catch { return false; }
-    })();
-    if (temPreferencia) return !readBool(STORAGE.collapsed, false);
+    if (hasKey(STORAGE.collapsed)) return !readBool(STORAGE.collapsed, false);
     return window.innerWidth >= 1024;
   });
 
