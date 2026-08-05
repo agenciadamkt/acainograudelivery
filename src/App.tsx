@@ -10,6 +10,9 @@ import { PrinterProvider } from "@/contexts/PrinterContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { PrivateRoute } from "@/components/PrivateRoute";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { TelemetryProvider } from "@/contexts/TelemetryContext";
+import { WorkspaceTabsProvider } from "@/contexts/WorkspaceTabsContext";
+import { AdminWorkspaceLayout } from "@/components/admin/AdminWorkspaceLayout";
 
 import { ProtectedRoute } from "@/components/customer/ProtectedRoute";
 import AppManager from "@/components/AppManager";
@@ -227,8 +230,10 @@ const App = () => {
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <ErrorBoundary>
-              <AuthProvider>
+            <TelemetryProvider>
+              <WorkspaceTabsProvider>
+                <ErrorBoundary>
+                  <AuthProvider>
                 <PermissionProvider>
                 <StoreProvider>
                   <CartProvider>
@@ -363,8 +368,9 @@ const App = () => {
                           </PrivateRoute>
                         }
                       />
-                      <Route
-                        path="/admin/performance"
+                      <Route element={<AdminWorkspaceLayout />}>
+                        <Route
+                          path="/admin/performance"
                         element={
                           <PrivateRoute requiredRole="staff">
                             <PerformancePage />
@@ -1109,6 +1115,7 @@ const App = () => {
                           </PrivateRoute>
                         }
                       />
+                      </Route>
                     </>
                   )}
 
@@ -1126,6 +1133,8 @@ const App = () => {
                 </PermissionProvider>
             </AuthProvider>
           </ErrorBoundary>
+              </WorkspaceTabsProvider>
+            </TelemetryProvider>
         </BrowserRouter>
       </TooltipProvider>
     </ThemeProvider>

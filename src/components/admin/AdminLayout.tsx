@@ -1,4 +1,5 @@
-import { ReactNode, useState, useRef, useEffect } from 'react';
+import { ReactNode, useState, useRef, useEffect, createContext, useContext } from 'react';
+import { useLocation } from 'react-router-dom';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AdminSidebar } from './AdminSidebar';
 import { StoreSelector } from './StoreSelector';
@@ -27,18 +28,29 @@ import { MobileBottomNav } from './MobileBottomNav';
 import { cn } from '@/lib/utils';
 import { OperationalManualDrawer } from './OperationalManualDrawer';
 import { HelpCircle } from 'lucide-react';
+import { WorkspaceTabs } from './WorkspaceTabs';
 
 interface AdminLayoutProps {
   children: ReactNode;
 }
 
+export const AdminLayoutContext = createContext<boolean>(false);
+
 export function AdminLayout({ children }: AdminLayoutProps) {
+  const isNested = useContext(AdminLayoutContext);
+
+  if (isNested) {
+    return <>{children}</>;
+  }
+
   return (
-    <ManualProvider>
-      <AdminLayoutContent>
-        {children}
-      </AdminLayoutContent>
-    </ManualProvider>
+    <AdminLayoutContext.Provider value={true}>
+      <ManualProvider>
+        <AdminLayoutContent>
+          {children}
+        </AdminLayoutContent>
+      </ManualProvider>
+    </AdminLayoutContext.Provider>
   );
 }
 
@@ -47,6 +59,7 @@ function AdminLayoutContent({ children }: AdminLayoutProps) {
   const { currentStore, refreshStores } = useStore();
   const updateStore = useUpdateStore();
   const { isOpen, toggleManual } = useManual();
+  const location = useLocation();
 
   // Ativar Web Push Notifications globalmente
   usePushNotifications(currentStore?.id);
@@ -272,6 +285,35 @@ function AdminLayoutContent({ children }: AdminLayoutProps) {
   };
   if (!isMounted) return null;
 
+  const isIndependent = [
+    '/admin/performance',
+    '/admin/assistente',
+    '/admin/comunidade',
+    '/admin/checkgrau',
+    '/admin/financeiro',
+    '/admin/frota',
+    '/admin/orders/catalog',
+    '/admin/orders/products'
+  ].some(prefix => location.pathname.startsWith(prefix));
+
+  if (isIndependent) {
+    return (
+      <div className="min-h-screen flex flex-col w-full bg-zinc-50 dark:bg-zinc-950/20 animate-fade-in workspace-independent-wrapper">
+        <style>{`
+          .workspace-independent-wrapper aside {
+            top: 2.75rem !important;
+            height: calc(100vh - 2.75rem) !important;
+            z-index: 30 !important;
+          }
+        `}</style>
+        <WorkspaceTabs />
+        <main className="flex-1 overflow-auto">
+          {children}
+        </main>
+      </div>
+    );
+  }
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
@@ -333,6 +375,8 @@ function AdminLayoutContent({ children }: AdminLayoutProps) {
               </div>
             </div>
           </header>
+
+          <WorkspaceTabs />
 
           <main className={cn('flex-1 p-6 overflow-auto', isMobile && 'pb-20')}>
             {children}

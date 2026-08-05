@@ -59,6 +59,7 @@ export function GrauOSLayout({ children }: GrauOSLayoutProps) {
 
     const currentModule = moduleConfig[location.pathname] || moduleConfig['/admin/universidade'];
     const ModuleIcon = currentModule.icon;
+    
     if (!isMounted) return null;
 
     return (
