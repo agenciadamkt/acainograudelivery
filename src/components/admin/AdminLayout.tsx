@@ -1,7 +1,6 @@
 import { ReactNode, useState, useRef, useEffect, useCallback, createContext, useContext } from 'react';
 import { useLocation } from 'react-router-dom';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
-import { AdminSidebar } from './AdminSidebar';
 import { AdminSidebarV2 } from './sidebar/AdminSidebarV2';
 import { STORAGE, readBool, writeBool, hasKey } from './sidebar/prefsStorage';
 import { StoreSelector } from './StoreSelector';
@@ -62,20 +61,6 @@ function AdminLayoutContent({ children }: AdminLayoutProps) {
   const updateStore = useUpdateStore();
   const { isOpen, toggleManual } = useManual();
   const location = useLocation();
-
-  // A V2 é o padrão desde a aprovação (2026-08-05). `?sidebar=v1` volta à
-  // antiga e `?sidebar=v2` retorna à nova; a escolha fica salva.
-  //
-  // A V1 e esta flag continuam no código de propósito, como rollback para o
-  // primeiro ciclo em produção: até aqui a V2 só rodou em desenvolvimento.
-  // Depois de um período estável, apagar AdminSidebar.tsx e este bloco.
-  const [usarV2] = useState(() => {
-    const escolha = new URLSearchParams(window.location.search).get('sidebar');
-    if (escolha === 'v2' || escolha === 'v1') {
-      writeBool(STORAGE.versionFlag, escolha === 'v2');
-    }
-    return readBool(STORAGE.versionFlag, true);
-  });
 
   // A sidebar é RECOLHIDA por padrão e expande ao passar o mouse (a expansão
   // por hover é interna à AdminSidebarV2 e não passa por aqui — ela sobrepõe
@@ -350,7 +335,7 @@ function AdminLayoutContent({ children }: AdminLayoutProps) {
   return (
     <SidebarProvider open={sidebarOpen} onOpenChange={onSidebarOpenChange}>
       <div className="min-h-screen flex w-full">
-        {usarV2 ? <AdminSidebarV2 /> : <AdminSidebar />}
+        <AdminSidebarV2 />
 
         <div className="flex-1 flex flex-col">
           <header className="h-14 border-b flex items-center justify-between px-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">

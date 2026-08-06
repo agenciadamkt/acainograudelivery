@@ -4,8 +4,9 @@ export const STORAGE = {
   favorites: 'grauos_favorites',
   collapsed: 'grauos_sidebar_collapsed',
   recent: 'grauos_sidebar_recent',
-  versionFlag: 'grauos_sidebar_v2',
 } as const;
+// `grauos_sidebar_v2` era a flag de rollout da V2. A V1 foi removida, então a
+// chave deixou de ser lida — quem ainda a tiver salva simplesmente a ignora.
 
 export const MAX_FAVORITES = 6;
 export const MAX_RECENT = 5;
