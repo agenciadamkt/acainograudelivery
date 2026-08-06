@@ -52,19 +52,37 @@ export default function ProductsPage() {
   const [deletingProduct, setDeletingProduct] = useState<any>();
 
 
+  // Receita, Preços, Complementos e Vídeos são registros filhos: dependem do
+  // product_id, então o ProductForm só libera essas abas quando o produto já
+  // existe. Antes, o create fechava o diálogo e descartava o produto recém-
+  // criado — o cadastro morria nos Detalhes e era preciso achar o produto na
+  // lista e reabrir para continuar. Agora o diálogo permanece aberto e passa
+  // a editar o que acabou de ser criado, liberando as quatro abas na hora.
   const handleCreate = async (data: any) => {
-    await createProduct.mutateAsync(data);
-    setIsDialogOpen(false);
+    try {
+      const criado = await createProduct.mutateAsync(data);
+      if (criado?.id) {
+        setEditingProduct(criado);
+      } else {
+        setIsDialogOpen(false);
+      }
+    } catch {
+      /* erro já reportado via toast; mantém o diálogo aberto para nova tentativa */
+    }
   };
 
   const handleUpdate = async (data: any) => {
     if (editingProduct) {
-      await updateProduct.mutateAsync({
-        id: editingProduct.id,
-        ...data,
-      });
-      setEditingProduct(undefined);
-      setIsDialogOpen(false);
+      try {
+        await updateProduct.mutateAsync({
+          id: editingProduct.id,
+          ...data,
+        });
+        setEditingProduct(undefined);
+        setIsDialogOpen(false);
+      } catch {
+        /* erro já reportado via toast */
+      }
     }
   };
 
