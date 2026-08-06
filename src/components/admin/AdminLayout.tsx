@@ -77,13 +77,16 @@ function AdminLayoutContent({ children }: AdminLayoutProps) {
     return readBool(STORAGE.versionFlag, true);
   });
 
-  // O SidebarProvider é a fonte de verdade do estado recolhido — é ele que
-  // também decide o Sheet no mobile. Aqui ele é semeado do LocalStorage e
-  // persistido a cada mudança. Sem preferência salva, tablet (<1024px)
-  // começa recolhido; preferência explícita sempre vence o viewport.
+  // A sidebar é RECOLHIDA por padrão e expande ao passar o mouse (a expansão
+  // por hover é interna à AdminSidebarV2 e não passa por aqui — ela sobrepõe
+  // o conteúdo em vez de empurrá-lo).
+  //
+  // Este estado é só o "fixar aberta": quando o usuário clica no botão de
+  // fixar, a sidebar deixa de depender do mouse. Sem preferência salva, fica
+  // recolhida.
   const [sidebarOpen, setSidebarOpen] = useState(() => {
-    if (hasKey(STORAGE.collapsed)) return !readBool(STORAGE.collapsed, false);
-    return window.innerWidth >= 1024;
+    if (hasKey(STORAGE.collapsed)) return !readBool(STORAGE.collapsed, true);
+    return false;
   });
 
   const onSidebarOpenChange = useCallback((open: boolean) => {

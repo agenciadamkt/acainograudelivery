@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { PanelLeftClose, PanelLeftOpen, Search, Sparkles } from 'lucide-react';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, useSidebar } from '@/components/ui/sidebar';
@@ -35,7 +35,18 @@ export function AdminSidebarV2() {
   // O primitivo é a fonte de verdade do recolhido. No mobile ele vira Sheet
   // (largura cheia), então lá `collapsed` é sempre false.
   const { state, isMobile, toggleSidebar, setOpenMobile } = useSidebar();
-  const collapsed = state === 'collapsed' && !isMobile;
+  const [hovering, setHovering] = useState(false);
+
+  // Recolhida por padrão; o mouse expande. O estado do provider NÃO muda com
+  // o hover — só o painel flutuante alarga, sobrepondo o conteúdo. Se o hover
+  // mexesse no provider, o "gap" também cresceria e a página inteira pularia
+  // a cada passada de mouse.
+  const fixadaAberta = state === 'expanded';
+  const expandido = fixadaAberta || isMobile || hovering;
+  const collapsed = !expandido;
+
+  // Só sobrepõe quando a expansão veio do hover; fixada aberta, empurra normal.
+  const sobrepondo = !fixadaAberta && !isMobile && hovering;
 
   const badgeMap = useMemo<Record<string, BadgeConfig>>(() => ({
     '/admin/orders': { count: badgeData?.pending ?? 0, color: 'bg-red-500' },
@@ -115,7 +126,18 @@ export function AdminSidebarV2() {
     <TooltipProvider>
       {/* O primitivo cuida de: Sheet no mobile, larguras via CSS vars e
           integração com o SidebarTrigger do AdminLayout. */}
-      <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
+      <Sidebar
+        collapsible="icon"
+        onMouseEnter={() => setHovering(true)}
+        onMouseLeave={() => setHovering(false)}
+        className={cn(
+          'border-r border-sidebar-border bg-sidebar',
+          // `!w-` vence o `group-data-[collapsible=icon]:w-[--sidebar-width-icon]`
+          // do primitivo. Como o `className` cai no container `fixed`, e não no
+          // "gap", a sidebar cresce por cima do conteúdo em vez de empurrá-lo.
+          sobrepondo && 'md:!w-[17.5rem] md:shadow-2xl',
+        )}
+      >
         <SidebarHeader className="flex flex-col gap-2 border-b border-sidebar-border p-3">
           <div className="flex items-center justify-between gap-2">
             <button
@@ -131,11 +153,11 @@ export function AdminSidebarV2() {
               />
             </button>
 
-            {!collapsed && !isMobile && (
+            {fixadaAberta && !isMobile && (
               <button
                 type="button"
                 onClick={toggleSidebar}
-                aria-label="Recolher menu"
+                aria-label="Desafixar menu (volta a expandir só com o mouse)"
                 className="shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
               >
                 <PanelLeftClose className="h-4 w-4" />
@@ -143,11 +165,11 @@ export function AdminSidebarV2() {
             )}
           </div>
 
-          {collapsed && (
+          {!fixadaAberta && !isMobile && (
             <button
               type="button"
               onClick={toggleSidebar}
-              aria-label="Expandir menu"
+              aria-label="Fixar menu aberto"
               className="mx-auto rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
             >
               <PanelLeftOpen className="h-4 w-4" />

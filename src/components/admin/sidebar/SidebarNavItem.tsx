@@ -41,18 +41,21 @@ export function SidebarNavItem({
         'text-sm font-medium transition-colors duration-[180ms]',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring',
         collapsed && 'justify-center px-0',
+        // Ativo e hover usam o mesmo roxo sólido da marca (#683CB4 = --primary).
+        // O que distingue os dois é a barra branca à esquerda, que só o ativo tem.
         isActive
-          ? 'bg-primary/10 text-primary font-semibold ring-1 ring-primary/20'
-          : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground',
-        item.highlight && !isActive && 'text-primary',
+          ? 'bg-primary text-primary-foreground font-semibold'
+          : 'text-sidebar-foreground/80 hover:bg-primary hover:text-primary-foreground',
+        item.highlight && !isActive && 'text-primary hover:text-primary-foreground',
       )}
     >
       {/* Barra de seleção: pseudo-elemento posicionado, não border-left,
-          para não deslocar o conteúdo ao ativar. */}
+          para não deslocar o conteúdo ao ativar. Branca porque o fundo do
+          item ativo é o roxo sólido. */}
       {isActive && (
         <span
           aria-hidden="true"
-          className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-primary"
+          className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-primary-foreground"
         />
       )}
 
@@ -81,12 +84,12 @@ export function SidebarNavItem({
           className={cn(
             'shrink-0 rounded p-0.5 transition-opacity',
             'opacity-0 focus-visible:opacity-100 group-hover/item:opacity-100',
-            'hover:bg-sidebar-accent',
+            'hover:bg-primary-foreground/20',
             isFavorite && 'opacity-100',
           )}
           onClick={e => { e.preventDefault(); e.stopPropagation(); onToggleFavorite(item.url); }}
         >
-          <Star className={cn('h-3 w-3', isFavorite ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground')} />
+          <Star className={cn('h-3 w-3', isFavorite ? 'fill-yellow-400 text-yellow-400' : 'text-current opacity-60')} />
         </button>
       )}
 
@@ -95,18 +98,18 @@ export function SidebarNavItem({
           <button
             type="button" aria-label={`Mover ${item.title} para cima`}
             disabled={!onMoveUp}
-            className="rounded p-px hover:bg-sidebar-accent disabled:opacity-30"
+            className="rounded p-px hover:bg-primary-foreground/20 disabled:opacity-30"
             onClick={e => { e.preventDefault(); e.stopPropagation(); onMoveUp?.(); }}
           >
-            <ArrowUp className="h-2.5 w-2.5 text-muted-foreground" />
+            <ArrowUp className="h-2.5 w-2.5 text-current opacity-60" />
           </button>
           <button
             type="button" aria-label={`Mover ${item.title} para baixo`}
             disabled={!onMoveDown}
-            className="rounded p-px hover:bg-sidebar-accent disabled:opacity-30"
+            className="rounded p-px hover:bg-primary-foreground/20 disabled:opacity-30"
             onClick={e => { e.preventDefault(); e.stopPropagation(); onMoveDown?.(); }}
           >
-            <ArrowDown className="h-2.5 w-2.5 text-muted-foreground" />
+            <ArrowDown className="h-2.5 w-2.5 text-current opacity-60" />
           </button>
         </span>
       )}
