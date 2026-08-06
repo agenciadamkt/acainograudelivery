@@ -206,7 +206,20 @@ export function AdminSidebarV2() {
           )}
         </SidebarHeader>
 
-        <SidebarContent asChild className="sidebar-scroll flex-1 overflow-y-auto px-2 py-3">
+        {/*
+          O primitivo aplica `group-data-[collapsible=icon]:overflow-hidden`.
+          Como a expansão por hover não muda o estado do provider, esse
+          `data-collapsible="icon"` continua valendo e o menu ficava sem
+          rolagem — com a sidebar aberta e conteúdo inalcançável embaixo.
+          A variante abaixo devolve a rolagem nos dois estados; o trilho
+          estreito também precisa dela, senão os últimos ícones somem.
+        */}
+        <SidebarContent
+          className={cn(
+            'sidebar-scroll flex-1 px-2 py-3',
+            'overflow-y-auto group-data-[collapsible=icon]:overflow-y-auto',
+          )}
+        >
           <nav aria-label="Navegação principal">
             <SidebarFavorites
               items={favoritos}
