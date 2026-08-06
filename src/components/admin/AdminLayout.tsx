@@ -63,14 +63,18 @@ function AdminLayoutContent({ children }: AdminLayoutProps) {
   const { isOpen, toggleManual } = useManual();
   const location = useLocation();
 
-  // ?sidebar=v2 liga a sidebar nova, ?sidebar=v1 volta à antiga; a escolha
-  // fica salva. Padrão: V1, até a V2 ser aprovada em produção.
+  // A V2 é o padrão desde a aprovação (2026-08-05). `?sidebar=v1` volta à
+  // antiga e `?sidebar=v2` retorna à nova; a escolha fica salva.
+  //
+  // A V1 e esta flag continuam no código de propósito, como rollback para o
+  // primeiro ciclo em produção: até aqui a V2 só rodou em desenvolvimento.
+  // Depois de um período estável, apagar AdminSidebar.tsx e este bloco.
   const [usarV2] = useState(() => {
     const escolha = new URLSearchParams(window.location.search).get('sidebar');
     if (escolha === 'v2' || escolha === 'v1') {
       writeBool(STORAGE.versionFlag, escolha === 'v2');
     }
-    return readBool(STORAGE.versionFlag, false);
+    return readBool(STORAGE.versionFlag, true);
   });
 
   // O SidebarProvider é a fonte de verdade do estado recolhido — é ele que
