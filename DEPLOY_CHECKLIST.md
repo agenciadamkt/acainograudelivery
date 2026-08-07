@@ -38,7 +38,35 @@ Ao contrário do que o registro anterior sugeria, quase tudo já foi aplicado:
 
 Rodar no Supabase → SQL Editor, na ordem acima.
 
-### 2. Oito edge functions não publicadas
+### 2. ✅ RESOLVIDO — oito edge functions publicadas em 2026-08-07
+
+Publicadas e verificadas: as seis que exigem login respondem 401 (esperado,
+pedem JWT de usuário real) e `fiscal-webhook` / `operations-alerts` respondem 200.
+
+Ao publicar, foi corrigido um bug que teria passado despercebido:
+`fiscal-webhook` não tinha entrada em `supabase/config.toml`, então subiria com
+`verify_jwt = true`. PlugNotas e Focus chamam o webhook **sem** JWT do Supabase —
+levariam 401 antes do código rodar, e toda nota emitida ficaria presa em
+PROCESSANDO sem nunca ser confirmada. Mesmo bug já documentado no arquivo para o
+Mercado Pago. Corrigido no commit `a19292f`.
+
+⚠️ **Pendente de decisão: `FISCAL_WEBHOOK_SECRET`.**
+Hoje `fiscal-webhook` aceita qualquer requisição — confirmado, responde 200 sem
+autenticação. Isso permite forjar confirmação de nota. O código só valida o
+segredo se o env existir:
+
+```bash
+supabase secrets set FISCAL_WEBHOOK_SECRET="$(openssl rand -hex 32)" \
+  --project-ref sixzfcpdjtnftacuwvph
+```
+
+**Ordem importa:** depois de setar, a URL de webhook cadastrada no PlugNotas /
+Focus precisa levar `?secret=<valor>`, senão os webhooks passam a falhar com 401.
+Se ainda não há empresa fiscal cadastrada, este é o momento mais seguro para
+setar — nada a reconfigurar depois.
+
+<details>
+<summary>Comandos usados (registro)</summary>
 
 ```
 fiscal-cancelar     fiscal-certificado   fiscal-consultar   fiscal-documento
@@ -63,9 +91,13 @@ supabase functions deploy fiscal-webhook --project-ref sixzfcpdjtnftacuwvph
 supabase functions deploy operations-alerts --project-ref sixzfcpdjtnftacuwvph
 ```
 
-Exige `supabase login` (interativo — rode você mesmo). Confira antes se as
-variáveis de ambiente que essas funções usam (chaves do PlugNotas / Focus NFe)
-estão configuradas em Project Settings → Edge Functions → Secrets.
+</details>
+
+Nota: as credenciais do PlugNotas / Focus **não** são variáveis de ambiente. O
+token vem do banco, por empresa (`getToken(db, company.id)` em
+`_shared/fiscal-provider.ts`), configurado pela tela de empresa fiscal. Sem token
+cadastrado, a emissão falha com "Empresa sem token do provedor configurado" — erro
+claro, não quebra.
 
 ---
 
