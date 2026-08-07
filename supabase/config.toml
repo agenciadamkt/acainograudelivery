@@ -10,6 +10,14 @@ verify_jwt = false
 [functions.infinitepay-webhook]
 verify_jwt = false
 
+# PlugNotas e Focus NFe chamam o webhook SEM JWT do Supabase, igual ao
+# Mercado Pago acima. Sem esta linha o gateway responde 401 antes do código
+# rodar, e a nota emitida nunca é confirmada — fica presa em PROCESSANDO.
+# A segurança do endpoint vem do FISCAL_WEBHOOK_SECRET validado dentro da
+# função (ver supabase/functions/fiscal-webhook/index.ts).
+[functions.fiscal-webhook]
+verify_jwt = false
+
 [functions.whatsapp-webhook]
 verify_jwt = false
 
