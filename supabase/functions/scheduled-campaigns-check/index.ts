@@ -1,245 +1,262 @@
-// SOLUÇÃO FINAL: AGENDAMENTO AUTOMÁTICO (COM FILTRO DE HORA)
-import { createClient } from 'npm:@supabase/supabase-js@2';
+import { withSupabase } from 'npm:@supabase/server@1';
+import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { getFcmAccessToken, sendFcmMessage } from '../_shared/fcm.ts';
-import { requireStaffOrService } from '../_shared/auth.ts';
 
-const BTZAP_TOKEN = Deno.env.get('BTZAP_TOKEN') ?? '';
-const BTZAP_URL = "https://acainograu.uazapi.com";
-
+const BTZAP_URL = 'https://acainograu.uazapi.com';
 const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
+  status,
+  headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+});
 
-// Campanha de push (canal='push'): só alcança clientes com o app nativo
-// instalado (linha em customer_push_tokens) — diferente do WhatsApp, que
-// alcança qualquer cliente com telefone. Segmento 'new' segue a mesma regra
-// já usada pro WhatsApp acima (únicos filtros realmente aplicados no
-// backend hoje); os demais segmentos (inactive/vip/birthday) só filtram na
-// prévia da tela, não aqui — mesma limitação pré-existente do envio de
-// WhatsApp, não é algo novo desta função.
-async function processPushCampaign(
-    supabase: ReturnType<typeof createClient>,
-    campaign: any,
-): Promise<{ sent: number; failed: number; errorMessage?: string }> {
-    let customerQuery = supabase.from('customers').select('id, name');
+type SupabaseAdmin = SupabaseClient;
+type Campaign = {
+  id: string;
+  name: string;
+  channel: string;
+  segment: string;
+  message: string | null;
+  title: string | null;
+  choices: unknown;
+  footer_text: string | null;
+  image_url: string | null;
+};
+type Customer = { id: string; name: string | null; phone?: string | null };
+type PushToken = { id: string; customer_id: string; token: string };
+type CampaignChoice = string | { title: string; value?: string };
 
-    if (campaign.segment === 'new') {
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-        customerQuery = customerQuery.gte('created_at', sevenDaysAgo.toISOString());
-    }
-
-    const { data: customers } = await customerQuery;
-    if (!customers || customers.length === 0) {
-        return { sent: 0, failed: 0, errorMessage: 'Segmento vazio (nenhum cliente encontrado)' };
-    }
-
-    const { data: tokenRows } = await supabase
-        .from('customer_push_tokens')
-        .select('*')
-        .in('customer_id', customers.map((c: any) => c.id));
-
-    if (!tokenRows || tokenRows.length === 0) {
-        return { sent: 0, failed: 0, errorMessage: 'Nenhum cliente do segmento tem o app instalado (sem token de push)' };
-    }
-
-    const serviceAccountRaw = Deno.env.get('FIREBASE_SERVICE_ACCOUNT_JSON');
-    if (!serviceAccountRaw) {
-        return { sent: 0, failed: tokenRows.length, errorMessage: 'FIREBASE_SERVICE_ACCOUNT_JSON não configurado' };
-    }
-    const serviceAccount = JSON.parse(serviceAccountRaw);
-    const accessToken = await getFcmAccessToken(serviceAccount);
-
-    const customerById = new Map(customers.map((c: any) => [c.id, c]));
-    let sent = 0;
-    let failed = 0;
-
-    for (const row of tokenRows) {
-        const customer = customerById.get(row.customer_id);
-        const body = (campaign.message || '').replace(/{name}/g, customer?.name || 'Cliente');
-
-        const result = await sendFcmMessage(
-            accessToken,
-            serviceAccount.project_id,
-            row.token,
-            { title: campaign.title || campaign.name || 'Açaí no Grau', body },
-        );
-
-        if (result.ok) {
-            sent++;
-        } else {
-            failed++;
-            if (result.unregistered) {
-                await supabase.from('customer_push_tokens').delete().eq('id', row.id);
-            }
-        }
-    }
-
-    return { sent, failed };
+async function isStaff(supabase: SupabaseAdmin, userId: string | undefined) {
+  if (!userId) return false;
+  const { data, error } = await supabase.from('user_roles').select('role')
+    .eq('user_id', userId).in('role', ['admin', 'manager', 'franchisee_master']).limit(1);
+  return !error && Boolean(data?.length);
 }
 
-Deno.serve(async (req) => {
-    if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
-
-    // Aciona apenas via cron (service_role) ou staff autenticado.
-    const authError = await requireStaffOrService(req);
-    if (authError) return authError;
-
-    try {
-        const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-        const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-        const supabase = createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false } });
-
-        console.log("⏰ Cron de Marketing Rodando...");
-
-        // 1. BUSCAR CAMPANHAS PENDENTES QUE JÁ CHEGARAM NA HORA
-        const now = new Date().toISOString();
-
-        const { data: campaigns } = await supabase
-            .from('scheduled_campaigns')
-            .select('*')
-            .eq('status', 'pending')
-            .lte('scheduled_for', now); // FILTRO DE DATA ATIVADO
-
-        if (!campaigns || campaigns.length === 0) {
-            console.log("💤 Nenhuma campanha agendada para agora.");
-            return new Response(JSON.stringify({ success: true, message: "Nada pendente para agora." }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });
-        }
-
-        const report = [];
-
-        // 2. PROCESSAR CAMPANHAS
-        for (const campaign of campaigns) {
-            console.log(`🚀 Processando campanha agendada: ${campaign.name}`);
-
-            let formattedChoices = [];
-            if (Array.isArray(campaign.choices)) {
-                formattedChoices = campaign.choices.map((c: any) => {
-                    if (typeof c === 'string') return c;
-                    return `${c.title}|${c.value || c.title}`;
-                });
-            }
-
-            // Marcar como enviando para evitar duplicidade
-            await supabase.from('scheduled_campaigns').update({ status: 'sending' }).eq('id', campaign.id);
-
-            if (campaign.channel === 'push') {
-                const pushResult = await processPushCampaign(supabase, campaign);
-                await supabase.from('scheduled_campaigns').update({
-                    status: 'sent',
-                    sent_count: pushResult.sent,
-                    failed_count: pushResult.failed,
-                    executed_at: new Date().toISOString(),
-                    ...(pushResult.errorMessage ? { error_message: pushResult.errorMessage } : {}),
-                }).eq('id', campaign.id);
-                report.push({ name: campaign.name, sent: pushResult.sent, failed: pushResult.failed });
-                continue;
-            }
-
-            // Buscar clientes
-            let query = supabase.from('customers').select('id, name, phone').not('phone', 'is', null);
-
-            if (campaign.segment === 'new') {
-                const sevenDaysAgo = new Date();
-                sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-                query = query.gte('created_at', sevenDaysAgo.toISOString());
-            }
-
-            const { data: customers } = await query;
-
-            if (!customers || customers.length === 0) {
-                console.log("⚠️ Segmento vazio.");
-                await supabase.from('scheduled_campaigns').update({
-                    status: 'sent',
-                    sent_count: 0,
-                    error_message: 'Segmento vazio (nenhum cliente encontrado)'
-                }).eq('id', campaign.id);
-                report.push({ name: campaign.name, status: 'empty' });
-                continue;
-            }
-
-            let sent = 0;
-            let failed = 0;
-
-            for (const customer of customers) {
-                try {
-                    let phone = customer.phone.replace(/\D/g, '');
-                    if (phone.length < 10) continue;
-
-                    if (phone.length <= 11 && !phone.startsWith('55')) {
-                        phone = '55' + phone;
-                    }
-
-                    let text = campaign.message.replace(/{name}/g, customer.name || 'Cliente');
-
-                    const body: any = {
-                        number: phone,
-                        type: 'button',
-                        text: text,
-                        choices: formattedChoices,
-                        footerText: campaign.footer_text || "Açaí no Grau"
-                    };
-
-                    if (campaign.image_url) {
-                        body.imageButton = campaign.image_url;
-                    }
-
-                    // Disparo
-                    const apiRes = await fetch(`${BTZAP_URL}/send/menu`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'token': BTZAP_TOKEN },
-                        body: JSON.stringify(body)
-                    });
-
-                    if (apiRes.ok) {
-                        sent++;
-                    } else {
-                        failed++;
-                        console.error(`Erro API ${phone}:`, await apiRes.text());
-                    }
-
-                } catch (err) {
-                    console.error("Erro processamento:", err);
-                    failed++;
-                }
-                await sleep(800);
-            }
-
-            // Atualizar Status Final
-            const { error: rpcError } = await supabase.rpc('admin_update_campaign_status', {
-                p_campaign_id: campaign.id,
-                p_status: 'sent',
-                p_sent_count: sent,
-                p_failed_count: failed
-            });
-
-            if (rpcError) {
-                await supabase.from('scheduled_campaigns').update({
-                    status: 'sent',
-                    sent_count: sent,
-                    failed_count: failed,
-                    executed_at: new Date().toISOString()
-                }).eq('id', campaign.id);
-            }
-
-            report.push({ name: campaign.name, sent, failed });
-        }
-
-        return new Response(
-            JSON.stringify({
-                success: true,
-                report
-            }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-        );
-
-    } catch (error: any) {
-        return new Response(
-            JSON.stringify({ success: false, error: error.message }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-        );
+async function readinessCheck(supabase: SupabaseAdmin, verifyIntegrations = false) {
+  if (!Deno.env.get('SUPABASE_URL') || !Deno.env.get('BTZAP_TOKEN')) {
+    return { ready: false, reason: 'required_configuration_missing' };
+  }
+  const firebaseRaw = Deno.env.get('FIREBASE_SERVICE_ACCOUNT_JSON');
+  if (!firebaseRaw) return { ready: false, reason: 'push_configuration_missing' };
+  try {
+    const parsed = JSON.parse(firebaseRaw);
+    if (!parsed.project_id || !parsed.client_email || !parsed.private_key) {
+      return { ready: false, reason: 'push_configuration_invalid' };
     }
-});
+  } catch {
+    return { ready: false, reason: 'push_configuration_invalid' };
+  }
+  const { error } = await supabase.from('scheduled_campaigns').select('id', { head: true }).limit(0);
+  if (error) return { ready: false, reason: 'campaign_schema_unavailable' };
+  if (verifyIntegrations) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5_000);
+      const response = await fetch(`${BTZAP_URL}/instance/status`, {
+        headers: { token: Deno.env.get('BTZAP_TOKEN') ?? '' },
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      if (!response.ok) return { ready: false, reason: 'whatsapp_api_unavailable' };
+      const status = await response.json().catch(() => null);
+      const instanceStatus = status?.instance?.status ?? status?.status;
+      if (instanceStatus !== 'connected') return { ready: false, reason: 'whatsapp_instance_not_connected' };
+      const serviceAccount = JSON.parse(firebaseRaw ?? '{}');
+      await getFcmAccessToken(serviceAccount);
+    } catch {
+      return { ready: false, reason: 'integration_check_failed' };
+    }
+  }
+  return { ready: true };
+}
+
+async function processPushCampaign(supabase: SupabaseAdmin, campaign: Campaign, ensureLease: () => void) {
+  let query = supabase.from('customers').select('id, name');
+  if (campaign.segment === 'new') {
+    const since = new Date();
+    since.setDate(since.getDate() - 7);
+    query = query.gte('created_at', since.toISOString());
+  }
+  const { data: customers, error: customerError } = await query;
+  if (customerError) throw new Error('customer_lookup_failed');
+  if (!customers?.length) return { sent: 0, failed: 0, errorMessage: 'Segmento vazio (nenhum cliente encontrado)' };
+
+  const customerRows = customers as Customer[];
+  const { data: tokenRows, error: tokenError } = await supabase.from('customer_push_tokens')
+    .select('id, customer_id, token').in('customer_id', customerRows.map((c) => c.id));
+  if (tokenError) throw new Error('push_token_lookup_failed');
+  if (!tokenRows?.length) return { sent: 0, failed: 0, errorMessage: 'Nenhum cliente do segmento tem o app instalado (sem token de push)' };
+
+  const serviceAccount = JSON.parse(Deno.env.get('FIREBASE_SERVICE_ACCOUNT_JSON') ?? '{}');
+  const accessToken = await getFcmAccessToken(serviceAccount);
+  const customerById = new Map(customerRows.map((c) => [c.id, c]));
+  let sent = 0;
+  let failed = 0;
+  for (const row of tokenRows as PushToken[]) {
+    ensureLease();
+    const customer = customerById.get(row.customer_id);
+    const body = (campaign.message || '').replace(/{name}/g, customer?.name || 'Cliente');
+    const result = await sendFcmMessage(accessToken, serviceAccount.project_id, row.token, {
+      title: campaign.title || campaign.name || 'Açaí no Grau', body,
+    });
+    if (result.ok) sent++;
+    else {
+      failed++;
+      if (result.unregistered) {
+        const { error } = await supabase.from('customer_push_tokens').delete().eq('id', row.id);
+        if (error) throw new Error('push_token_cleanup_failed');
+      }
+    }
+  }
+  return { sent, failed };
+}
+
+export async function runCampaigns(supabase: SupabaseAdmin) {
+  const { data: leaseAcquired, error: leaseError } = await supabase.rpc('acquire_scheduled_campaign_runner');
+  if (leaseError) throw new Error('runner_lock_unavailable');
+  if (!leaseAcquired) return json({ success: true, skipped: 'already_running' });
+
+  let leaseLost = false;
+  const heartbeat = setInterval(async () => {
+    const { data, error } = await supabase.rpc('renew_scheduled_campaign_runner');
+    if (error || !data) leaseLost = true;
+  }, 30_000);
+  const ensureLease = () => {
+    if (leaseLost) throw new Error('runner_lease_lost');
+  };
+  let response: Response;
+  try {
+    const { data: campaigns, error } = await supabase.from('scheduled_campaigns')
+      .select('id, name, channel, segment, message, title, choices, footer_text, image_url, scheduled_for')
+      .eq('status', 'pending').lte('scheduled_for', new Date().toISOString())
+      .order('scheduled_for', { ascending: true }).limit(25);
+    if (error) throw new Error('campaign_lookup_failed');
+    const report: Array<Record<string, unknown>> = [];
+    for (const campaign of (campaigns ?? []) as Campaign[]) {
+      ensureLease();
+      const { data: claimed, error: claimError } = await supabase.rpc('claim_scheduled_campaign', {
+        p_campaign_id: campaign.id,
+      });
+      if (claimError) throw new Error('campaign_claim_failed');
+      if (!claimed) continue;
+
+      try {
+        let sent = 0;
+        let failed = 0;
+        let errorMessage: string | undefined;
+        if (campaign.channel === 'push') {
+          const result = await processPushCampaign(supabase, campaign, ensureLease);
+          sent = result.sent;
+          failed = result.failed;
+          errorMessage = result.errorMessage;
+        } else {
+          let query = supabase.from('customers').select('id, name, phone').not('phone', 'is', null);
+          if (campaign.segment === 'new') {
+            const since = new Date();
+            since.setDate(since.getDate() - 7);
+            query = query.gte('created_at', since.toISOString());
+          }
+          const { data: customers, error: customerError } = await query;
+          if (customerError) throw new Error('customer_lookup_failed');
+          if (!customers?.length) errorMessage = 'Segmento vazio (nenhum cliente encontrado)';
+          const choices = Array.isArray(campaign.choices) ? (campaign.choices as CampaignChoice[]).map((choice) =>
+            typeof choice === 'string' ? choice : `${choice.title}|${choice.value || choice.title}`) : [];
+          for (const customer of customers ?? []) {
+            ensureLease();
+            try {
+              let phone = (customer.phone ?? '').replace(/\D/g, '');
+              if (phone.length < 10) continue;
+              if (phone.length <= 11 && !phone.startsWith('55')) phone = `55${phone}`;
+              const text = (campaign.message ?? '').replace(/{name}/g, customer.name || 'Cliente');
+              const payload: Record<string, unknown> = {
+                number: phone, type: 'button', text, choices,
+                footerText: campaign.footer_text || 'Açaí no Grau',
+              };
+              if (campaign.image_url) payload.imageButton = campaign.image_url;
+              const response = await fetch(`${BTZAP_URL}/send/menu`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', token: Deno.env.get('BTZAP_TOKEN') ?? '' },
+                body: JSON.stringify(payload),
+              });
+              if (response.ok) sent++;
+              else failed++;
+            } catch {
+              failed++;
+            }
+            await sleep(800);
+          }
+        }
+        const { error: updateError } = await supabase.rpc('admin_update_campaign_status', {
+          p_campaign_id: campaign.id, p_status: 'sent', p_sent_count: sent, p_failed_count: failed,
+        });
+        if (updateError) {
+          const { error: fallbackError } = await supabase.from('scheduled_campaigns').update({
+            status: 'sent', sent_count: sent, failed_count: failed,
+            executed_at: new Date().toISOString(), ...(errorMessage ? { error_message: errorMessage } : {}),
+          }).eq('id', campaign.id).eq('status', 'sending');
+          if (fallbackError) throw new Error('campaign_result_update_failed');
+        }
+        report.push({ campaign_id: campaign.id, sent, failed });
+      } catch {
+        const { error: updateError } = await supabase.from('scheduled_campaigns').update({
+          status: 'failed', error_message: 'scheduled_processing_failed', executed_at: new Date().toISOString(),
+        }).eq('id', campaign.id).eq('status', 'sending');
+        if (updateError) throw new Error('campaign_failure_update_failed');
+        report.push({ campaign_id: campaign.id, status: 'failed' });
+      }
+    }
+    response = json({ success: true, processed: report.length, report });
+  } catch {
+    response = json({ success: false, error: 'scheduled_campaigns_unavailable' }, 500);
+  } finally {
+    clearInterval(heartbeat);
+    const { error } = await supabase.rpc('release_scheduled_campaign_runner');
+    if (error) response = json({ success: false, error: 'runner_unlock_failed' }, 500);
+  }
+  return response;
+}
+
+type HandlerContext = {
+  authMode?: string;
+  userClaims?: { id?: string } | null;
+  supabaseAdmin: SupabaseAdmin;
+};
+
+export function createScheduledCampaignHandler(dependencies = {
+  readiness: readinessCheck,
+  process: runCampaigns,
+}) {
+  return async (req: Request, ctx: HandlerContext) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
+  if (ctx.authMode === 'user' && !(await isStaff(ctx.supabaseAdmin, ctx.userClaims?.id))) {
+    return json({ error: 'forbidden' }, 403);
+  }
+
+  try {
+    const body = await req.json().catch(() => ({}));
+    const mode = body?.mode ?? 'process';
+    if (mode === 'healthcheck' || mode === 'dry-run') {
+      const readiness = await dependencies.readiness(ctx.supabaseAdmin, true);
+      return json({ mode, ...readiness }, readiness.ready ? 200 : 503);
+    }
+    if (mode !== 'process') return json({ error: 'invalid_mode' }, 400);
+    const readiness = await dependencies.readiness(ctx.supabaseAdmin);
+    if (!readiness.ready) return json({ success: false, ...readiness }, 503);
+    return await dependencies.process(ctx.supabaseAdmin);
+  } catch {
+    return json({ success: false, error: 'scheduled_campaigns_unavailable' }, 500);
+  }
+  };
+}
+
+if (import.meta.main) {
+  const authenticatedHandler = withSupabase({ auth: ['user', 'secret'] }, createScheduledCampaignHandler());
+  Deno.serve((req) => req.method === 'OPTIONS'
+    ? new Response('ok', { headers: corsHeaders })
+    : authenticatedHandler(req));
+}

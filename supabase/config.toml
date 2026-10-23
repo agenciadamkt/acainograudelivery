@@ -1,5 +1,8 @@
 project_id = "sixzfcpdjtnftacuwvph"
 
+[functions.scheduled-campaigns-check]
+verify_jwt = false
+
 [functions.mercadopago-webhook]
 # O Mercado Pago chama a notification_url SEM JWT do Supabase. Sem esta linha,
 # o gateway responde 401 antes do código rodar e o PIX nunca é confirmado
