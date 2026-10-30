@@ -256,7 +256,7 @@ export function MetaWhatsAppSettingsTab() {
             </Button>
           </div>}
 
-          <p className="text-xs leading-relaxed text-muted-foreground">A Meta abre uma janela segura para autorizar a conta empresarial. Depois, o GrauOS valida o número, registra o webhook e mantém apenas os identificadores públicos necessários para direcionar o atendimento.</p>
+          <p className="text-xs leading-relaxed text-muted-foreground">A Meta abre uma janela segura para autorizar a conta empresarial. Depois, o GrauOS confirma o acesso ao número, registra a assinatura do webhook e guarda a credencial OAuth criptografada somente no servidor.</p>
         </CardContent>
       </Card>
     </div>

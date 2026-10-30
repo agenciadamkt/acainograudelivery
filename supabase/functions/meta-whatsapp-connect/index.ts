@@ -13,7 +13,7 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
 const env = (key: string) => Deno.env.get(key) ?? '';
 // Keep onboarding on the current Graph version without changing other Meta
 // integrations that still use META_GRAPH_API_VERSION.
-const graphVersion = () => env('META_WHATSAPP_ONBOARDING_GRAPH_API_VERSION') || 'v26.0';
+const graphVersion = () => 'v26.0';
 
 async function graph(path: string, init: RequestInit = {}) {
   const response = await fetch(`https://graph.facebook.com/${graphVersion()}/${path}`, init);
