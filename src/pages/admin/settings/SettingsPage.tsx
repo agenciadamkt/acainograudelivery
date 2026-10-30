@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
-import { Settings, Store, CreditCard, Bell, Palette, Users, Plug, FileText, Printer } from 'lucide-react';
+import { Settings, Store, CreditCard, Bell, Plug, FileText, Printer, MessageCircle } from 'lucide-react';
 import { useSystemSettings, useUpdateSystemSetting } from '@/hooks/useSystemSettings';
 import { useIntegrations } from '@/hooks/useIntegrations';
 import { useActivityLogs } from '@/hooks/useActivityLogs';
@@ -16,6 +16,7 @@ import { StoreSettingsTab } from "./StoreSettingsTab";
 import { PrinterSettingsTab } from "./PrinterSettingsTab";
 import { PaymentSettingsTab } from "./PaymentSettingsTab";
 import { UazapiIntegrationTab } from "./UazapiIntegrationTab";
+import { MetaWhatsAppSettingsTab } from "./MetaWhatsAppSettingsTab";
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from '@/hooks/use-toast';
@@ -66,7 +67,7 @@ export default function SettingsPage() {
       </div>
 
       <Tabs defaultValue="store" className="space-y-4">
-        <TabsList className="grid w-full h-auto grid-cols-2 md:grid-cols-4 lg:grid-cols-7">
+        <TabsList className="grid w-full h-auto grid-cols-2 md:grid-cols-4 lg:grid-cols-8">
           <TabsTrigger value="store">
             <Store className="h-4 w-4 mr-2" />
             Loja
@@ -90,6 +91,10 @@ export default function SettingsPage() {
           <TabsTrigger value="integrations">
             <Plug className="h-4 w-4 mr-2" />
             Integrações
+          </TabsTrigger>
+          <TabsTrigger value="meta-whatsapp">
+            <MessageCircle className="h-4 w-4 mr-2" />
+            WhatsApp oficial
           </TabsTrigger>
           <TabsTrigger value="logs">
             <FileText className="h-4 w-4 mr-2" />
@@ -300,6 +305,10 @@ export default function SettingsPage() {
 
         <TabsContent value="integrations" className="space-y-4">
           <UazapiIntegrationTab />
+        </TabsContent>
+
+        <TabsContent value="meta-whatsapp" className="space-y-4">
+          <MetaWhatsAppSettingsTab />
         </TabsContent>
 
         <TabsContent value="logs" className="space-y-4">

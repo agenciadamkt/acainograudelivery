@@ -36,3 +36,13 @@ entrypoint = "./functions/copilot-chat/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/copilot-chat/*.html" ]
+
+# Official WhatsApp onboarding: authenticated franchisee endpoints and Meta webhook.
+[functions.meta-whatsapp-webhook]
+verify_jwt = false
+
+[functions.meta-whatsapp-send]
+verify_jwt = true
+
+[functions.meta-whatsapp-connect]
+verify_jwt = true

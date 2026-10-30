@@ -27,6 +27,9 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_META_APP_ID: '1086622103852064'
+          VITE_META_WHATSAPP_CONFIG_ID: '1103489992138559'
+          VITE_META_GRAPH_API_VERSION: 'v26.0'
 
       - name: 📂 Sincronizar Arquivos via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.4
