@@ -17,8 +17,10 @@ type FacebookSdk = {
 };
 declare global { interface Window { FB?: FacebookSdk } }
 
-const appId = import.meta.env.VITE_META_APP_ID as string | undefined;
-const configId = import.meta.env.VITE_META_WHATSAPP_CONFIG_ID as string | undefined;
+// Public IDs for the approved Meta app. Environment values can override them,
+// while these defaults keep manual builds configured as well.
+const appId = ((import.meta.env.VITE_META_APP_ID as string | undefined)?.trim() || '1086622103852064');
+const configId = ((import.meta.env.VITE_META_WHATSAPP_CONFIG_ID as string | undefined)?.trim() || '1103489992138559');
 const graphVersion = (import.meta.env.VITE_META_GRAPH_API_VERSION as string | undefined) || 'v26.0';
 const META_SIGNUP_ORIGIN = 'https://www.facebook.com';
 
