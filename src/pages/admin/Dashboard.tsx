@@ -158,7 +158,7 @@ export default function Dashboard() {
       <section className="relative isolate overflow-hidden rounded-[28px] border border-white/70 bg-white/[0.85] shadow-[0_18px_60px_rgba(0,0,0,0.06)] backdrop-blur-xl dark:border-white/10 dark:bg-[#151821]/[0.92] dark:shadow-[0_24px_70px_rgba(0,0,0,0.34)]">
         <div aria-hidden="true" className="pointer-events-none absolute -right-10 -bottom-20 z-0 hidden h-72 w-80 rounded-[44%_56%_39%_61%] bg-[#a875e8]/10 blur-3xl md:block" />
         <div aria-hidden="true" className="pointer-events-none absolute right-20 bottom-8 z-0 hidden h-44 w-52 rounded-[58%_42%_63%_37%] bg-[#c9a8f2]/15 blur-2xl md:block lg:right-28" />
-        <div className="relative z-10 px-6 pt-7 sm:px-8 sm:pt-8 md:pr-[225px] lg:pr-[360px]">
+        <div className="relative z-10 px-6 pt-7 sm:px-8 sm:pt-8 md:pr-[225px] lg:pr-[320px]">
           <div className="flex flex-col gap-2">
             <p className="text-[12px] font-semibold uppercase tracking-[0.16em] text-[#8a8a8e] dark:text-white/50">
               Operação em Tempo Real
@@ -172,9 +172,9 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="relative z-10 mt-8 w-full px-4 pb-5 sm:px-6 md:w-[calc(100%_-_210px)] lg:w-[calc(100%_-_330px)]">
-          <div className="overflow-x-auto">
-            <div className="flex min-w-max items-end gap-3 sm:gap-5">
+        <div className="relative z-10 mt-8 w-full px-4 pb-5 sm:px-6 md:w-[calc(100%_-_210px)] lg:w-[calc(100%_-_300px)]">
+          <div className="overflow-x-auto md:overflow-visible">
+            <div className="flex min-w-max items-end gap-3 sm:gap-5 md:min-w-0 md:flex-wrap md:gap-3 lg:flex-nowrap lg:gap-2">
             {operationItems.map((item) => {
               const Icon = item.icon;
               const active = item.url === '/admin/dashboard';
@@ -187,7 +187,7 @@ export default function Dashboard() {
                   whileTap={{ scale: 0.97 }}
                   onClick={() => navigate(item.url)}
                   className={cn(
-                    'group flex w-[118px] flex-col items-center gap-3 rounded-[24px] border px-3 py-4 text-center transition-all duration-200',
+                    'group flex w-[118px] flex-col items-center gap-3 rounded-[24px] border px-3 py-4 text-center transition-all duration-200 lg:w-[90px] lg:px-2',
                     active
                       ? 'border-[#1d1d1f] bg-[#1d1d1f] text-white shadow-[0_16px_38px_rgba(0,0,0,0.16)] dark:border-white dark:bg-white dark:text-[#1d1d1f]'
                       : 'border-transparent bg-transparent text-[#1d1d1f] hover:border-[#e8e8ed] hover:bg-[#f5f5f7] dark:text-white dark:hover:border-white/10 dark:hover:bg-white/10',
@@ -220,7 +220,7 @@ export default function Dashboard() {
           height={1061}
           loading="lazy"
           decoding="async"
-          className="pointer-events-none absolute bottom-0 right-2 z-10 hidden h-[180px] w-[205px] select-none object-contain md:block lg:right-5 lg:h-[250px] lg:w-[330px]"
+          className="pointer-events-none absolute bottom-0 right-2 z-10 hidden h-[180px] w-[205px] select-none object-contain md:block lg:right-5 lg:h-[220px] lg:w-[280px]"
         />
       </section>
 
