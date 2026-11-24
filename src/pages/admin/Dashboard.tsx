@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { BrandedLoader } from '@/components/ui/branded-loader';
 import { useAuth } from '@/contexts/AuthContext';
@@ -31,6 +32,9 @@ import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, end
 import { ptBR } from 'date-fns/locale';
 import { Progress } from '@/components/ui/progress';
 import { QuoteWidget } from '@/components/admin/quotes/QuoteWidget';
+import { useSidebarNav } from '@/components/admin/sidebar/useSidebarNav';
+import { cn } from '@/lib/utils';
+import mascotFranq from '@/assets/mascote-franqueado.png';
 const COLORS = ['#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#3b82f6'];
 
 type Period = 'today' | 'week' | 'month' | 'yesterday';
@@ -38,6 +42,9 @@ type Period = 'today' | 'week' | 'month' | 'yesterday';
 export default function Dashboard() {
   const { user } = useAuth();
   const { currentStore } = useStore();
+  const navigate = useNavigate();
+  const { sections } = useSidebarNav('/admin/dashboard');
+  const operationItems = sections.find((section) => section.id === 'operacao')?.items ?? [];
   const [realTime, setRealTime] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(new Date());
   const [period, setPeriod] = useState<Period>('today');
@@ -147,6 +154,75 @@ export default function Dashboard() {
           </Select>
         </div>
       </div>
+
+      <section className="relative isolate overflow-hidden rounded-[28px] border border-white/70 bg-white/[0.85] shadow-[0_18px_60px_rgba(0,0,0,0.06)] backdrop-blur-xl dark:border-white/10 dark:bg-[#151821]/[0.92] dark:shadow-[0_24px_70px_rgba(0,0,0,0.34)]">
+        <div aria-hidden="true" className="pointer-events-none absolute -right-10 -bottom-20 z-0 hidden h-72 w-80 rounded-[44%_56%_39%_61%] bg-[#a875e8]/10 blur-3xl md:block" />
+        <div aria-hidden="true" className="pointer-events-none absolute right-20 bottom-8 z-0 hidden h-44 w-52 rounded-[58%_42%_63%_37%] bg-[#c9a8f2]/15 blur-2xl md:block lg:right-28" />
+        <div className="relative z-10 px-6 pt-7 sm:px-8 sm:pt-8 md:pr-[225px] lg:pr-[360px]">
+          <div className="flex flex-col gap-2">
+            <p className="text-[12px] font-semibold uppercase tracking-[0.16em] text-[#8a8a8e] dark:text-white/50">
+              Operação em Tempo Real
+            </p>
+            <h2 className="text-4xl font-semibold tracking-[-0.04em] text-[#1d1d1f] dark:text-white sm:text-5xl">
+              Acesse a operação.
+            </h2>
+            <p className="max-w-2xl text-[15px] font-medium leading-6 text-[#707070] dark:text-white/[0.55]">
+              Os atalhos principais do menu operacional ficam reunidos aqui, com acesso direto aos módulos do dia.
+            </p>
+          </div>
+        </div>
+
+        <div className="relative z-10 mt-8 w-full px-4 pb-5 sm:px-6 md:w-[calc(100%_-_210px)] lg:w-[calc(100%_-_330px)]">
+          <div className="overflow-x-auto">
+            <div className="flex min-w-max items-end gap-3 sm:gap-5">
+            {operationItems.map((item) => {
+              const Icon = item.icon;
+              const active = item.url === '/admin/dashboard';
+
+              return (
+                <motion.button
+                  key={item.url}
+                  type="button"
+                  whileHover={{ y: -3 }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => navigate(item.url)}
+                  className={cn(
+                    'group flex w-[118px] flex-col items-center gap-3 rounded-[24px] border px-3 py-4 text-center transition-all duration-200',
+                    active
+                      ? 'border-[#1d1d1f] bg-[#1d1d1f] text-white shadow-[0_16px_38px_rgba(0,0,0,0.16)] dark:border-white dark:bg-white dark:text-[#1d1d1f]'
+                      : 'border-transparent bg-transparent text-[#1d1d1f] hover:border-[#e8e8ed] hover:bg-[#f5f5f7] dark:text-white dark:hover:border-white/10 dark:hover:bg-white/10',
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'grid h-16 w-16 place-items-center rounded-[20px] border transition-colors',
+                      active
+                        ? 'border-white/[0.15] bg-white/[0.12] dark:border-black/10 dark:bg-black/5'
+                        : 'border-[#e8e8ed] bg-white shadow-sm group-hover:bg-white dark:border-white/10 dark:bg-white/10',
+                    )}
+                  >
+                    <Icon className={cn('h-7 w-7', item.highlight && !active ? 'text-[#882DE7]' : '')} />
+                  </span>
+                  <span className="min-h-[34px] text-[13px] font-semibold leading-[17px] tracking-[-0.01em]">
+                    {item.title}
+                  </span>
+                </motion.button>
+              );
+            })}
+            </div>
+          </div>
+        </div>
+        <img
+          src={mascotFranq}
+          alt=""
+          aria-hidden="true"
+          width={1483}
+          height={1061}
+          loading="lazy"
+          decoding="async"
+          className="pointer-events-none absolute bottom-0 right-2 z-10 hidden h-[180px] w-[205px] select-none object-contain md:block lg:right-5 lg:h-[250px] lg:w-[330px]"
+        />
+      </section>
 
       <QuoteWidget />
 
@@ -360,13 +436,13 @@ export default function Dashboard() {
 
 function StatCard({ label, value, icon, color, iconColor }: any) {
   return (
-    <Card className={`border-none shadow-sm ${color}`}>
+    <Card className={`border-none shadow-sm dark:border dark:border-white/10 dark:bg-[#151821] dark:shadow-[0_16px_42px_rgba(0,0,0,0.26)] ${color}`}>
       <CardContent className="p-5 flex items-center justify-between">
         <div>
           <span className="text-2xl font-bold block">{value}</span>
           <span className="text-xs text-muted-foreground font-medium">{label}</span>
         </div>
-        <div className={`p-2 rounded-xl ${iconColor}`}>
+        <div className={`p-2 rounded-xl ${iconColor} dark:bg-white/[0.08]`}>
           {icon}
         </div>
       </CardContent>
@@ -376,7 +452,7 @@ function StatCard({ label, value, icon, color, iconColor }: any) {
 
 function MetricCard({ label, value, subValue, icon, iconColor, type }: any) {
   return (
-    <Card className="border-none shadow-sm relative overflow-hidden">
+    <Card className="border-none shadow-sm relative overflow-hidden dark:border dark:border-white/10 dark:bg-[#151821] dark:shadow-[0_16px_42px_rgba(0,0,0,0.26)]">
       {type === 'financial' && (
         <div className="absolute top-0 left-0 w-1 h-full bg-orange-100" />
       )}
@@ -389,7 +465,7 @@ function MetricCard({ label, value, subValue, icon, iconColor, type }: any) {
               {subValue}
             </span>
           </div>
-          <div className={`p-3 rounded-2xl ${iconColor}`}>
+        <div className={`p-3 rounded-2xl ${iconColor} dark:bg-white/[0.08]`}>
             {icon}
           </div>
         </div>
@@ -400,11 +476,11 @@ function MetricCard({ label, value, subValue, icon, iconColor, type }: any) {
 
 function ParticipationCard({ title, value, count, percent, icon, iconBg, progressColor }: any) {
   return (
-    <Card className="border-none shadow-sm">
+    <Card className="border-none shadow-sm dark:border dark:border-white/10 dark:bg-[#151821] dark:shadow-[0_16px_42px_rgba(0,0,0,0.26)]">
       <CardContent className="p-4">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-xl ${iconBg}`}>
+            <div className={`p-2 rounded-xl ${iconBg} dark:bg-white/[0.08]`}>
               {icon}
             </div>
             <div>
@@ -427,7 +503,7 @@ function ParticipationCard({ title, value, count, percent, icon, iconBg, progres
 
 function FooterStat({ label, value }: any) {
   return (
-    <Card className="border-none shadow-sm bg-white/50 backdrop-blur-sm">
+    <Card className="border-none shadow-sm bg-white/50 backdrop-blur-sm dark:border dark:border-white/10 dark:bg-[#151821]/80 dark:shadow-[0_16px_42px_rgba(0,0,0,0.24)]">
       <CardContent className="p-4 text-center">
         <span className="text-xl font-bold block">{value}</span>
         <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">{label}</span>
