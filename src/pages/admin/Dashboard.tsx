@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { BrandedLoader } from '@/components/ui/branded-loader';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStore } from '@/contexts/StoreContext';
@@ -21,7 +20,10 @@ import {
   Volume2,
   Wifi,
   Utensils,
-  Truck
+  Truck,
+  Bot,
+  MessageCircle,
+  Sparkles,
 } from 'lucide-react';
 import { useDashboardStats, DashboardData } from '@/hooks/useDashboardStats';
 import {
@@ -101,6 +103,14 @@ export default function Dashboard() {
 
   if (!stats) return null;
 
+  const storeTimeZone = currentStore?.timezone || 'America/Fortaleza';
+  const localHour = Number(new Intl.DateTimeFormat('en-US', {
+    hour: '2-digit',
+    hourCycle: 'h23',
+    timeZone: storeTimeZone,
+  }).format(new Date()));
+  const greeting = localHour < 12 ? 'Bom dia.' : localHour < 18 ? 'Boa tarde.' : 'Boa noite.';
+
   return (
     <div className="space-y-6 pb-12">
       {/* Header Section */}
@@ -155,73 +165,86 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <section className="relative isolate overflow-hidden rounded-[28px] border border-white/70 bg-white/[0.85] shadow-[0_18px_60px_rgba(0,0,0,0.06)] backdrop-blur-xl dark:border-white/10 dark:bg-[#151821]/[0.92] dark:shadow-[0_24px_70px_rgba(0,0,0,0.34)]">
-        <div aria-hidden="true" className="pointer-events-none absolute -right-10 -bottom-20 z-0 hidden h-72 w-80 rounded-[44%_56%_39%_61%] bg-[#a875e8]/10 blur-3xl md:block" />
-        <div aria-hidden="true" className="pointer-events-none absolute right-20 bottom-8 z-0 hidden h-44 w-52 rounded-[58%_42%_63%_37%] bg-[#c9a8f2]/15 blur-2xl md:block lg:right-28" />
-        <div className="relative z-10 px-6 pt-7 sm:px-8 sm:pt-8 md:pr-[225px] lg:pr-[320px]">
-          <div className="flex flex-col gap-2">
-            <p className="text-[12px] font-semibold uppercase tracking-[0.16em] text-[#8a8a8e] dark:text-white/50">
-              Operação em Tempo Real
-            </p>
-            <h2 className="text-4xl font-semibold tracking-[-0.04em] text-[#1d1d1f] dark:text-white sm:text-5xl">
-              Acesse a operação.
-            </h2>
-            <p className="max-w-2xl text-[15px] font-medium leading-6 text-[#707070] dark:text-white/[0.55]">
-              Os atalhos principais do menu operacional ficam reunidos aqui, com acesso direto aos módulos do dia.
-            </p>
-          </div>
-        </div>
+      <section className="relative isolate overflow-hidden rounded-[24px] border border-[#e9e3f1] bg-[linear-gradient(105deg,#fff_0%,#fff_48%,#faf7ff_72%,#f1fbf3_100%)] shadow-[0_12px_36px_rgba(64,18,128,0.07)] dark:border-white/10 dark:bg-[linear-gradient(105deg,#15141a_0%,#18151f_55%,#172019_100%)]">
+        <div aria-hidden="true" className="pointer-events-none absolute -right-16 -top-28 h-80 w-80 rounded-[48%_52%_61%_39%] bg-[#d9c5fa]/35 blur-3xl" />
+        <div aria-hidden="true" className="pointer-events-none absolute right-[9%] bottom-[-5rem] h-64 w-72 rounded-[60%_40%_43%_57%] bg-[#d8f5df]/70 blur-3xl dark:bg-emerald-900/20" />
+        <div className="relative z-10 grid min-h-[330px] grid-cols-1 gap-5 p-5 sm:p-7 lg:grid-cols-[1.15fr_.85fr] lg:gap-4 lg:p-7 xl:grid-cols-[1.2fr_.8fr]">
+          <div className="flex min-w-0 flex-col justify-between gap-5">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-[#e7dcf8] bg-[#f5efff] px-3 py-1.5 text-[10px] font-bold tracking-[0.12em] text-[#5421a7] dark:border-violet-300/20 dark:bg-violet-300/10 dark:text-violet-200">
+                <span className={cn('h-2 w-2 rounded-full', realTime ? 'bg-[#159447] shadow-[0_0_0_3px_rgba(21,148,71,0.12)]' : 'bg-[#a1a1aa]')} />
+                {realTime ? 'OPERAÇÃO EM TEMPO REAL' : 'ATUALIZAÇÃO PAUSADA'}
+              </div>
+              <h2 className="mt-4 max-w-[760px] text-[clamp(1.65rem,2.15vw,2.15rem)] font-semibold leading-[1.12] tracking-[-0.045em] text-[#18181b] dark:text-white [text-wrap:balance]">
+                <span>{greeting} </span><span className="text-[#401280] dark:text-[#c6a7ff]">Vamos acompanhar</span>{' '}
+                <span className="text-[#159447] dark:text-[#83d69a]">sua operação?</span>
+              </h2>
+              <p className="mt-2 max-w-[62ch] text-[13px] leading-5 text-[#52525b] dark:text-white/65 sm:text-sm">
+                Os principais atalhos da sua operação e orientações estratégicas estão reunidos aqui para você tomar decisões com mais rapidez e segurança.
+              </p>
+            </div>
 
-        <div className="relative z-10 mt-8 w-full px-4 pb-5 sm:px-6 md:w-[calc(100%_-_210px)] lg:w-[calc(100%_-_300px)]">
-          <div className="overflow-x-auto md:overflow-visible">
-            <div className="flex min-w-max items-end gap-3 sm:gap-5 md:min-w-0 md:flex-wrap md:gap-3 lg:flex-nowrap lg:gap-2">
-            {operationItems.map((item) => {
-              const Icon = item.icon;
-              const active = item.url === '/admin/dashboard';
+            <nav aria-label="Atalhos operacionais" className="grid grid-cols-4 gap-2 min-[1440px]:grid-cols-8">
+              {operationItems.map((item) => {
+                const Icon = item.icon;
+                const active = item.url === '/admin/dashboard';
 
-              return (
-                <motion.button
-                  key={item.url}
-                  type="button"
-                  whileHover={{ y: -3 }}
-                  whileTap={{ scale: 0.97 }}
-                  onClick={() => navigate(item.url)}
-                  className={cn(
-                    'group flex w-[118px] flex-col items-center gap-3 rounded-[24px] border px-3 py-4 text-center transition-all duration-200 lg:w-[90px] lg:px-2',
-                    active
-                      ? 'border-[#1d1d1f] bg-[#1d1d1f] text-white shadow-[0_16px_38px_rgba(0,0,0,0.16)] dark:border-white dark:bg-white dark:text-[#1d1d1f]'
-                      : 'border-transparent bg-transparent text-[#1d1d1f] hover:border-[#e8e8ed] hover:bg-[#f5f5f7] dark:text-white dark:hover:border-white/10 dark:hover:bg-white/10',
-                  )}
-                >
-                  <span
+                return (
+                  <button
+                    key={item.url}
+                    type="button"
+                    onClick={() => navigate(item.url)}
+                    aria-current={active ? 'page' : undefined}
                     className={cn(
-                      'grid h-16 w-16 place-items-center rounded-[20px] border transition-colors',
+                      'group flex min-h-[76px] min-w-0 flex-col items-center justify-center gap-1.5 rounded-[16px] border px-1.5 py-2 text-center transition-[transform,box-shadow,background-color,border-color] duration-200 motion-reduce:transition-none active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6224D4] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#17151c] sm:min-h-[82px] sm:gap-2',
                       active
-                        ? 'border-white/[0.15] bg-white/[0.12] dark:border-black/10 dark:bg-black/5'
-                        : 'border-[#e8e8ed] bg-white shadow-sm group-hover:bg-white dark:border-white/10 dark:bg-white/10',
+                        ? 'border-[#5420b4] bg-gradient-to-br from-[#6224D4] to-[#401280] text-white shadow-[0_8px_18px_rgba(98,36,212,0.22)]'
+                        : 'border-[#ebe7f0] bg-white/85 text-[#28242d] shadow-[0_2px_8px_rgba(40,24,62,0.04)] hover:-translate-y-0.5 hover:border-[#d4c2ef] hover:shadow-[0_8px_16px_rgba(64,18,128,0.09)] dark:border-white/10 dark:bg-white/[0.06] dark:text-white dark:hover:bg-white/10',
                     )}
                   >
-                    <Icon className={cn('h-7 w-7', item.highlight && !active ? 'text-[#882DE7]' : '')} />
-                  </span>
-                  <span className="min-h-[34px] text-[13px] font-semibold leading-[17px] tracking-[-0.01em]">
-                    {item.title}
-                  </span>
-                </motion.button>
-              );
-            })}
-            </div>
+                    <span className={cn('grid h-8 w-8 place-items-center rounded-[11px]', active ? 'bg-white/15' : 'bg-[#f3eafe] text-[#6224D4] dark:bg-violet-300/10 dark:text-violet-200')}>
+                      <Icon className="h-[17px] w-[17px]" aria-hidden="true" />
+                    </span>
+                    <span className="max-w-full text-[10px] font-semibold leading-[1.2] tracking-[-0.01em] sm:text-[11px]">{item.title}</span>
+                  </button>
+                );
+              })}
+            </nav>
           </div>
+
+          <aside className="relative flex min-h-[210px] min-w-0 items-center justify-end overflow-hidden rounded-[20px] border border-white/70 bg-white/25 px-3 py-4 dark:border-white/10 dark:bg-white/[0.025] lg:min-h-0 lg:px-2">
+            <div aria-hidden="true" className="pointer-events-none absolute bottom-5 left-[8%] h-8 w-[34%] rounded-[50%] bg-[#261143]/15 blur-xl" />
+            <div aria-hidden="true" className="pointer-events-none absolute left-[7%] top-[12%] h-44 w-44 rounded-[46%_54%_68%_32%] bg-[#d4f4dc]/75 blur-2xl dark:bg-emerald-400/10" />
+            <img
+              src={mascotFranq}
+              alt="Mascote oficial do agente da Loja Franqueada"
+              width={1483}
+              height={1061}
+              loading="eager"
+              decoding="async"
+              className="pointer-events-none absolute bottom-0 left-0 z-[1] h-[190px] w-[48%] select-none object-contain object-bottom sm:h-[220px] lg:h-[215px] xl:h-[245px]"
+            />
+            <div className="relative z-[2] ml-[39%] w-[61%] rounded-[20px] border border-[#e8def4] bg-white/95 p-3.5 shadow-[0_12px_30px_rgba(64,18,128,0.11)] backdrop-blur-md dark:border-white/10 dark:bg-[#201b29]/95 sm:p-4">
+              <div className="flex items-center gap-2">
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[11px] bg-[#f3eafe] text-[#6224D4] dark:bg-violet-300/10 dark:text-violet-200"><Bot className="h-4 w-4" /></span>
+                <div className="min-w-0">
+                  <p className="truncate text-[13px] font-semibold text-[#18181b] dark:text-white">Agente Loja Franqueada</p>
+                  <p className="flex items-center gap-1 text-[10px] font-medium text-[#71717a] dark:text-white/55"><Sparkles className="h-3 w-3 text-[#6224D4]" />Assistência da unidade</p>
+                </div>
+              </div>
+              <p className="mt-3 text-[12px] leading-[1.45] text-[#52525b] dark:text-white/70">Estou aqui para ajudar você com pedidos, caixa e visão do dia.</p>
+              <button
+                type="button"
+                disabled
+                aria-describedby="franchise-agent-unavailable"
+                className="mt-3 flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#6224D4] to-[#401280] px-3 py-2.5 text-[11px] font-semibold text-white opacity-60"
+              >
+                <MessageCircle className="h-4 w-4" />Falar com o agente <span aria-hidden="true">→</span>
+              </button>
+              <p id="franchise-agent-unavailable" className="mt-2 text-[10px] leading-4 text-[#71717a] dark:text-white/50">Agente exclusivo da unidade ainda indisponível.</p>
+            </div>
+          </aside>
         </div>
-        <img
-          src={mascotFranq}
-          alt=""
-          aria-hidden="true"
-          width={1483}
-          height={1061}
-          loading="lazy"
-          decoding="async"
-          className="pointer-events-none absolute bottom-0 right-2 z-10 hidden h-[180px] w-[205px] select-none object-contain md:block lg:right-5 lg:h-[220px] lg:w-[280px]"
-        />
       </section>
 
       <QuoteWidget />
